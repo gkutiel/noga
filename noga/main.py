@@ -1,10 +1,10 @@
 import pandas as pd
 
 
-def describe():
+def columns():
     noga = pd.read_csv("data/noga.csv")
-    print(noga.describe())
+    print(noga.columns)
 
 
 if __name__ == "__main__":
-    describe()
+    columns()
