@@ -4,6 +4,7 @@ tasks:
   xlsx2csv:
     desc: "Convert noga's data from xlsx to csv"
     status:
-      - test -f data/noga.csv"
+      - test -f data/noga.csv
     cmds:
       - "libreoffice --headless --convert-to csv data/noga.xlsx --outdir data"
+      - "tail -n +2 data/noga.csv > data/noga.csv.tmp && mv data/noga.csv.tmp data/noga.csv"
