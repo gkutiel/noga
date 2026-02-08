@@ -14,3 +14,13 @@ tasks:
       - test -f data/ims.csv
     cmds:
       - "uv run -m noga.data ims_csv"
+
+  data_csv:
+    desc: "Convert all data from xlsx to csv"
+    deps:
+      - noga_csv
+      - ims_csv
+    status:
+      - test -f data/data.csv
+    cmds:
+      - "uv run -m noga.data data_csv"
