@@ -1,9 +1,16 @@
 version: "3"
 
 tasks:
-  csv:
+  noga_csv:
     desc: "Convert noga's data from xlsx to csv"
     status:
       - test -f data/noga.csv
     cmds:
       - "uv run -m noga.data noga_csv"
+
+  ims_csv:
+    desc: "Convert IMS data from xlsx to csv"
+    status:
+      - test -f data/ims.csv
+    cmds:
+      - "uv run -m noga.data ims_csv"
