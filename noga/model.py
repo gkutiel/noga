@@ -10,11 +10,15 @@ class Model(pl.LightningModule):
     def __init__(self):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(10, 64),
-            nn.ReLU(),
+            nn.Linear(15, 32),
+            nn.LeakyReLU(),
+            nn.Linear(32, 32),
+            nn.LeakyReLU(),
+            nn.Linear(32, 32),
+            nn.LeakyReLU(),
         )
 
-        self.out = nn.Linear(64, 1)
+        self.out = nn.Linear(32, 1)
 
     def forward(self, x):
         x = self.net(x)
@@ -22,8 +26,8 @@ class Model(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         (
-            # time,
-            # wind_dir,
+            time,
+            wind_dir,
 
             temperature,
             humidity,
@@ -37,20 +41,24 @@ class Model(pl.LightningModule):
         ], dim=1)
 
         y_hat = self.forward(x)
-        loss = nn.functional.mse_loss(y_hat, y)
-        self.log("train_loss", loss)
+        loss = nn.functional.l1_loss(y_hat, y)
+
+        self.log(
+            "train_loss",
+            loss,
+            prog_bar=True)
+
         return loss
 
     def configure_optimizers(self):
         return torch.optim.Adam(
             params=self.parameters(),
-            lr=.1)
+            lr=1e-3)
 
 
 class Data(Dataset):
     def __init__(self):
         data = pd.read_csv("data/data.csv")
-        print(*enumerate(data.columns), sep="\n")
 
         self.time = torch.tensor(
             data.iloc[:, 1:4].values,
@@ -76,6 +84,16 @@ class Data(Dataset):
             data.iloc[:, -1].values,
             dtype=torch.float32)
 
+        # NORMALIZE THE DATA
+        self.temperature = (
+            self.temperature - self.temperature.mean(0)) / self.temperature.std(0)
+
+        self.humidity = (
+            self.humidity - self.humidity.mean(0)) / self.humidity.std(0)
+
+        self.wind_speed = (
+            self.wind_speed - self.wind_speed.mean(0)) / self.wind_speed.std(0)
+
     def __len__(self):
         return len(self.y)
 
@@ -95,12 +113,12 @@ if __name__ == "__main__":
     dataset = Data()
     dl = DataLoader(
         dataset,
-        batch_size=32,
+        batch_size=256,
         shuffle=False)
 
     model = Model()
     trainer = pl.Trainer(
-        max_epochs=10,
+        max_epochs=20,
         accelerator="cpu",
         devices=1)
 
