@@ -1,6 +1,7 @@
 import pandas as pd
 import pytorch_lightning as pl
 import torch
+from lightning_fabric import seed_everything
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
@@ -110,6 +111,7 @@ class Data(Dataset):
 
 
 if __name__ == "__main__":
+    seed_everything(0)
     dataset = Data()
     dl = DataLoader(
         dataset,
