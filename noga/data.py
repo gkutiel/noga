@@ -94,7 +94,66 @@ def data_csv() -> None:
         format="%H:%M").dt.strftime("%H:%M")
 
     data = pd.merge(noga, ims, on=["date", "time"], how="inner")
-    print(f"Data shape: {data.shape}")
+
+    # TO NUMERIC
+    data['day-ahead-forecast'] = pd.to_numeric(
+        data['day-ahead-forecast'],
+        errors='coerce')
+
+    data['actual-demand'] = pd.to_numeric(
+        data['actual-demand'],
+        errors='coerce')
+
+    data = data.dropna()
+
+    # TIME FEATURES
+    date = pd.to_datetime(
+        data['date'],
+        format="%d-%m-%Y")
+
+    data['year'] = date.dt.year
+    data['month'] = date.dt.month
+    data['day'] = (date.dt.dayofweek + 1) % 7
+
+    data['hour'] = pd.to_datetime(
+        data['time'],
+        format="%H:%M").dt.hour
+
+    cols = [
+        # TIME
+        # 'date',
+        # 'time',
+        'year',
+        'month',
+        'day',
+        'hour',
+        # TEMPERATURE
+        'temperature_c_Haifa',
+        'temperature_c_Jerusalem',
+        'temperature_c_Tel Aviv',
+        'wet_bulb_temperature_c_Haifa',
+        'wet_bulb_temperature_c_Jerusalem',
+        'wet_bulb_temperature_c_Tel Aviv',
+        'dew_point_temperature_c_Haifa',
+        'dew_point_temperature_c_Jerusalem',
+        'dew_point_temperature_c_Tel Aviv',
+        # HUMIDITY
+        'relative_humidity_percent_Haifa',
+        'relative_humidity_percent_Jerusalem',
+        'relative_humidity_percent_Tel Aviv',
+        # WIND
+        'wind_direction_degrees_Haifa',
+        'wind_direction_degrees_Jerusalem',
+        'wind_direction_degrees_Tel Aviv',
+        'wind_speed_m_s_Haifa',
+        'wind_speed_m_s_Jerusalem',
+        'wind_speed_m_s_Tel Aviv',
+        # DEMAND
+        'day-ahead-forecast',
+        'updated-demand-forecast',
+        'actual-demand']
+
+    data = data[cols]
     data.to_csv("data/data.csv", index=False)
 
 

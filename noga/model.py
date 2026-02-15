@@ -21,7 +21,9 @@ class SimpleModel(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.parameters(), lr=0.01)
+        return torch.optim.Adam(
+            params=self.parameters(),
+            lr=.1)
 
 
 # 2. Prepare Dummy Data (y = 2x)
