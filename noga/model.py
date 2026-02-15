@@ -6,10 +6,11 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 EMBED_SIZE = 8
-LR = 1e-3
+LR = 5e-4
 EPOCHS = 100
 HIDDEN_SIZE = 128
-DEPTH = 6
+BATCH_SIZE = 256
+DEPTH = 8
 
 
 class Model(pl.LightningModule):
@@ -132,7 +133,7 @@ if __name__ == "__main__":
     dataset = Data()
     dl = DataLoader(
         dataset,
-        batch_size=256,
+        batch_size=BATCH_SIZE,
         shuffle=True)
 
     model = Model()
