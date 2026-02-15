@@ -5,11 +5,11 @@ from lightning_fabric import seed_everything
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
-EMBED_SIZE = 16
-LR = 5e-4
+EMBED_SIZE = 4
+LR = 1e-4
 EPOCHS = 200
 HIDDEN_SIZE = 256
-BATCH_SIZE = 256
+BATCH_SIZE = 512
 DEPTH = 10
 
 
