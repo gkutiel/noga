@@ -6,11 +6,16 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 EMBED_SIZE = 4
-LR = 1e-4
-EPOCHS = 200
-HIDDEN_SIZE = 256
-BATCH_SIZE = 512
-DEPTH = 10
+LR = 2e-4
+EPOCHS = 100
+HIDDEN_SIZE = 32
+BATCH_SIZE = 256
+DEPTH = 8
+NEGATIVE_SLOPE = 0.1
+
+
+def norm(data: torch.Tensor) -> torch.Tensor:
+    return (data - data.mean(dim=0)) / data.std(dim=0)
 
 
 class Model(pl.LightningModule):
@@ -23,10 +28,10 @@ class Model(pl.LightningModule):
 
         self.net = nn.Sequential(
             nn.Linear(3 * EMBED_SIZE + 15, HIDDEN_SIZE),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(NEGATIVE_SLOPE),
             *[nn.Sequential(
                 nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
-                nn.LeakyReLU()
+                nn.LeakyReLU(negative_slope=NEGATIVE_SLOPE)
             ) for _ in range(DEPTH)]
         )
 
@@ -109,9 +114,14 @@ class Data(Dataset):
         assert self.time[:, 1].max() < 7, "Day should be in the range [0, 6]"
         assert self.time[:, 2].min() >= 0, "Hour should be non-negative"
         assert self.time[:, 2].max() < 24, f"Hour {self.time[:, 2].max()}"
+
         assert self.wind_dir.min() >= 0, "Wind direction should be non-negative"
         assert self.wind_dir.max() <= 360, \
             f"Wind direction should be in the range [1, 360] {self.wind_dir.max()}"
+
+        self.temperature = norm(self.temperature)
+        self.humidity = norm(self.humidity)
+        self.wind_speed = norm(self.wind_speed)
 
     def __len__(self):
         return len(self.y)
