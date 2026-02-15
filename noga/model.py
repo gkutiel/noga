@@ -6,11 +6,11 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 EMBED_SIZE = 4
-LR = 1e-2
+LR = 1e-3
 EPOCHS = 100
 HIDDEN_SIZE = 32
 BATCH_SIZE = 256
-DEPTH = 8
+DEPTH = 20
 NEGATIVE_SLOPE = 0.1
 
 
