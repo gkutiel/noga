@@ -5,19 +5,19 @@ from lightning_fabric import seed_everything
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
+EMBED_SIZE = 8
 
-# 1. Define the System (Model + Training Logic)
+
 class Model(pl.LightningModule):
     def __init__(self):
         super().__init__()
 
-        self.month_embedding = nn.Embedding(13, 4)
-        self.day_embedding = nn.Embedding(7, 4)
-        self.hour_embedding = nn.Embedding(24, 4)
-        self.wind_dir_embedding = nn.Embedding(361, 4)
+        self.month_embedding = nn.Embedding(13, EMBED_SIZE)
+        self.day_embedding = nn.Embedding(7, EMBED_SIZE)
+        self.hour_embedding = nn.Embedding(24, EMBED_SIZE)
 
         self.net = nn.Sequential(
-            nn.Linear(27, 128),
+            nn.Linear(3 * EMBED_SIZE + 15, 128),
             nn.LeakyReLU(),
             nn.Linear(128, 128),
             nn.LeakyReLU(),
@@ -60,6 +60,8 @@ class Model(pl.LightningModule):
             wind_speed
         ], dim=1)
 
+        # print(x.shape, y.shape)
+        # exit(0)
         y_hat = self.forward(x)
         loss = nn.functional.l1_loss(y_hat, y)
 
@@ -73,7 +75,7 @@ class Model(pl.LightningModule):
     def configure_optimizers(self):
         return torch.optim.Adam(
             params=self.parameters(),
-            lr=1e-3)
+            lr=1e-4)
 
 
 class Data(Dataset):
@@ -102,7 +104,7 @@ class Data(Dataset):
 
         self.y = torch.tensor(
             data.iloc[:, -1].values,
-            dtype=torch.float32)
+            dtype=torch.float32).unsqueeze(1)
 
         assert self.time[:, 0].min() > 0, "Month should be non-negative"
         assert self.time[:, 0].max() <= 12, f"Month {self.time[:, 0].max()}"
@@ -135,14 +137,12 @@ if __name__ == "__main__":
     dl = DataLoader(
         dataset,
         batch_size=256,
-        shuffle=False)
+        shuffle=True)
 
-    r = next(iter(dl))
-    print(*r, sep="\n")
-    # model = Model()
-    # trainer = pl.Trainer(
-    #     max_epochs=20,
-    #     accelerator="cpu",
-    #     devices=1)
+    model = Model()
+    trainer = pl.Trainer(
+        max_epochs=100,
+        accelerator="cpu",
+        devices=1)
 
-    # trainer.fit(model, dl)
+    trainer.fit(model, dl)
