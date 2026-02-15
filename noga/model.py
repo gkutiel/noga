@@ -6,11 +6,11 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 EMBED_SIZE = 5
-LR = 2e-3
+LR = 1e-3
 EPOCHS = 50
-HIDDEN_SIZE = 32
+HIDDEN_SIZE = 128
 BATCH_SIZE = 128
-DEPTH = 6
+DEPTH = 7
 NEGATIVE_SLOPE = 0.1
 
 
@@ -171,3 +171,10 @@ if __name__ == "__main__":
     pred = data[['actual-demand', 'day-ahead-forecast']].copy()
     pred['y_hat'] = y_hat
     pred.round(0).to_csv("data/pred.csv", index=False)
+
+    mae_baseline = (pred['actual-demand'] -
+                    pred['day-ahead-forecast']).abs().mean()
+
+    mae_model = (pred['actual-demand'] - pred['y_hat']).abs().mean()
+    print(f"Baseline MAE: {mae_baseline:.2f}")
+    print(f"Model MAE: {mae_model:.2f}")
