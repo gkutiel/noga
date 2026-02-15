@@ -5,12 +5,12 @@ from lightning_fabric import seed_everything
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
-EMBED_SIZE = 8
+EMBED_SIZE = 16
 LR = 5e-4
-EPOCHS = 100
-HIDDEN_SIZE = 128
+EPOCHS = 200
+HIDDEN_SIZE = 256
 BATCH_SIZE = 256
-DEPTH = 8
+DEPTH = 10
 
 
 class Model(pl.LightningModule):
