@@ -6,7 +6,7 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 EMBED_SIZE = 4
-LR = 2e-4
+LR = 1e-2
 EPOCHS = 100
 HIDDEN_SIZE = 32
 BATCH_SIZE = 256
@@ -120,8 +120,8 @@ class Data(Dataset):
             f"Wind direction should be in the range [1, 360] {self.wind_dir.max()}"
 
         self.temperature = norm(self.temperature)
-        self.humidity = norm(self.humidity)
-        self.wind_speed = norm(self.wind_speed)
+        # self.humidity = norm(self.humidity)
+        # self.wind_speed = norm(self.wind_speed)
 
     def __len__(self):
         return len(self.y)
