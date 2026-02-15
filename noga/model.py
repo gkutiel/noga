@@ -6,11 +6,11 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 EMBED_SIZE = 5
-LR = 5e-3
-EPOCHS = 100
+LR = 2e-3
+EPOCHS = 50
 HIDDEN_SIZE = 32
-BATCH_SIZE = 256
-DEPTH = 5
+BATCH_SIZE = 128
+DEPTH = 6
 NEGATIVE_SLOPE = 0.1
 
 
@@ -41,7 +41,7 @@ class Model(pl.LightningModule):
         x = self.net(x)
         return self.out(x)
 
-    def training_step(self, batch, batch_idx):
+    def step(self, batch, batch_idx):
         (
             time,
             wind_dir,
@@ -64,7 +64,10 @@ class Model(pl.LightningModule):
 
         # print(x.shape, y.shape)
         # exit(0)
-        y_hat = self.forward(x)
+        return self.forward(x), y
+
+    def training_step(self, batch, batch_idx):
+        y_hat, y = self.step(batch, batch_idx)
         loss = nn.functional.l1_loss(y_hat, y)
 
         self.log(
@@ -74,6 +77,10 @@ class Model(pl.LightningModule):
 
         return loss
 
+    def predict_step(self, batch, batch_idx):
+        y_hat, _ = self.step(batch, batch_idx)
+        return y_hat
+
     def configure_optimizers(self):
         return torch.optim.Adam(
             params=self.parameters(),
@@ -81,9 +88,7 @@ class Model(pl.LightningModule):
 
 
 class Data(Dataset):
-    def __init__(self):
-        data = pd.read_csv("data/data.csv")
-
+    def __init__(self, data: pd.DataFrame):
         self.time = torch.tensor(
             data.iloc[:, 1:4].values,
             dtype=torch.int32)
@@ -140,8 +145,9 @@ class Data(Dataset):
 
 if __name__ == "__main__":
     seed_everything(0)
-    dataset = Data()
-    dl = DataLoader(
+    data = pd.read_csv("data/data.csv")
+    dataset = Data(data)
+    train_dl = DataLoader(
         dataset,
         batch_size=BATCH_SIZE,
         shuffle=True)
@@ -152,4 +158,16 @@ if __name__ == "__main__":
         accelerator="cpu",
         devices=1)
 
-    trainer.fit(model, dl)
+    trainer.fit(model, train_dl)
+
+    test_dl = DataLoader(
+        dataset,
+        batch_size=8000,
+        shuffle=False)
+
+    preds = trainer.predict(model, test_dl)
+    assert preds is not None
+    y_hat = torch.cat(preds, dim=0).squeeze().detach().numpy()
+    pred = data[['actual-demand', 'day-ahead-forecast']].copy()
+    pred['y_hat'] = y_hat
+    pred.round(0).to_csv("data/pred.csv", index=False)
