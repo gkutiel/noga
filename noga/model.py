@@ -6,6 +6,10 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 EMBED_SIZE = 8
+LR = 1e-3
+EPOCHS = 100
+HIDDEN_SIZE = 128
+DEPTH = 6
 
 
 class Model(pl.LightningModule):
@@ -17,23 +21,15 @@ class Model(pl.LightningModule):
         self.hour_embedding = nn.Embedding(24, EMBED_SIZE)
 
         self.net = nn.Sequential(
-            nn.Linear(3 * EMBED_SIZE + 15, 128),
+            nn.Linear(3 * EMBED_SIZE + 15, HIDDEN_SIZE),
             nn.LeakyReLU(),
-            nn.Linear(128, 128),
-            nn.LeakyReLU(),
-            nn.Linear(128, 128),
-            nn.LeakyReLU(),
-            nn.Linear(128, 128),
-            nn.LeakyReLU(),
-            nn.Linear(128, 128),
-            nn.LeakyReLU(),
-            nn.Linear(128, 128),
-            nn.LeakyReLU(),
-            nn.Linear(128, 32),
-            nn.LeakyReLU(),
+            *[nn.Sequential(
+                nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
+                nn.LeakyReLU()
+            ) for _ in range(DEPTH)]
         )
 
-        self.out = nn.Linear(32, 1)
+        self.out = nn.Linear(HIDDEN_SIZE, 1)
 
     def forward(self, x):
         x = self.net(x)
@@ -75,7 +71,7 @@ class Model(pl.LightningModule):
     def configure_optimizers(self):
         return torch.optim.Adam(
             params=self.parameters(),
-            lr=1e-4)
+            lr=LR)
 
 
 class Data(Dataset):
@@ -141,7 +137,7 @@ if __name__ == "__main__":
 
     model = Model()
     trainer = pl.Trainer(
-        max_epochs=100,
+        max_epochs=EPOCHS,
         accelerator="cpu",
         devices=1)
 
