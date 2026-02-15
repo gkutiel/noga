@@ -26,7 +26,10 @@ class Model(pl.LightningModule):
         self.day_embedding = nn.Embedding(7, EMBED_SIZE)
         self.hour_embedding = nn.Embedding(24, EMBED_SIZE)
 
+        self.wind_dir_embedding = nn.Embedding(361, EMBED_SIZE)
+
         self.net = nn.Sequential(
+            # nn.Linear(6 * EMBED_SIZE + 15, HIDDEN_SIZE),
             nn.Linear(3 * EMBED_SIZE + 15, HIDDEN_SIZE),
             nn.LeakyReLU(NEGATIVE_SLOPE),
             *[nn.Sequential(
@@ -52,18 +55,16 @@ class Model(pl.LightningModule):
         ), y = batch
 
         x = torch.cat([
+            # self.wind_dir_embedding(wind_dir).view(len(wind_dir), -1),
             self.month_embedding(time[:, 0]),
             self.day_embedding(time[:, 1]),
             self.hour_embedding(time[:, 2]),
-            # self.wind_dir_embedding(wind_dir),
 
             temperature,
             humidity,
             wind_speed
         ], dim=1)
 
-        # print(x.shape, y.shape)
-        # exit(0)
         return self.forward(x), y
 
     def training_step(self, batch, batch_idx):
@@ -125,8 +126,8 @@ class Data(Dataset):
             f"Wind direction should be in the range [1, 360] {self.wind_dir.max()}"
 
         self.temperature = norm(self.temperature)
-        # self.humidity = norm(self.humidity)
-        # self.wind_speed = norm(self.wind_speed)
+        self.humidity = norm(self.humidity)
+        self.wind_speed = norm(self.wind_speed)
 
     def __len__(self):
         return len(self.y)
@@ -166,7 +167,6 @@ if __name__ == "__main__":
         shuffle=False)
 
     preds = trainer.predict(model, test_dl)
-    assert preds is not None
     y_hat = torch.cat(preds, dim=0).squeeze().detach().numpy()
     pred = data[['actual-demand', 'day-ahead-forecast']].copy()
     pred['y_hat'] = y_hat
