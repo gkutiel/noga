@@ -137,10 +137,12 @@ if __name__ == "__main__":
         batch_size=256,
         shuffle=False)
 
-    model = Model()
-    trainer = pl.Trainer(
-        max_epochs=20,
-        accelerator="cpu",
-        devices=1)
+    r = next(iter(dl))
+    print(*r, sep="\n")
+    # model = Model()
+    # trainer = pl.Trainer(
+    #     max_epochs=20,
+    #     accelerator="cpu",
+    #     devices=1)
 
-    trainer.fit(model, dl)
+    # trainer.fit(model, dl)
