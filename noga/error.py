@@ -53,35 +53,39 @@ def error_stat():
     err_by_month.to_csv("data/error_by_month.csv")
 
 
-def cost():
-    UNDER = 5
-    OVER = 1
-    data = pd.read_csv("data/data.csv")
+def cost(*, name: str, pred: pd.Series, actual: pd.Series, UNDER=5):
     costs = []
     for reserve in [1, 1.01, 1.02, 1.03, 1.04, 1.05, 1.1, 1.2]:
-        error = data['day-ahead-forecast'] * reserve - data['actual-demand']
+        error = pred * reserve - actual
 
         cost = np.where(
             error > 0,
-            error * OVER,
+            error,
             -error * UNDER).sum()
 
         costs.append((reserve, cost))
 
+    out = PLOTS_DIR / f"cost_vs_reserve_{name}.png"
     x, y = zip(*costs)
     plt.figure(figsize=(10, 6))
     plt.plot(x, y)
     plt.xlabel("Reserve")
     plt.ylabel("Cost")
-    plt.title(f"Cost vs Reserve ({UNDER}:{OVER})")
+    plt.title(f"Cost vs Reserve ({UNDER}:1 penalty)")
     plt.grid(True)
     plt.xticks(x)
     plt.tight_layout()
-    plt.savefig(PLOTS_DIR / "cost_vs_reserve.png", dpi=150)
+    plt.savefig(out, dpi=150)
     plt.close()
+
+    print(out)
 
 
 if __name__ == "__main__":
     # error_csv()
     # error_stat()
-    cost()
+    data = pd.read_csv("data/pred.csv")
+    cost(
+        name='model',
+        pred=data['y_hat'],
+        actual=data['actual-demand'])
