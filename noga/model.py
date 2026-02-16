@@ -160,6 +160,7 @@ if __name__ == "__main__":
     trainer = pl.Trainer(
         max_epochs=EPOCHS,
         accelerator="cpu",
+        deterministic=True,
         devices=1)
 
     trainer.fit(model, train_dl)
