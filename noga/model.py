@@ -72,18 +72,17 @@ class Model(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         y_hat, y = self.step(batch, batch_idx)
-        l1_loss = nn.functional.l1_loss(y_hat, y)
+        # l1_loss = nn.functional.l1_loss(y_hat, y)
+        diff = y_hat - y
+        loss = torch.where(diff > 0, diff, -diff * UNDER).mean()
 
-        self.log(
-            "l1_loss",
-            l1_loss,
-            prog_bar=True)
+        self.log("loss", loss, prog_bar=True)
 
         diff = y_hat - y
         cost = diff[diff > 0].sum() - diff[diff < 0].sum() * UNDER
         self.log("cost", cost, prog_bar=True)
 
-        return l1_loss
+        return loss
 
     def predict_step(self, batch, batch_idx):
         y_hat, _ = self.step(batch, batch_idx)
@@ -174,11 +173,14 @@ if __name__ == "__main__":
         batch_size=8000,
         shuffle=False)
 
+    # PREDICTIONS
+    # pred_csv = "data/pred.csv"
+    pred_csv = "data/pred-new.csv"
     preds = trainer.predict(model, test_dl)
     y_hat = torch.cat(preds, dim=0).squeeze().detach().numpy()
     pred = data[['actual-demand', 'day-ahead-forecast']].copy()
     pred['y_hat'] = y_hat
-    pred.round(0).to_csv("data/pred.csv", index=False)
+    pred.round(0).to_csv(pred_csv, index=False)
 
     mae_baseline = (
         pred['actual-demand'] - pred['day-ahead-forecast']).abs().mean()

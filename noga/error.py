@@ -55,7 +55,7 @@ def error_stat():
 
 def cost(*, name: str, pred: pd.Series, actual: pd.Series, UNDER=5):
     costs = []
-    for reserve in [1, 1.01, 1.02, 1.03, 1.04, 1.05, 1.1, 1.2]:
+    for reserve in [0.98, 0.99, 1, 1.01, 1.02, 1.03, 1.04, 1.05, 1.1, 1.2]:
         error = pred * reserve - actual
 
         cost = np.where(
@@ -71,7 +71,7 @@ def cost(*, name: str, pred: pd.Series, actual: pd.Series, UNDER=5):
     plt.plot(x, y)
     plt.xlabel("Reserve")
     plt.ylabel("Cost")
-    plt.title(f"Cost vs Reserve ({UNDER}:1 penalty)")
+    plt.title(f"Cost vs Reserve {UNDER}:1 penalty ({name})")
     plt.grid(True)
     plt.xticks(x)
     plt.tight_layout()
@@ -86,6 +86,17 @@ if __name__ == "__main__":
     # error_stat()
     data = pd.read_csv("data/pred.csv")
     cost(
+        name='noga',
+        pred=data['day-ahead-forecast'],
+        actual=data['actual-demand'])
+
+    cost(
         name='model',
         pred=data['y_hat'],
         actual=data['actual-demand'])
+
+    data_new = pd.read_csv("data/pred-new.csv")
+    cost(
+        name='model-new',
+        pred=data_new['y_hat'],
+        actual=data_new['actual-demand'])
