@@ -5,12 +5,13 @@ from lightning_fabric import seed_everything
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
+UNDER = 5
 EMBED_SIZE = 5
 LR = 1e-3
 EPOCHS = 50
-HIDDEN_SIZE = 128
-BATCH_SIZE = 128
-DEPTH = 7
+HIDDEN_SIZE = 64
+BATCH_SIZE = 256
+DEPTH = 6
 NEGATIVE_SLOPE = 0.1
 
 
@@ -31,9 +32,11 @@ class Model(pl.LightningModule):
         self.net = nn.Sequential(
             # nn.Linear(6 * EMBED_SIZE + 15, HIDDEN_SIZE),
             nn.Linear(3 * EMBED_SIZE + 15, HIDDEN_SIZE),
-            nn.LeakyReLU(NEGATIVE_SLOPE),
+            # nn.LeakyReLU(NEGATIVE_SLOPE),
+            nn.Tanh(),
             *[nn.Sequential(
                 nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
+                # nn.Tanh()
                 nn.LeakyReLU(negative_slope=NEGATIVE_SLOPE)
             ) for _ in range(DEPTH)]
         )
@@ -69,14 +72,14 @@ class Model(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         y_hat, y = self.step(batch, batch_idx)
-        loss = nn.functional.l1_loss(y_hat, y)
+        l1_loss = nn.functional.l1_loss(y_hat, y)
 
         self.log(
-            "train_loss",
-            loss,
+            "l1_loss",
+            l1_loss,
             prog_bar=True)
 
-        return loss
+        return l1_loss
 
     def predict_step(self, batch, batch_idx):
         y_hat, _ = self.step(batch, batch_idx)
@@ -172,8 +175,8 @@ if __name__ == "__main__":
     pred['y_hat'] = y_hat
     pred.round(0).to_csv("data/pred.csv", index=False)
 
-    mae_baseline = (pred['actual-demand'] -
-                    pred['day-ahead-forecast']).abs().mean()
+    mae_baseline = (
+        pred['actual-demand'] - pred['day-ahead-forecast']).abs().mean()
 
     mae_model = (pred['actual-demand'] - pred['y_hat']).abs().mean()
     print(f"Baseline MAE: {mae_baseline:.2f}")
