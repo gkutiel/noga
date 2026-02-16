@@ -79,6 +79,10 @@ class Model(pl.LightningModule):
             l1_loss,
             prog_bar=True)
 
+        diff = y_hat - y
+        cost = diff[diff > 0].sum() - diff[diff < 0].sum() * UNDER
+        self.log("cost", cost, prog_bar=True)
+
         return l1_loss
 
     def predict_step(self, batch, batch_idx):
