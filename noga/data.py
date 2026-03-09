@@ -3,6 +3,8 @@ import re
 
 import pandas as pd
 
+from noga.plot import CITY
+
 HEADER_TRANSLATIONS = {
     "תאריך": "date",
     "שעה": "time",
@@ -155,5 +157,54 @@ def data_csv() -> None:
     data.to_csv("data/data.csv", index=False)
 
 
+def daily_demand(*, city: CITY = "Jerusalem"):
+    noga = pd.read_csv("data/noga.csv")
+    ims = pd.read_csv("data/ims.csv")
+
+    noga["date"] = pd.to_datetime(
+        noga["date"],
+        format="%Y-%m-%d").dt.strftime("%d-%m-%Y")
+
+    noga["time"] = pd.to_datetime(
+        noga["time"],
+        format="%H:%M:%S").dt.strftime("%H:%M")
+
+    ims["date"] = pd.to_datetime(
+        ims["date"],
+        format="%d-%m-%Y").dt.strftime("%d-%m-%Y")
+
+    ims["time"] = pd.to_datetime(
+        ims["time"],
+        format="%H:%M").dt.strftime("%H:%M")
+
+    data = pd.merge(noga, ims, on=["date", "time"], how="inner")
+
+    data["actual-demand"] = pd.to_numeric(
+        data["actual-demand"], errors="coerce")
+
+    temperature_cols = [
+        "temperature_c_Haifa",
+        "temperature_c_Jerusalem",
+        "temperature_c_Tel Aviv",
+    ]
+    for col in temperature_cols:
+        data[col] = pd.to_numeric(data[col], errors="coerce")
+
+    data = data.dropna(subset=["actual-demand"] + temperature_cols)
+
+    daily = data.groupby("date", sort=False).agg(
+        total_demand=("actual-demand", "sum"),
+        temperature_Haifa=("temperature_c_Haifa", "mean"),
+        temperature_Jerusalem=("temperature_c_Jerusalem", "mean"),
+        temperature_Tel_Aviv=("temperature_c_Tel Aviv", "mean"),
+    ).reset_index()
+
+    daily["date"] = pd.to_datetime(daily["date"], format="%d-%m-%Y")
+    daily = daily.sort_values("date")
+    daily["date"] = daily["date"].dt.strftime("%d-%m-%Y")
+
+    daily.to_csv("data/daily.csv", index=False)
+
+
 if __name__ == "__main__":
-    data_csv()
+    daily_demand()
