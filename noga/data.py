@@ -3,8 +3,6 @@ import re
 
 import pandas as pd
 
-from noga.plot import CITY
-
 HEADER_TRANSLATIONS = {
     "תאריך": "date",
     "שעה": "time",
@@ -157,7 +155,7 @@ def data_csv() -> None:
     data.to_csv("data/data.csv", index=False)
 
 
-def daily_demand(*, city: CITY = "Jerusalem"):
+def daily_demand():
     noga = pd.read_csv("data/noga.csv")
     ims = pd.read_csv("data/ims.csv")
 
@@ -182,6 +180,9 @@ def daily_demand(*, city: CITY = "Jerusalem"):
     data["actual-demand"] = pd.to_numeric(
         data["actual-demand"], errors="coerce")
 
+    data["day-ahead-forecast"] = pd.to_numeric(
+        data["day-ahead-forecast"], errors="coerce")
+
     temperature_cols = [
         "temperature_c_Haifa",
         "temperature_c_Jerusalem",
@@ -190,10 +191,12 @@ def daily_demand(*, city: CITY = "Jerusalem"):
     for col in temperature_cols:
         data[col] = pd.to_numeric(data[col], errors="coerce")
 
-    data = data.dropna(subset=["actual-demand"] + temperature_cols)
+    data = data.dropna(
+        subset=["actual-demand", "day-ahead-forecast"] + temperature_cols)
 
     daily = data.groupby("date", sort=False).agg(
         total_demand=("actual-demand", "sum"),
+        total_day_ahead_forecast=("day-ahead-forecast", "sum"),
         temperature_Haifa=("temperature_c_Haifa", "mean"),
         temperature_Jerusalem=("temperature_c_Jerusalem", "mean"),
         temperature_Tel_Aviv=("temperature_c_Tel Aviv", "mean"),

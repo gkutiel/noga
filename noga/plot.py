@@ -27,6 +27,40 @@ def demand_vs_temp():
     plt.close()
 
 
+CITY_TEMP_COL = {
+    "Jerusalem": "temperature_Jerusalem",
+    "Haifa":     "temperature_Haifa",
+    "Tel Aviv":  "temperature_Tel_Aviv",
+}
+
+
+def daily_demand_vs_avg_temp(*, city: CITY):
+    daily = pd.read_csv("data/daily.csv")
+    daily["total_demand"] = pd.to_numeric(
+        daily["total_demand"], errors="coerce")
+
+    col = CITY_TEMP_COL[city]
+    daily[col] = pd.to_numeric(daily[col], errors="coerce")
+    subset = daily[["total_demand", col]].dropna()
+
+    plt.figure(figsize=(10, 6))
+    plt.scatter(
+        subset[col],
+        subset["total_demand"],
+        s=8,
+        color="#3b82f6",
+        alpha=0.6,
+    )
+    plt.title(f"Daily Total Demand vs Average Temperature ({city})")
+    plt.xlabel("Average Temperature (°C)")
+    plt.ylabel("Total Demand (MW)")
+    plt.tight_layout()
+
+    filename = f"daily_demand_vs_avg_temp_{city.replace(' ', '_')}.png"
+    plt.savefig(PLOTS_DIR / filename, dpi=150)
+    plt.close()
+
+
 def demand_by_time():
     data = pd.read_csv("data/data.csv")
     data = data[data['year'] == 2023]
@@ -106,7 +140,71 @@ def daily_demand_by_time():
     plt.close()
 
 
+def daily_demand_vs_forecast():
+    daily = pd.read_csv("data/daily.csv")
+    daily["date"] = pd.to_datetime(daily["date"], format="%d-%m-%Y")
+    daily = daily.sort_values("date")
+    daily["total_demand"] = pd.to_numeric(
+        daily["total_demand"], errors="coerce")
+    daily["total_day_ahead_forecast"] = pd.to_numeric(
+        daily["total_day_ahead_forecast"], errors="coerce")
+    daily = daily.dropna(subset=["total_demand", "total_day_ahead_forecast"])
+
+    # a. Scatter: total_demand vs total_day_ahead_forecast
+    plt.figure(figsize=(10, 6))
+    plt.scatter(
+        daily["total_day_ahead_forecast"],
+        daily["total_demand"],
+        s=8,
+        color="#3b82f6",
+        alpha=0.6,
+    )
+    # y = x reference line
+    lim_min = min(daily["total_day_ahead_forecast"].min(),
+                  daily["total_demand"].min())
+    lim_max = max(daily["total_day_ahead_forecast"].max(),
+                  daily["total_demand"].max())
+    plt.plot([lim_min, lim_max], [lim_min, lim_max],
+             color="#ef4444", linewidth=1, linestyle="--", label="y = x")
+    plt.title("Daily Total Demand vs Day-Ahead Forecast")
+    plt.xlabel("Day-Ahead Forecast (MW)")
+    plt.ylabel("Total Demand (MW)")
+    plt.legend(fontsize=8)
+    plt.tight_layout()
+    plt.savefig(PLOTS_DIR / "daily_demand_vs_forecast_scatter.png", dpi=150)
+    plt.close()
+
+    # b. Line plot: total_demand and total_day_ahead_forecast over time
+    plt.figure(figsize=(14, 6))
+    plt.plot(
+        daily["date"],
+        daily["total_demand"],
+        linewidth=1,
+        color="#3b82f6",
+        alpha=0.8,
+        label="Total Demand",
+    )
+    plt.plot(
+        daily["date"],
+        daily["total_day_ahead_forecast"],
+        linewidth=1,
+        color="#ef4444",
+        alpha=0.8,
+        linestyle="--",
+        label="Day-Ahead Forecast",
+    )
+    plt.title("Daily Total Demand and Day-Ahead Forecast over Time")
+    plt.xlabel("Date")
+    plt.ylabel("MW")
+    plt.legend(fontsize=8)
+    plt.tight_layout()
+    plt.savefig(PLOTS_DIR / "daily_demand_vs_forecast_time.png", dpi=150)
+    plt.close()
+
+
 if __name__ == "__main__":
     # demand_vs_temp()
     # demand_by_time()
-    daily_demand_by_time()
+    # daily_demand_by_time()
+    # daily_demand_vs_avg_temp(city='Tel Aviv')
+    daily_demand_vs_forecast()
