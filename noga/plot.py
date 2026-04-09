@@ -83,6 +83,7 @@ def demand_vs_temp():
             data[f'temperature_{city}'],
             data['total_demand'],
             color="#3b82f6",
+            s=3,
             alpha=0.85)
 
         plt.title(f"Actual Demand vs Temperature ({city})")
@@ -239,9 +240,8 @@ def day_ahead_forecast_abs_error():
 
 if __name__ == "__main__":
     # daily_demand_by_time()
-    # demand_vs_temp()
+    demand_vs_temp()
     # demand_by_time()
-    # daily_demand_vs_avg_temp(city='Tel Aviv')
     daily_demand_vs_forecast()
     day_ahead_forecast_abs_error()
     # demand_vs_forecast_kde_histogram()
