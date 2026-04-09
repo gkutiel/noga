@@ -33,7 +33,7 @@ class Model(pl.LightningModule):
         X, y = batch
         pred = self(X)
         loss = (pred - y).abs().mean()
-        self.log("train_loss", loss)
+        self.log("mae", loss, on_epoch=True, on_step=False, prog_bar=True)
         return loss
 
     def predict_step(self, batch, batch_idx): ...
@@ -80,4 +80,10 @@ if __name__ == "__main__":
     train_ds = Data(train)
     test_ds = Data(test)
 
-    print(train_ds[0])
+    from torch.utils.data import DataLoader
+
+    train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
+
+    model = Model()
+    trainer = pl.Trainer(max_epochs=EPOCHS)
+    trainer.fit(model, train_loader)
