@@ -5,9 +5,9 @@ from torch import nn
 from torch.utils.data import Dataset
 
 # TRAIN
-LR = 1e-2
-EPOCHS = 1_000
-BATCH_SIZE = 256
+LR = 1e-3
+EPOCHS = 500
+B_SIZE = 64
 
 # DATA
 Y_SCALE = 100_000
@@ -15,8 +15,8 @@ Y_SCALE = 100_000
 # MODEL
 DAY_EMBED = 2
 MONTH_EMBED = 2
-INPUT_SIZE = 3 + DAY_EMBED + MONTH_EMBED
-SEQ_LEN = 3
+SEQ_LEN = 1
+INPUT_SIZE = 3 + DAY_EMBED + MONTH_EMBED + SEQ_LEN
 
 
 def norm(data: torch.Tensor) -> torch.Tensor:
@@ -31,22 +31,26 @@ class Model(pl.LightningModule):
         self.month = nn.Embedding(12, MONTH_EMBED)
 
         self.balance = torch.nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
-        self.net = nn.Sequential(
-            nn.Linear(INPUT_SIZE, 1),
-        )
+        self.net = nn.Linear(INPUT_SIZE, 1)
 
-    def forward(self, X):
+    def forward(self, X, h):
         day = self.day(X[:, 0].long())
         month = self.month(X[:, 1].long())
         temps = X[:, 2:]
 
         f = (temps - self.balance).abs()
-        f = torch.cat([day, month, f], dim=1)
+        f = torch.cat([f, h, day, month], dim=1)
+
         return self.net(f).squeeze(1)
 
     def training_step(self, batch, batch_idx):
-        X, y = batch
-        pred = self(X)
+        X, h, y = batch
+
+        assert X.shape == (B_SIZE, 5), f"Unexpected X shape: {X.shape}"
+        assert h.shape == (B_SIZE, SEQ_LEN), f"Unexpected h shape: {h.shape}"
+        assert y.shape == (B_SIZE,), f"Unexpected y shape: {y.shape}"
+
+        pred = self(X, h)
         loss = (pred - y).abs().mean()
         self.log("mae", loss, on_epoch=True, on_step=False, prog_bar=True)
         return loss
@@ -91,10 +95,10 @@ class Data(Dataset):
             dtype=torch.float32) / Y_SCALE
 
     def __len__(self):
-        return len(self.y)
+        return len(self.y) - SEQ_LEN
 
     def __getitem__(self, idx):
-        return self.X[idx], self.y[idx]
+        return self.X[idx + SEQ_LEN], self.y[idx:idx+SEQ_LEN], self.y[idx+SEQ_LEN]
 
 
 if __name__ == "__main__":
@@ -113,7 +117,11 @@ if __name__ == "__main__":
 
     from torch.utils.data import DataLoader
 
-    train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=B_SIZE,
+        shuffle=False,
+        drop_last=True)
 
     model = Model()
     trainer = pl.Trainer(max_epochs=EPOCHS, deterministic=True)

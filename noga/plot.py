@@ -104,6 +104,8 @@ CITY_TEMP_COL = {
     "Tel Aviv":  "temperature_Tel_Aviv",
 }
 
+FIG_SIZE = (14, 10)
+
 
 def daily_demand_vs_forecast():
     daily = pd.read_csv("data/daily.csv")
@@ -113,10 +115,9 @@ def daily_demand_vs_forecast():
         daily["total_demand"], errors="coerce")
     daily["total_day_ahead_forecast"] = pd.to_numeric(
         daily["total_day_ahead_forecast"], errors="coerce")
-    daily = daily.dropna(subset=["total_demand", "total_day_ahead_forecast"])
 
     # a. Scatter: total_demand vs total_day_ahead_forecast
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=FIG_SIZE)
     plt.scatter(
         daily["total_day_ahead_forecast"],
         daily["total_demand"],
@@ -140,7 +141,7 @@ def daily_demand_vs_forecast():
     plt.close()
 
     # b. Line plot: total_demand and total_day_ahead_forecast over time
-    plt.figure(figsize=(14, 6))
+    plt.figure(figsize=FIG_SIZE)
     plt.plot(
         daily["date"],
         daily["total_demand"],
