@@ -17,7 +17,7 @@ def norm(data: torch.Tensor) -> torch.Tensor:
 class Model(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.balance = torch.nn.Parameter(torch.tensor([20, 20, 20]))
+        self.balance = torch.nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
         self.net = nn.Sequential(
             nn.Linear(3, HIDDEN_SIZE),
             nn.LeakyReLU(),
