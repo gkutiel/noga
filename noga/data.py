@@ -202,9 +202,10 @@ def daily_demand():
         temperature_Tel_Aviv=("temperature_c_Tel Aviv", "mean"),
     ).reset_index()
 
+    frmt = "%Y-%m-%d"
     daily["date"] = pd.to_datetime(daily["date"], format="%d-%m-%Y")
+    daily["date"] = daily["date"].dt.strftime(frmt)
     daily = daily.sort_values("date")
-    daily["date"] = daily["date"].dt.strftime("%d-%m-%Y")
 
     total_factor = 12 * 24
     daily["total_demand"] *= total_factor
@@ -226,5 +227,18 @@ def daily_demand():
 if __name__ == "__main__":
     daily_demand()
 
-    daily = pd.read_csv("data/daily.csv")
+    daily = pd.read_csv(
+        "data/daily.csv",
+        parse_dates=["date"])
+
     print(daily.describe())
+
+    dt = pd.to_datetime(daily['date'])
+    min_dt = dt.min()
+    max_dt = dt.max()
+    full_range = pd.date_range(
+        start=min_dt, end=max_dt, freq="D")
+
+    # missing = full_range.difference(dt)
+    # print(min_dt, max_dt)
+    # print(missing)

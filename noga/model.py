@@ -4,7 +4,6 @@ import torch
 from torch import nn
 from torch.utils.data import Dataset
 
-EMBED_SIZE = 2
 LR = 1e-3
 EPOCHS = 50
 HIDDEN_SIZE = 16
@@ -20,15 +19,22 @@ class Model(pl.LightningModule):
         super().__init__()
         self.balance = torch.nn.Parameter(torch.tensor([20, 20, 20]))
         self.net = nn.Sequential(
-            nn.Linear(5, HIDDEN_SIZE),
+            nn.Linear(3, HIDDEN_SIZE),
+            nn.LeakyReLU(),
+            nn.Linear(HIDDEN_SIZE, 1),
         )
 
     def forward(self, X):
-        _, _, *temps = X
+        temps = X[:, 2:]
         f = (temps - self.balance) ** 2
-        return self.net(f)
+        return self.net(f).squeeze(1)
 
-    def training_step(self, batch, batch_idx): ...
+    def training_step(self, batch, batch_idx):
+        X, y = batch
+        pred = self(X)
+        loss = (pred - y).abs().mean()
+        self.log("train_loss", loss)
+        return loss
 
     def predict_step(self, batch, batch_idx): ...
 
@@ -39,21 +45,21 @@ class Model(pl.LightningModule):
 
 
 class Data(Dataset):
-    def __init__(self):
-        daily = pd.read_csv("data/daily.csv")
-        date = pd.to_datetime(daily["date"], format="%d-%m-%Y")
+    def __init__(self, df: pd.DataFrame):
+
+        date = df['date']
 
         X = pd.DataFrame({
             "day": (date.dt.dayofweek + 1) % 7,
             "month": date.dt.month,
-            "temperature_Haifa": daily["temperature_Haifa"],
-            "temperature_Jerusalem": daily["temperature_Jerusalem"],
-            "temperature_Tel_Aviv": daily["temperature_Tel_Aviv"],
+            "temperature_Haifa": df["temperature_Haifa"],
+            "temperature_Jerusalem": df["temperature_Jerusalem"],
+            "temperature_Tel_Aviv": df["temperature_Tel_Aviv"],
         })
 
         self.X = torch.tensor(X.values, dtype=torch.float32)
         self.y = torch.tensor(
-            daily["total_demand"].values, dtype=torch.float32)
+            df["total_demand"].values, dtype=torch.float32)
 
     def __len__(self):
         return len(self.y)
@@ -63,5 +69,15 @@ class Data(Dataset):
 
 
 if __name__ == "__main__":
-    ds = Data()
-    print(ds.X.shape, ds.y.shape)
+    daily = pd.read_csv(
+        "data/daily.csv",
+        parse_dates=["date"])
+
+    test_date = "2025-01-01"
+    train = daily[daily["date"] < test_date]
+    test = daily[daily["date"] >= test_date]
+
+    train_ds = Data(train)
+    test_ds = Data(test)
+
+    print(train_ds[0])

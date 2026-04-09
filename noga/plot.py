@@ -6,13 +6,15 @@ import numpy as np
 import pandas as pd
 from scipy.stats import gaussian_kde
 
+from noga.date import DT_FRMT
+
 PLOTS_DIR = Path("plots")
 CITY = Literal["Jerusalem", "Haifa", "Tel Aviv"]
 
 
 def daily_demand_by_time():
     daily = pd.read_csv("data/daily.csv")
-    daily["date"] = pd.to_datetime(daily["date"], format="%d-%m-%Y")
+    daily["date"] = pd.to_datetime(daily["date"], format=DT_FRMT)
     daily = daily.sort_values("date")
 
     fig, ax1 = plt.subplots(figsize=(14, 6))
@@ -104,7 +106,7 @@ CITY_TEMP_COL = {
 
 def daily_demand_vs_forecast():
     daily = pd.read_csv("data/daily.csv")
-    daily["date"] = pd.to_datetime(daily["date"], format="%d-%m-%Y")
+    daily["date"] = pd.to_datetime(daily["date"], format=DT_FRMT)
     daily = daily.sort_values("date")
     daily["total_demand"] = pd.to_numeric(
         daily["total_demand"], errors="coerce")
@@ -216,7 +218,7 @@ def demand_vs_forecast_kde_histogram():
 
 def day_ahead_forecast_abs_error():
     daily = pd.read_csv("data/daily.csv")
-    daily["date"] = pd.to_datetime(daily["date"], format="%d-%m-%Y")
+    daily["date"] = pd.to_datetime(daily["date"], format=DT_FRMT)
     daily = daily.sort_values("date")
 
     abs_error_pct = ((daily["total_demand"] - daily["total_day_ahead_forecast"]).abs()
