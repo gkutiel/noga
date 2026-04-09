@@ -4,10 +4,11 @@ import torch
 from torch import nn
 from torch.utils.data import Dataset
 
-LR = 1e-3
-EPOCHS = 5_000
+LR = 1e-2
+EPOCHS = 1_000
 HIDDEN_SIZE = 16
 BATCH_SIZE = 128
+Y_SCALE = 100_000
 
 
 def norm(data: torch.Tensor) -> torch.Tensor:
@@ -71,7 +72,7 @@ class Data(Dataset):
         self.X = torch.tensor(X.values, dtype=torch.float32)
         self.y = torch.tensor(
             df["total_demand"].values,
-            dtype=torch.float32) / 100_000
+            dtype=torch.float32) / Y_SCALE
 
     def __len__(self):
         return len(self.y)
