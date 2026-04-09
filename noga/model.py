@@ -6,8 +6,7 @@ from torch.utils.data import Dataset
 
 LR = 1e-2
 EPOCHS = 1_000
-HIDDEN_SIZE = 16
-BATCH_SIZE = 128
+BATCH_SIZE = 256
 Y_SCALE = 100_000
 
 
