@@ -206,12 +206,17 @@ def daily_demand():
     daily = daily.sort_values("date")
     daily["date"] = daily["date"].dt.strftime("%d-%m-%Y")
 
-    daily['total-demand'] = daily['total_demand'] * 12 * 24
-    daily['total-day-ahead-forecast'] = daily['total_day_ahead_forecast'] * 12 * 24
+    total_factor = 12 * 24
+    daily["total_demand"] *= total_factor
+    daily["total_day_ahead_forecast"] *= total_factor
 
-    daily['total_day_ahead_forecast'] = \
-        daily['total_day_ahead_forecast'] \
-        .where(daily['total_day_ahead_forecast'] > 1000).ffill()
+    forecast_error = (
+        (daily['total_day_ahead_forecast'] < 1_000_000) |
+        (daily['total_day_ahead_forecast'] > 20_000_000))
+
+    daily.loc[
+        forecast_error,
+        'total_day_ahead_forecast'] = daily.loc[forecast_error, 'total_demand']
 
     print(daily['total_day_ahead_forecast'].describe())
 
@@ -220,3 +225,6 @@ def daily_demand():
 
 if __name__ == "__main__":
     daily_demand()
+
+    daily = pd.read_csv("data/daily.csv")
+    print(daily.describe())

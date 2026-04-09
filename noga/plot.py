@@ -79,7 +79,7 @@ def demand_vs_temp():
         plt.figure(figsize=(10, 6))
         plt.scatter(
             data[f'temperature_{city}'],
-            data['total-demand'],
+            data['total_demand'],
             color="#3b82f6",
             alpha=0.85)
 
@@ -214,10 +214,32 @@ def demand_vs_forecast_kde_histogram():
     plt.close()
 
 
+def day_ahead_forecast_abs_error():
+    daily = pd.read_csv("data/daily.csv")
+    daily["date"] = pd.to_datetime(daily["date"], format="%d-%m-%Y")
+    daily = daily.sort_values("date")
+
+    abs_error_pct = ((daily["total_demand"] - daily["total_day_ahead_forecast"]).abs()
+                     / daily["total_demand"] * 100)
+
+    plt.figure(figsize=(14, 5))
+    plt.scatter(daily["date"], abs_error_pct, s=6, color="#3b82f6", alpha=0.6)
+    plt.title("Absolute Error %: Day-Ahead Forecast vs Actual Demand by Date")
+    plt.xlabel("Date")
+    plt.ylabel("Absolute Error (%)")
+    plt.tight_layout()
+
+    out = PLOTS_DIR / "daf_abs_error.png"
+    print("Saving plot to:", out)
+    plt.savefig(out, dpi=150)
+    plt.close()
+
+
 if __name__ == "__main__":
     # daily_demand_by_time()
     # demand_vs_temp()
     # demand_by_time()
     # daily_demand_vs_avg_temp(city='Tel Aviv')
     daily_demand_vs_forecast()
+    day_ahead_forecast_abs_error()
     # demand_vs_forecast_kde_histogram()
