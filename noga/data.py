@@ -202,6 +202,16 @@ def daily_demand():
         temperature_Tel_Aviv=("temperature_c_Tel Aviv", "mean"),
     ).reset_index()
 
+    temp_cols = [
+        "temperature_Haifa",
+        "temperature_Jerusalem",
+        "temperature_Tel_Aviv"]
+
+    daily[temp_cols] = daily[temp_cols] \
+        .interpolate(method="time") \
+        .ffill() \
+        .bfill()
+
     frmt = "%Y-%m-%d"
     daily["date"] = pd.to_datetime(daily["date"], format="%d-%m-%Y")
     daily["date"] = daily["date"].dt.strftime(frmt)
