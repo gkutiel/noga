@@ -4,8 +4,8 @@ import torch
 from torch import nn
 from torch.utils.data import Dataset
 
-LR = 1e-1
-EPOCHS = 500
+LR = 1e-3
+EPOCHS = 5_000
 HIDDEN_SIZE = 16
 BATCH_SIZE = 128
 
@@ -24,7 +24,8 @@ class Model(pl.LightningModule):
 
     def forward(self, X):
         temps = X[:, 2:]
-        f = (temps - self.balance).abs()
+        balance = self.balance.clamp(10, 30)
+        f = (temps - balance).abs()
         return self.net(f).squeeze(1)
 
     def training_step(self, batch, batch_idx):
@@ -44,9 +45,16 @@ class Model(pl.LightningModule):
 
 class Data(Dataset):
     def __init__(self, df: pd.DataFrame):
-        cols = ["date", "temperature_Haifa", "temperature_Jerusalem",
-                "temperature_Tel_Aviv", "total_demand"]
+        cols = [
+            # X
+            "date",
+            "temperature_Haifa",
+            "temperature_Jerusalem",
+            "temperature_Tel_Aviv",
+            # y
+            "total_demand"]
         df = df[cols]
+
         assert not df.isnull().any().any(
         ), f"NaN values found:\n{df.isnull().sum()}"
 
@@ -62,7 +70,8 @@ class Data(Dataset):
 
         self.X = torch.tensor(X.values, dtype=torch.float32)
         self.y = torch.tensor(
-            df["total_demand"].values, dtype=torch.float32)
+            df["total_demand"].values,
+            dtype=torch.float32) / 100_000
 
     def __len__(self):
         return len(self.y)
