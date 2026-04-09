@@ -3,6 +3,8 @@ import re
 
 import pandas as pd
 
+from noga.date import DT_FRMT
+
 HEADER_TRANSLATIONS = {
     "תאריך": "date",
     "שעה": "time",
@@ -156,6 +158,8 @@ def data_csv() -> None:
 
 
 def daily_demand():
+    # TODO: Make sure data covers the full date range, and fill missing dates with interpolation or forward/backward fill
+
     noga = pd.read_csv("data/noga.csv")
     ims = pd.read_csv("data/ims.csv")
 
@@ -208,14 +212,23 @@ def daily_demand():
         "temperature_Tel_Aviv"]
 
     daily[temp_cols] = daily[temp_cols] \
-        .interpolate(method="time") \
+        .interpolate() \
         .ffill() \
         .bfill()
 
-    frmt = "%Y-%m-%d"
     daily["date"] = pd.to_datetime(daily["date"], format="%d-%m-%Y")
-    daily["date"] = daily["date"].dt.strftime(frmt)
-    daily = daily.sort_values("date")
+    daily = daily.set_index("date").sort_index()
+
+    full_range = pd.date_range(
+        start=daily.index.min(),
+        end=daily.index.max(),
+        freq="D")
+
+    daily = daily.reindex(full_range).interpolate().ffill().bfill()
+
+    daily.index = daily.index.strftime(DT_FRMT)  # type: ignore
+    daily.index.name = "date"
+    daily = daily.reset_index()
 
     total_factor = 12 * 24
     daily["total_demand"] *= total_factor
@@ -228,8 +241,6 @@ def daily_demand():
     daily.loc[
         forecast_error,
         'total_day_ahead_forecast'] = daily.loc[forecast_error, 'total_demand']
-
-    print(daily['total_day_ahead_forecast'].describe())
 
     daily.to_csv("data/daily.csv", index=False)
 
