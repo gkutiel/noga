@@ -2,7 +2,9 @@ from pathlib import Path
 from typing import Literal
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+from scipy.stats import gaussian_kde
 
 PLOTS_DIR = Path("plots")
 CITY = Literal["Jerusalem", "Haifa", "Tel Aviv"]
@@ -202,9 +204,56 @@ def daily_demand_vs_forecast():
     plt.close()
 
 
+def demand_vs_forecast_kde_histogram():
+    data = pd.read_csv("data/data.csv")
+    data["actual-demand"] = pd.to_numeric(
+        data["actual-demand"], errors="coerce")
+    data["day-ahead-forecast"] = pd.to_numeric(
+        data["day-ahead-forecast"], errors="coerce")
+    data = data.dropna(subset=["actual-demand", "day-ahead-forecast"])
+
+    errors = data["actual-demand"] - data["day-ahead-forecast"]
+    errors = errors[(errors >= -1000) & (errors <= 1000)]
+
+    kde = gaussian_kde(errors, bw_method="scott")
+    x = np.linspace(errors.min(), errors.max(), 500)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    ax.hist(
+        errors,
+        bins=60,
+        density=True,
+        color="#3b82f6",
+        alpha=0.5,
+        label="Histogram",
+    )
+    ax.plot(
+        x,
+        kde(x),
+        color="#1d4ed8",
+        linewidth=2,
+        label="KDE",
+    )
+    ax.axvline(0, color="#ef4444", linewidth=1.5,
+               linestyle="--", label="Zero error")
+    ax.axvline(errors.mean(), color="#f97316", linewidth=1.5,
+               linestyle="--", label=f"Mean ({errors.mean():,.0f} MW)")
+
+    ax.set_title(
+        "Distribution of Forecast Errors (Actual Demand − Day-Ahead Forecast)")
+    ax.set_xlabel("Error (MW)")
+    ax.set_ylabel("Density")
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    plt.savefig(PLOTS_DIR / "demand_vs_forecast_kde_histogram.png", dpi=150)
+    plt.close()
+
+
 if __name__ == "__main__":
     # demand_vs_temp()
     # demand_by_time()
     # daily_demand_by_time()
     # daily_demand_vs_avg_temp(city='Tel Aviv')
-    daily_demand_vs_forecast()
+    # daily_demand_vs_forecast()
+    demand_vs_forecast_kde_histogram()
