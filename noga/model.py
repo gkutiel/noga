@@ -4,14 +4,19 @@ import torch
 from torch import nn
 from torch.utils.data import Dataset
 
+# TRAIN
 LR = 1e-2
 EPOCHS = 1_000
 BATCH_SIZE = 256
 
+# DATA
 Y_SCALE = 100_000
 
+# MODEL
 DAY_EMBED = 2
 MONTH_EMBED = 2
+INPUT_SIZE = 3 + DAY_EMBED + MONTH_EMBED
+SEQ_LEN = 3
 
 
 def norm(data: torch.Tensor) -> torch.Tensor:
@@ -27,16 +32,15 @@ class Model(pl.LightningModule):
 
         self.balance = torch.nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
         self.net = nn.Sequential(
-            nn.Linear(3 + DAY_EMBED + MONTH_EMBED, 1),
+            nn.Linear(INPUT_SIZE, 1),
         )
 
     def forward(self, X):
         day = self.day(X[:, 0].long())
         month = self.month(X[:, 1].long())
         temps = X[:, 2:]
-        balance = self.balance.clamp(10, 30)
 
-        f = (temps - balance).abs()
+        f = (temps - self.balance).abs()
         f = torch.cat([day, month, f], dim=1)
         return self.net(f).squeeze(1)
 
