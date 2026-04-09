@@ -1,7 +1,6 @@
 
 import re
 
-import matplotlib.pyplot as plt
 import pandas as pd
 
 HEADER_TRANSLATIONS = {
@@ -176,28 +175,28 @@ def daily_demand():
         ims["time"],
         format="%H:%M").dt.strftime("%H:%M")
 
+    noga = noga[~(noga == '-').any(axis=1)]
+
     data = pd.merge(noga, ims, on=["date", "time"], how="inner")
 
-    data["actual-demand"] = pd.to_numeric(
-        data["actual-demand"], errors="coerce")
+    data["actual-demand"] = pd.to_numeric(data["actual-demand"])
+    data["day-ahead-forecast"] = pd.to_numeric(data["day-ahead-forecast"])
 
-    data["day-ahead-forecast"] = pd.to_numeric(
-        data["day-ahead-forecast"], errors="coerce")
+    data = data[data["actual-demand"] > 0]
+    data = data[data["day-ahead-forecast"] > 0]
 
     temperature_cols = [
         "temperature_c_Haifa",
         "temperature_c_Jerusalem",
         "temperature_c_Tel Aviv",
     ]
-    for col in temperature_cols:
-        data[col] = pd.to_numeric(data[col], errors="coerce")
 
-    data = data.dropna(
-        subset=["actual-demand", "day-ahead-forecast"] + temperature_cols)
+    for col in temperature_cols:
+        data[col] = pd.to_numeric(data[col])
 
     daily = data.groupby("date", sort=False).agg(
-        total_demand=("actual-demand", "sum"),
-        total_day_ahead_forecast=("day-ahead-forecast", "sum"),
+        total_demand=("actual-demand", "mean"),
+        total_day_ahead_forecast=("day-ahead-forecast", "mean"),
         temperature_Haifa=("temperature_c_Haifa", "mean"),
         temperature_Jerusalem=("temperature_c_Jerusalem", "mean"),
         temperature_Tel_Aviv=("temperature_c_Tel Aviv", "mean"),
@@ -207,26 +206,12 @@ def daily_demand():
     daily = daily.sort_values("date")
     daily["date"] = daily["date"].dt.strftime("%d-%m-%Y")
 
+    daily['total-demand'] = daily['total_demand'] * 12 * 24
+    daily['total-day-ahead-forecast'] = daily['total_day_ahead_forecast'] * 12 * 24
+
     daily.to_csv("data/daily.csv", index=False)
 
 
-def noga_outliers():
-    noga = pd.read_csv("data/noga.csv")
-
-    demand = noga['actual-demand']
-    demand = demand[demand != '-']
-    demand = pd.to_numeric(demand)
-    demand = demand[demand > 0]
-
-    plt.figure(figsize=(20, 12), dpi=150)
-    plt.hist(demand, bins=50)
-    plt.xlabel("Actual Demand (MW)")
-    plt.ylabel("Count")
-    plt.title("Histogram of Actual Demand")
-    plt.tight_layout()
-    plt.savefig("plots/demand_histogram.png")
-
-
 if __name__ == "__main__":
-    noga_outliers()
-    # daily_demand()
+    # noga_outliers()
+    daily_demand()
