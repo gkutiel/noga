@@ -46,6 +46,11 @@ class Model(pl.LightningModule):
 
 class Data(Dataset):
     def __init__(self, df: pd.DataFrame):
+        cols = ["date", "temperature_Haifa", "temperature_Jerusalem",
+                "temperature_Tel_Aviv", "total_demand"]
+        df = df[cols]
+        assert not df.isnull().any().any(
+        ), f"NaN values found:\n{df.isnull().sum()}"
 
         date = df['date']
 
