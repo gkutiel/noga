@@ -7,7 +7,10 @@ from torch.utils.data import Dataset
 LR = 1e-2
 EPOCHS = 1_000
 BATCH_SIZE = 256
+
 Y_SCALE = 100_000
+
+DAY_EMBED = 2
 
 
 def norm(data: torch.Tensor) -> torch.Tensor:
@@ -18,14 +21,19 @@ class Model(pl.LightningModule):
     def __init__(self):
         super().__init__()
         self.balance = torch.nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
+        self.day = nn.Embedding(7, DAY_EMBED)
         self.net = nn.Sequential(
-            nn.Linear(3, 1),
+            nn.Linear(3 + DAY_EMBED, 1),
         )
 
     def forward(self, X):
+        day = self.day(X[:, 0].long())
         temps = X[:, 2:]
         balance = self.balance.clamp(10, 30)
+
         f = (temps - balance).abs()
+        f = torch.cat([day, f], dim=1)
+
         return self.net(f).squeeze(1)
 
     def training_step(self, batch, batch_idx):
