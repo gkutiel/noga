@@ -1,6 +1,7 @@
 
 import re
 
+import matplotlib.pyplot as plt
 import pandas as pd
 
 HEADER_TRANSLATIONS = {
@@ -217,7 +218,13 @@ def noga_outliers():
     demand = pd.to_numeric(demand)
     demand = demand[demand > 0]
 
-# TODO: plot histogram of demand
+    plt.figure(figsize=(20, 12), dpi=150)
+    plt.hist(demand, bins=50)
+    plt.xlabel("Actual Demand (MW)")
+    plt.ylabel("Count")
+    plt.title("Histogram of Actual Demand")
+    plt.tight_layout()
+    plt.savefig("plots/demand_histogram.png")
 
 
 if __name__ == "__main__":
