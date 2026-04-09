@@ -44,7 +44,7 @@ def ims_csv() -> None:
     ims = pd.read_csv("data/ims.he.csv", encoding="utf-8")
     ims.rename(columns=IMS_HEADER_TRANSLATIONS, inplace=True)
     ims["station"] = ims["station"].astype(str).map(
-        lambda s: IMS_STATION_TRANSLATIONS.get(s, s))
+        lambda s: IMS_STATION_TRANSLATIONS.get(s, s))  # type: ignore
 
     values = [
         col for col in ims.columns
@@ -209,5 +209,17 @@ def daily_demand():
     daily.to_csv("data/daily.csv", index=False)
 
 
+def noga_outliers():
+    noga = pd.read_csv("data/noga.csv")
+
+    demand = noga['actual-demand']
+    demand = demand[demand != '-']
+    demand = pd.to_numeric(demand)
+    demand = demand[demand > 0]
+
+# TODO: plot histogram of demand
+
+
 if __name__ == "__main__":
-    daily_demand()
+    noga_outliers()
+    # daily_demand()
