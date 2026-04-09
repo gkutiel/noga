@@ -84,6 +84,7 @@ if __name__ == "__main__":
 
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
 
+    pl.seed_everything(42)
     model = Model()
-    trainer = pl.Trainer(max_epochs=EPOCHS)
+    trainer = pl.Trainer(max_epochs=EPOCHS, deterministic=True)
     trainer.fit(model, train_loader)
