@@ -71,22 +71,28 @@ def daily_demand_by_time():
 
 
 def demand_vs_temp():
-    data = pd.read_csv("data/data.csv")
-    data = data[data['year'] == 2023]
+    data = pd.read_csv("data/daily.csv")
+    # data = pd.read_csv("data/data.csv")
+    # data = data[data['year'] == 2023]
 
-    plt.figure(figsize=(10, 6))
-    plt.scatter(
-        data['temperature_c_Jerusalem'],
-        data['actual-demand'],
-        color="#3b82f6",
-        alpha=0.85)
+    for city in ["Jerusalem", "Haifa", "Tel_Aviv"]:
+        plt.figure(figsize=(10, 6))
+        plt.scatter(
+            data[f'temperature_{city}'],
+            data['total-demand'],
+            color="#3b82f6",
+            alpha=0.85)
 
-    plt.title("Actual Demand vs Temperature (Jerusalem, 2023)")
-    plt.xlabel("Temperature (°C)")
-    plt.ylabel("Actual Demand (MW)")
-    plt.tight_layout()
-    plt.savefig(PLOTS_DIR / "ec_vs_temperature.png", dpi=150)
-    plt.close()
+        plt.title(f"Actual Demand vs Temperature ({city})")
+        plt.xlabel("Temperature (°C)")
+        plt.ylabel("Actual Demand (MW)")
+        plt.tight_layout()
+
+        out = PLOTS_DIR / f"ec_vs_temperature_{city}.png"
+        print('Saving plot to:', out)
+        plt.savefig(out, dpi=150)
+
+        plt.close()
 
 
 CITY_TEMP_COL = {
@@ -255,8 +261,8 @@ def demand_vs_forecast_kde_histogram():
 
 
 if __name__ == "__main__":
-    daily_demand_by_time()
-    # demand_vs_temp()
+    # daily_demand_by_time()
+    demand_vs_temp()
     # demand_by_time()
     # daily_demand_vs_avg_temp(city='Tel Aviv')
     # daily_demand_vs_forecast()
