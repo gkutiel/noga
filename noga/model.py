@@ -5,9 +5,9 @@ from torch import nn
 from torch.utils.data import Dataset
 
 LR = 1e-3
-EPOCHS = 50
+EPOCHS = 500
 HIDDEN_SIZE = 16
-BATCH_SIZE = 512
+BATCH_SIZE = 128
 
 
 def norm(data: torch.Tensor) -> torch.Tensor:
@@ -69,6 +69,8 @@ class Data(Dataset):
 
 
 if __name__ == "__main__":
+    pl.seed_everything(42)
+
     daily = pd.read_csv(
         "data/daily.csv",
         parse_dates=["date"])
@@ -84,7 +86,6 @@ if __name__ == "__main__":
 
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
 
-    pl.seed_everything(42)
     model = Model()
     trainer = pl.Trainer(max_epochs=EPOCHS, deterministic=True)
     trainer.fit(model, train_loader)
