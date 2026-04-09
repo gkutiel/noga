@@ -4,7 +4,7 @@ import torch
 from torch import nn
 from torch.utils.data import Dataset
 
-LR = 1e-3
+LR = 1e-1
 EPOCHS = 500
 HIDDEN_SIZE = 16
 BATCH_SIZE = 128
@@ -19,14 +19,12 @@ class Model(pl.LightningModule):
         super().__init__()
         self.balance = torch.nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
         self.net = nn.Sequential(
-            nn.Linear(3, HIDDEN_SIZE),
-            nn.LeakyReLU(),
-            nn.Linear(HIDDEN_SIZE, 1),
+            nn.Linear(3, 1),
         )
 
     def forward(self, X):
         temps = X[:, 2:]
-        f = (temps - self.balance) ** 2
+        f = (temps - self.balance).abs()
         return self.net(f).squeeze(1)
 
     def training_step(self, batch, batch_idx):
@@ -94,3 +92,6 @@ if __name__ == "__main__":
     model = Model()
     trainer = pl.Trainer(max_epochs=EPOCHS, deterministic=True)
     trainer.fit(model, train_loader)
+
+    for name, param in model.named_parameters():
+        print(f"{name}: {param.data}")
