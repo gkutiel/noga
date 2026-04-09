@@ -245,21 +245,32 @@ def daily_demand():
     daily.to_csv("data/daily.csv", index=False)
 
 
+def forecast_mae():
+    daily = pd.read_csv("data/daily.csv")
+    daily["mae"] = (
+        daily["total_day_ahead_forecast"] -
+        daily["total_demand"]).abs()
+
+    print("MAE:", daily["mae"].mean())
+
+
 if __name__ == "__main__":
-    daily_demand()
+    # daily_demand()
 
-    daily = pd.read_csv(
-        "data/daily.csv",
-        parse_dates=["date"])
+    # daily = pd.read_csv(
+    #     "data/daily.csv",
+    #     parse_dates=["date"])
 
-    print(daily.describe())
+    # print(daily.describe())
 
-    dt = pd.to_datetime(daily['date'])
-    min_dt = dt.min()
-    max_dt = dt.max()
-    full_range = pd.date_range(
-        start=min_dt, end=max_dt, freq="D")
+    # dt = pd.to_datetime(daily['date'])
+    # min_dt = dt.min()
+    # max_dt = dt.max()
+    # full_range = pd.date_range(
+    #     start=min_dt, end=max_dt, freq="D")
 
     # missing = full_range.difference(dt)
     # print(min_dt, max_dt)
     # print(missing)
+
+    forecast_mae()
