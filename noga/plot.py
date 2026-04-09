@@ -102,56 +102,6 @@ CITY_TEMP_COL = {
 }
 
 
-def daily_demand_vs_avg_temp(*, city: CITY):
-    daily = pd.read_csv("data/daily.csv")
-    daily["total_demand"] = pd.to_numeric(
-        daily["total_demand"], errors="coerce")
-
-    col = CITY_TEMP_COL[city]
-    daily[col] = pd.to_numeric(daily[col], errors="coerce")
-    subset = daily[["total_demand", col]].dropna()
-
-    plt.figure(figsize=(10, 6))
-    plt.scatter(
-        subset[col],
-        subset["total_demand"],
-        s=8,
-        color="#3b82f6",
-        alpha=0.6,
-    )
-    plt.title(f"Daily Total Demand vs Average Temperature ({city})")
-    plt.xlabel("Average Temperature (°C)")
-    plt.ylabel("Total Demand (MW)")
-    plt.tight_layout()
-
-    filename = f"daily_demand_vs_avg_temp_{city.replace(' ', '_')}.png"
-    plt.savefig(PLOTS_DIR / filename, dpi=150)
-    plt.close()
-
-
-def demand_by_time():
-    data = pd.read_csv("data/data.csv")
-    data = data[data['year'] == 2023]
-    data = data[data['hour'] == 8]
-    data = data.sort_values(['month', 'day', 'hour'])
-
-    plt.figure(figsize=(10, 6))
-    plt.scatter(
-        data.index,
-        data['actual-demand'],
-        s=2,
-        color="#3b82f6",
-        alpha=0.85)
-
-    plt.title("Average Actual Demand by Time (2023)")
-    plt.xlabel("Time")
-    plt.ylabel("Demand (MW)")
-    # plt.xticks(data.index)
-    plt.tight_layout()
-    plt.savefig(PLOTS_DIR / "demand_by_time.png", dpi=150)
-    plt.close()
-
-
 def daily_demand_vs_forecast():
     daily = pd.read_csv("data/daily.csv")
     daily["date"] = pd.to_datetime(daily["date"], format="%d-%m-%Y")
@@ -210,7 +160,11 @@ def daily_demand_vs_forecast():
     plt.ylabel("MW")
     plt.legend(fontsize=8)
     plt.tight_layout()
-    plt.savefig(PLOTS_DIR / "daily_demand_vs_forecast_time.png", dpi=150)
+
+    out = PLOTS_DIR / "daily_demand_vs_forecast_time.png"
+    print('Saving plot to:', out)
+    plt.savefig(out, dpi=150)
+
     plt.close()
 
 
@@ -262,8 +216,8 @@ def demand_vs_forecast_kde_histogram():
 
 if __name__ == "__main__":
     # daily_demand_by_time()
-    demand_vs_temp()
+    # demand_vs_temp()
     # demand_by_time()
     # daily_demand_vs_avg_temp(city='Tel Aviv')
-    # daily_demand_vs_forecast()
+    daily_demand_vs_forecast()
     # demand_vs_forecast_kde_histogram()
