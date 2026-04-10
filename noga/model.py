@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 
 # TRAIN
 LR = 1e-3
-EPOCHS = 1_000
+EPOCHS = 2_000
 B_SIZE = 64
 
 # DATA
