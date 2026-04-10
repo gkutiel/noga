@@ -27,7 +27,7 @@ def norm(data: torch.Tensor) -> torch.Tensor:
 
 
 LossFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-Name = Literal["l1", "mse", "pinball"]
+Name = Literal["l1", "pin_5", "pin_10"]
 
 
 def pinball(pred: torch.Tensor, y: torch.Tensor, under=5) -> torch.Tensor:
@@ -39,8 +39,8 @@ def pinball(pred: torch.Tensor, y: torch.Tensor, under=5) -> torch.Tensor:
 
 loss_fns: dict[Name, LossFn] = {
     "l1": nn.L1Loss(),
-    "mse": nn.MSELoss(),
-    "pinball": pinball
+    "pin_5": lambda pred, y: pinball(pred, y, under=5),
+    "pin_10": lambda pred, y: pinball(pred, y, under=10)
 }
 
 
@@ -196,10 +196,10 @@ def eval(*, model_name: Name, loss_name: Name):
 
 if __name__ == "__main__":
     train(name="l1")
-    train(name="mse")
-    train(name="pinball")
+    train(name="pin_5")
+    train(name="pin_10")
 
-    names: list[Name] = ["l1", "mse", "pinball"]
+    names: list[Name] = ["l1", "pin_5", "pin_10"]
     rows = [
         {"model": m, "loss": ls, "value": eval(model_name=m, loss_name=ls)}
         for m in names
