@@ -199,7 +199,17 @@ if __name__ == "__main__":
     train(name="mse")
     train(name="pinball")
 
-    eval(model_name="l1", loss_name="l1")
-    eval(model_name="l1", loss_name="pinball")
+    names: list[Name] = ["l1", "mse", "pinball"]
+    rows = [
+        {"model": m, "loss": ls, "value": eval(model_name=m, loss_name=ls)}
+        for m in names
+        for ls in names
+    ]
 
-    # TODO make a table of all combinations of model_name and loss_name, and print the results in a nice format
+    results = pd.DataFrame(rows).pivot(
+        index="model",
+        columns="loss",
+        values="value")
+
+    print(results.to_string(float_format="{:.4f}".format))
+    results.to_csv("data/eval.csv")
