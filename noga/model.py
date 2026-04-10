@@ -32,9 +32,9 @@ Name = Literal["l1", "mse", "pinball"]
 
 def pinball(pred: torch.Tensor, y: torch.Tensor, under=5) -> torch.Tensor:
     unit = 1 / (1 + under)
-    error = y - pred
+    error = pred - y
     loss = torch.where(error > 0, unit * error, (unit - 1) * error)
-    return torch.mean(loss)
+    return torch.mean(loss) * (1 + under)
 
 
 loss_fns: dict[Name, LossFn] = {
@@ -156,7 +156,7 @@ def load_data():
 def train(name: Name):
     pl.seed_everything(42)
 
-    out = Path(f"data/{name}.pt")
+    out = Path(f"models/{name}.pt")
 
     if out.exists():
         print(f"Skipping training: {out} already exists")
