@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Callable, Literal
 
 import pandas as pd
@@ -26,7 +27,7 @@ def norm(data: torch.Tensor) -> torch.Tensor:
 
 
 LossFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-Name = Literal["l1", "pinball"]
+Name = Literal["l1", "mse", "pinball"]
 
 
 def pinball(pred: torch.Tensor, y: torch.Tensor, under=5) -> torch.Tensor:
@@ -38,6 +39,7 @@ def pinball(pred: torch.Tensor, y: torch.Tensor, under=5) -> torch.Tensor:
 
 loss_fns: dict[Name, LossFn] = {
     "l1": nn.L1Loss(),
+    "mse": nn.MSELoss(),
     "pinball": pinball
 }
 
@@ -151,8 +153,13 @@ def load_data():
 
 
 def train(name: Name):
-
     pl.seed_everything(42)
+
+    out = Path(f"data/{name}.pt")
+
+    if out.exists():
+        print(f"Skipping training: {out} already exists")
+        return
 
     model = Model(name=name)
     trainer = pl.Trainer(
@@ -163,7 +170,7 @@ def train(name: Name):
     train_dl, val_dl = load_data()
     trainer.fit(model, train_dl, val_dl)
 
-    torch.save(model.state_dict(), f"data/{name}.pt")
+    torch.save(model.state_dict(), out)
 
 
 def load_model(name: Name):
@@ -188,9 +195,9 @@ def eval(*, model_name: Name, loss_name: Name):
 
 
 if __name__ == "__main__":
-    # train(
-    #     loss_fn=nn.L1Loss(),
-    #     name="l1")
+    train(name="l1")
+    train(name="mse")
+    train(name="pinball")
 
     eval(model_name="l1", loss_name="l1")
     eval(model_name="l1", loss_name="pinball")
