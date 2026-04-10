@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 # TRAIN
 LR = 1e-3
 EPOCHS = 1_000
-B_SIZE = 256
+B_SIZE = 128
 
 # DATA
 Y_SCALE = 100_000
@@ -128,7 +128,7 @@ if __name__ == "__main__":
         test_ds,
         batch_size=1024,
         shuffle=False,
-        drop_last=True)
+        drop_last=False)
 
     model = Model()
     trainer = pl.Trainer(max_epochs=EPOCHS, deterministic=True)
