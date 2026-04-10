@@ -2,7 +2,7 @@ import pandas as pd
 import pytorch_lightning as pl
 import torch
 from torch import nn
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 
 # TRAIN
 LR = 1e-3
@@ -104,7 +104,8 @@ class Data(Dataset):
         return self.X[idx + SEQ_LEN], self.y[idx:idx+SEQ_LEN], self.y[idx+SEQ_LEN]
 
 
-if __name__ == "__main__":
+def train(*, loss_fn, name):
+
     pl.seed_everything(42)
 
     daily = pd.read_csv(
@@ -112,13 +113,11 @@ if __name__ == "__main__":
         parse_dates=["date"])
 
     test_date = "2025-01-01"
-    train = daily[daily["date"] < test_date]
-    test = daily[daily["date"] >= test_date]
+    train_df = daily[daily["date"] < test_date]
+    test_df = daily[daily["date"] >= test_date]
 
-    train_ds = Data(train)
-    test_ds = Data(test)
-
-    from torch.utils.data import DataLoader
+    train_ds = Data(train_df)
+    test_ds = Data(test_df)
 
     train_dl = DataLoader(
         train_ds,
@@ -132,9 +131,18 @@ if __name__ == "__main__":
         shuffle=False,
         drop_last=False)
 
-    model = Model()
-    trainer = pl.Trainer(max_epochs=EPOCHS, deterministic=True)
+    model = Model(loss_fn=loss_fn)
+    trainer = pl.Trainer(
+        max_epochs=EPOCHS,
+        deterministic=True,
+        val_check_interval=0.1)
+
     trainer.fit(model, train_dl, val_dl)
 
-    for name, param in model.named_parameters():
-        print(f"{name}: {param.data}")
+    torch.save(model.state_dict(), f"data/{name}.pt")
+
+
+if __name__ == "__main__":
+    train(
+        loss_fn=nn.L1Loss(),
+        name="l1")
