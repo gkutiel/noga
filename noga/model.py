@@ -34,7 +34,7 @@ def pinball(pred: torch.Tensor, y: torch.Tensor, under=5) -> torch.Tensor:
     unit = 1 / (1 + under)
     error = pred - y
     loss = torch.where(error > 0, unit * error, (unit - 1) * error)
-    return torch.mean(loss) * 2
+    return torch.mean(loss) * (1 + under) / 2
 
 
 loss_fns: dict[Name, LossFn] = {
@@ -191,8 +191,7 @@ def eval(*, model_name: Name, loss_name: Name):
     with torch.no_grad():
         pred = model(X, h)
 
-    loss = loss_fns[loss_name](pred, y).item()
-    print(f"Model: {model_name}, Loss: {loss_name} = {loss:.4f}")
+    return loss_fns[loss_name](pred, y).item()
 
 
 if __name__ == "__main__":
@@ -202,3 +201,5 @@ if __name__ == "__main__":
 
     eval(model_name="l1", loss_name="l1")
     eval(model_name="l1", loss_name="pinball")
+
+    # TODO make a table of all combinations of model_name and loss_name, and print the results in a nice format
