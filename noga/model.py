@@ -54,6 +54,7 @@ class Model(pl.LightningModule):
         self.balance = torch.nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
         self.net = nn.Linear(INPUT_SIZE, 1)
 
+        self.name = name
         self.loss = loss_fns[name]
 
     def forward(self, X, h):
@@ -71,7 +72,7 @@ class Model(pl.LightningModule):
 
         pred = self(X, h)
         loss = self.loss(pred, y)
-        self.log(f"{step}/mae", loss, on_epoch=True,
+        self.log(f"{step}/{self.name}", loss, on_epoch=True,
                  on_step=False, prog_bar=True)
 
         return loss
