@@ -6,8 +6,8 @@ from torch.utils.data import Dataset
 
 # TRAIN
 LR = 1e-3
-EPOCHS = 2_000
-B_SIZE = 64
+EPOCHS = 1_000
+B_SIZE = 256
 
 # DATA
 Y_SCALE = 100_000
@@ -43,17 +43,21 @@ class Model(pl.LightningModule):
 
         return self.net(f).squeeze(1)
 
-    def training_step(self, batch, batch_idx):
+    def step(self, batch, batch_idx, step='train'):
         X, h, y = batch
-
-        assert X.shape == (B_SIZE, 5), f"Unexpected X shape: {X.shape}"
-        assert h.shape == (B_SIZE, SEQ_LEN), f"Unexpected h shape: {h.shape}"
-        assert y.shape == (B_SIZE,), f"Unexpected y shape: {y.shape}"
 
         pred = self(X, h)
         loss = (pred - y).abs().mean()
-        self.log("mae", loss, on_epoch=True, on_step=False, prog_bar=True)
+        self.log(f"{step}/mae", loss, on_epoch=True,
+                 on_step=False, prog_bar=True)
+
         return loss
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx)
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx, step='val')
 
     def predict_step(self, batch, batch_idx): ...
 
@@ -75,9 +79,6 @@ class Data(Dataset):
             "total_demand"]
 
         df = df[cols]
-
-        assert not df.isnull().any().any(
-        ), f"NaN values found:\n{df.isnull().sum()}"
 
         date = df['date']
 
@@ -117,15 +118,21 @@ if __name__ == "__main__":
 
     from torch.utils.data import DataLoader
 
-    train_loader = DataLoader(
+    train_dl = DataLoader(
         train_ds,
         batch_size=B_SIZE,
         shuffle=False,
         drop_last=True)
 
+    val_dl = DataLoader(
+        test_ds,
+        batch_size=1024,
+        shuffle=False,
+        drop_last=True)
+
     model = Model()
     trainer = pl.Trainer(max_epochs=EPOCHS, deterministic=True)
-    trainer.fit(model, train_loader)
+    trainer.fit(model, train_dl, val_dl)
 
     for name, param in model.named_parameters():
         print(f"{name}: {param.data}")
