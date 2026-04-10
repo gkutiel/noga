@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Literal
 
 import pandas as pd
 import pytorch_lightning as pl
@@ -26,10 +26,24 @@ def norm(data: torch.Tensor) -> torch.Tensor:
 
 
 LossFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+Name = Literal["l1", "pinball"]
+
+
+def pinball(pred: torch.Tensor, y: torch.Tensor, under=5) -> torch.Tensor:
+    unit = 1 / (1 + under)
+    error = y - pred
+    loss = torch.where(error > 0, unit * error, (unit - 1) * error)
+    return torch.mean(loss)
+
+
+loss_fns: dict[Name, LossFn] = {
+    "l1": nn.L1Loss(),
+    "pinball": pinball
+}
 
 
 class Model(pl.LightningModule):
-    def __init__(self, loss_fn: LossFn = nn.L1Loss()):
+    def __init__(self, name: Name):
         super().__init__()
 
         self.day = nn.Embedding(7, DAY_EMBED)
@@ -38,7 +52,7 @@ class Model(pl.LightningModule):
         self.balance = torch.nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
         self.net = nn.Linear(INPUT_SIZE, 1)
 
-        self.loss = loss_fn
+        self.loss = loss_fns[name]
 
     def forward(self, X, h):
         day = self.day(X[:, 0].long())
@@ -136,11 +150,11 @@ def load_data():
     return train_dl, val_dl
 
 
-def train(*, loss_fn: LossFn, name: str):
+def train(name: Name):
 
     pl.seed_everything(42)
 
-    model = Model(loss_fn=loss_fn)
+    model = Model(name=name)
     trainer = pl.Trainer(
         max_epochs=EPOCHS,
         deterministic=True,
@@ -152,23 +166,31 @@ def train(*, loss_fn: LossFn, name: str):
     torch.save(model.state_dict(), f"data/{name}.pt")
 
 
-def load_model(name):
-    model = Model()
+def load_model(name: Name):
+    model = Model(name=name)
     model.load_state_dict(torch.load(f"data/{name}.pt"))
     model.eval()
     return model
 
 
-def eval(*, name: str, loss_fn: LossFn):
-    model = load_model(name)
+def eval(*, model_name: Name, loss_name: Name):
+    model = load_model(model_name)
     model.eval()
 
     _, val_dl = load_data()
 
-    # TODO: in a single batch run the model on the validation set and compute the loss
+    X, h, y = next(iter(val_dl))
+    with torch.no_grad():
+        pred = model(X, h)
+
+    loss = loss_fns[loss_name](pred, y).item()
+    print(f"Model: {model_name}, Loss: {loss_name} = {loss:.4f}")
 
 
 if __name__ == "__main__":
-    train(
-        loss_fn=nn.L1Loss(),
-        name="l1")
+    # train(
+    #     loss_fn=nn.L1Loss(),
+    #     name="l1")
+
+    eval(model_name="l1", loss_name="l1")
+    eval(model_name="l1", loss_name="pinball")
