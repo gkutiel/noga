@@ -34,7 +34,7 @@ def pinball(pred: torch.Tensor, y: torch.Tensor, under=5) -> torch.Tensor:
     unit = 1 / (1 + under)
     error = pred - y
     loss = torch.where(error > 0, unit * error, (unit - 1) * error)
-    return torch.mean(loss) * (1 + under)
+    return torch.mean(loss) * 2
 
 
 loss_fns: dict[Name, LossFn] = {
@@ -176,7 +176,7 @@ def train(name: Name):
 
 def load_model(name: Name):
     model = Model(name=name)
-    model.load_state_dict(torch.load(f"data/{name}.pt"))
+    model.load_state_dict(torch.load(f"models/{name}.pt"))
     model.eval()
     return model
 
