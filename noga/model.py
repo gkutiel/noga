@@ -1,3 +1,5 @@
+from typing import Callable
+
 import pandas as pd
 import pytorch_lightning as pl
 import torch
@@ -5,9 +7,9 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 # TRAIN
-LR = 1e-3
+LR = 2e-3
 EPOCHS = 1_000
-B_SIZE = 128
+B_SIZE = 64
 
 # DATA
 Y_SCALE = 100_000
@@ -23,8 +25,11 @@ def norm(data: torch.Tensor) -> torch.Tensor:
     return (data - data.mean(dim=0)) / data.std(dim=0)
 
 
+LossFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+
+
 class Model(pl.LightningModule):
-    def __init__(self, loss_fn=nn.L1Loss()):
+    def __init__(self, loss_fn: LossFn = nn.L1Loss()):
         super().__init__()
 
         self.day = nn.Embedding(7, DAY_EMBED)
@@ -104,10 +109,7 @@ class Data(Dataset):
         return self.X[idx + SEQ_LEN], self.y[idx:idx+SEQ_LEN], self.y[idx+SEQ_LEN]
 
 
-def train(*, loss_fn, name):
-
-    pl.seed_everything(42)
-
+def load_data():
     daily = pd.read_csv(
         "data/daily.csv",
         parse_dates=["date"])
@@ -131,15 +133,39 @@ def train(*, loss_fn, name):
         shuffle=False,
         drop_last=False)
 
+    return train_dl, val_dl
+
+
+def train(*, loss_fn: LossFn, name: str):
+
+    pl.seed_everything(42)
+
     model = Model(loss_fn=loss_fn)
     trainer = pl.Trainer(
         max_epochs=EPOCHS,
         deterministic=True,
-        val_check_interval=0.1)
+        check_val_every_n_epoch=EPOCHS // 2)
 
+    train_dl, val_dl = load_data()
     trainer.fit(model, train_dl, val_dl)
 
     torch.save(model.state_dict(), f"data/{name}.pt")
+
+
+def load_model(name):
+    model = Model()
+    model.load_state_dict(torch.load(f"data/{name}.pt"))
+    model.eval()
+    return model
+
+
+def eval(*, name: str, loss_fn: LossFn):
+    model = load_model(name)
+    model.eval()
+
+    _, val_dl = load_data()
+
+    # TODO: in a single batch run the model on the validation set and compute the loss
 
 
 if __name__ == "__main__":
