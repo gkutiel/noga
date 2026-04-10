@@ -24,7 +24,7 @@ def norm(data: torch.Tensor) -> torch.Tensor:
 
 
 class Model(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, loss_fn=nn.L1Loss()):
         super().__init__()
 
         self.day = nn.Embedding(7, DAY_EMBED)
@@ -32,6 +32,8 @@ class Model(pl.LightningModule):
 
         self.balance = torch.nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
         self.net = nn.Linear(INPUT_SIZE, 1)
+
+        self.loss = loss_fn
 
     def forward(self, X, h):
         day = self.day(X[:, 0].long())
@@ -47,7 +49,7 @@ class Model(pl.LightningModule):
         X, h, y = batch
 
         pred = self(X, h)
-        loss = (pred - y).abs().mean()
+        loss = self.loss(pred, y)
         self.log(f"{step}/mae", loss, on_epoch=True,
                  on_step=False, prog_bar=True)
 
