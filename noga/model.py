@@ -126,6 +126,26 @@ class Data(Dataset):
         return self.X[idx + SEQ_LEN], self.y[idx:idx+SEQ_LEN], self.y[idx+SEQ_LEN]
 
 
+class Calibration(pl.LightningModule):
+    def __init__(self, loss_name: Name):
+        super().__init__()
+
+        self.net = nn.Linear(1, 1)
+        self.loss = loss_fns[loss_name]
+
+    def forward(self, X, h):
+        return self.net(X, h)
+
+    def training_step(self, batch):
+        pred, y = batch
+        y_hat = self(pred)
+        loss = self.loss(y_hat, y)
+
+        self.log(f"calibrate/{self.loss}", loss, prog_bar=True)
+
+        return loss
+
+
 def load_data():
     daily = pd.read_csv(
         "data/daily.csv",
@@ -181,9 +201,8 @@ def load_model(name: Name):
     return model
 
 
-def eval(*, model_name: Name, loss_name: Name):
+def predict(*, model_name: Name):
     model = load_model(model_name)
-    model.eval()
 
     _, val_dl = load_data()
 
@@ -191,7 +210,20 @@ def eval(*, model_name: Name, loss_name: Name):
     with torch.no_grad():
         pred = model(X, h)
 
+    return pred, y
+
+
+def eval(*, model_name: Name, loss_name: Name):
+    pred, y = predict(model_name=model_name)
+
     return loss_fns[loss_name](pred, y).item()
+
+
+def calibrate(*, model_name: Name, loss_name: Name):
+    pred, y = predict(model_name=model_name)
+
+    # TODO: build a datamodule from pred, y and train a Calibration model on it
+    # to find the best linear transformation of pred to minimize loss_name with respect to y
 
 
 if __name__ == "__main__":
