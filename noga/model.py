@@ -22,6 +22,10 @@ MONTH_EMBED = 2
 SEQ_LEN = 1
 INPUT_SIZE = 3 + DAY_EMBED + MONTH_EMBED + SEQ_LEN
 
+# CALIBRATION
+CAL_EPOCHS = 1_000
+CAL_LR = 1e-2
+
 
 def norm(data: torch.Tensor) -> torch.Tensor:
     return (data - data.mean(dim=0)) / data.std(dim=0)
@@ -148,7 +152,7 @@ class Calibration(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        return torch.optim.Adam(params=self.parameters(), lr=LR)
+        return torch.optim.Adam(params=self.parameters(), lr=CAL_LR)
 
 
 def load_data():
@@ -206,7 +210,19 @@ def load_model(name: Name):
     return model
 
 
-def predict(*, model_name: Name):
+def pred_train(*, model_name: Name):
+    model = load_model(model_name)
+
+    train_dl, _ = load_data()
+
+    X, h, y = next(iter(train_dl))
+    with torch.no_grad():
+        pred = model(X, h)
+
+    return pred, y
+
+
+def pred_test(*, model_name: Name):
     model = load_model(model_name)
 
     _, val_dl = load_data()
@@ -219,26 +235,33 @@ def predict(*, model_name: Name):
 
 
 def eval(*, model_name: Name, loss_name: Name):
-    pred, y = predict(model_name=model_name)
+    pred, y = pred_test(model_name=model_name)
 
     return loss_fns[loss_name](pred, y).item()
 
 
 def calibrate(*, model_name: Name, loss_name: Name):
+    pl.seed_everything(42)
+
     path = pt.cal(model_name=model_name, loss_name=loss_name)
     if path.exists():
         return
 
-    pred, y = predict(model_name=model_name)
+    pred, y = pred_train(model_name=model_name)
 
     ds = torch.utils.data.TensorDataset(pred.unsqueeze(1), y)
     dl = DataLoader(ds, batch_size=1024)
 
     cal = Calibration(loss_name=loss_name)
-    trainer = pl.Trainer(max_epochs=500)
+    trainer = pl.Trainer(max_epochs=CAL_EPOCHS, deterministic=True)
     trainer.fit(cal, dl)
 
     torch.save(cal.state_dict(), path)
+
+    weight = cal.net.weight.item()
+    bias = cal.net.bias.item()
+    print(
+        f"Calibration ({model_name} → {loss_name}): weight={weight:.4f}, bias={bias:.4f}")
 
 
 def load_calibrated(*, model_name: Name, loss_name: Name):
@@ -255,7 +278,7 @@ def eval_calibrated(*, model_name: Name, loss_name: Name):
     if model_name == loss_name:
         return eval(model_name=model_name, loss_name=loss_name)
 
-    pred, y = predict(model_name=model_name)
+    pred, y = pred_test(model_name=model_name)
 
     cal = load_calibrated(
         model_name=model_name,
@@ -328,6 +351,14 @@ def report():
 
 if __name__ == "__main__":
     # report()
+    mn = "pin_10"
+    ls = "pin_5"
     calibrate(
-        model_name="l1",
-        loss_name="pin_5")
+        model_name=mn,
+        loss_name=ls)
+
+    res = eval_calibrated(
+        model_name=mn,
+        loss_name=ls)
+
+    print(res)
