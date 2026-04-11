@@ -350,15 +350,4 @@ def report():
 
 
 if __name__ == "__main__":
-    # report()
-    mn = "pin_10"
-    ls = "pin_5"
-    calibrate(
-        model_name=mn,
-        loss_name=ls)
-
-    res = eval_calibrated(
-        model_name=mn,
-        loss_name=ls)
-
-    print(res)
+    report()
