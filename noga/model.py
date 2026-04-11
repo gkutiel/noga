@@ -138,7 +138,7 @@ class Calibration(pl.LightningModule):
     def forward(self, X):
         return self.net(X).squeeze(1)
 
-    def training_step(self, batch):
+    def training_step(self, batch, batch_idx):
         pred, y = batch
         y_hat = self(pred)
         loss = self.loss(y_hat, y)
@@ -235,10 +235,36 @@ def calibrate(*, model_name: Name, loss_name: Name):
     dl = DataLoader(ds, batch_size=1024)
 
     cal = Calibration(loss_name=loss_name)
-    trainer = pl.Trainer(max_epochs=500, enable_model_summary=False)
+    trainer = pl.Trainer(max_epochs=500)
     trainer.fit(cal, dl)
 
     torch.save(cal.state_dict(), path)
+
+
+def load_calibrated(*, model_name: Name, loss_name: Name):
+    path = pt.cal(model_name=model_name, loss_name=loss_name)
+
+    cal = Calibration(loss_name=loss_name)
+    cal.load_state_dict(torch.load(path))
+    cal.eval()
+
+    return cal
+
+
+def eval_calibrated(*, model_name: Name, loss_name: Name):
+    if model_name == loss_name:
+        return eval(model_name=model_name, loss_name=loss_name)
+
+    pred, y = predict(model_name=model_name)
+
+    cal = load_calibrated(
+        model_name=model_name,
+        loss_name=loss_name)
+
+    with torch.no_grad():
+        pred_cal = cal(pred.unsqueeze(1))
+
+    return loss_fns[loss_name](pred_cal, y).item()
 
 
 class pt:
@@ -251,7 +277,7 @@ class pt:
         return Path(f'models/cal_{model_name}_on_{loss_name}.pt')
 
 
-if __name__ == "__main__":
+def report():
     train(name="l1")
     train(name="pin_5")
     train(name="pin_10")
@@ -264,8 +290,6 @@ if __name__ == "__main__":
 
         calibrate(model_name=model_name, loss_name=loss_name)
 
-    # TODO: generate another table with the calibrated losses.
-    # Only calibrate models on other losses, not on their own loss (e.g. calibrate l1 on pin_5 and pin_10, but not on l1).
     rows = [
         {"model": m, "loss": ls, "value": eval(model_name=m, loss_name=ls)}
         for m in names
@@ -279,3 +303,31 @@ if __name__ == "__main__":
 
     print(results.to_string(float_format="{:.4f}".format))
     results.to_csv("data/eval.csv")
+
+    # TODO: when model and loss are the same, eval_calibrated should be the same as eval
+    cal_rows = [
+        {
+            "model": m,
+            "loss": ls,
+            "value": eval_calibrated(
+                model_name=m,
+                loss_name=ls)}
+
+        for m in names
+        for ls in names
+    ]
+
+    cal_results = pd.DataFrame(cal_rows).pivot(
+        index="model",
+        columns="loss",
+        values="value")
+
+    print(cal_results.to_string(float_format="{:.4f}".format))
+    cal_results.to_csv("data/eval_calibrated.csv")
+
+
+if __name__ == "__main__":
+    # report()
+    calibrate(
+        model_name="l1",
+        loss_name="pin_5")
