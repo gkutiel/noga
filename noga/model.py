@@ -1,3 +1,4 @@
+from itertools import product
 from pathlib import Path
 from typing import Callable, Literal
 
@@ -131,19 +132,23 @@ class Calibration(pl.LightningModule):
         super().__init__()
 
         self.net = nn.Linear(1, 1)
+        self.loss_name = loss_name
         self.loss = loss_fns[loss_name]
 
-    def forward(self, X, h):
-        return self.net(X, h)
+    def forward(self, X):
+        return self.net(X).squeeze(1)
 
     def training_step(self, batch):
         pred, y = batch
         y_hat = self(pred)
         loss = self.loss(y_hat, y)
 
-        self.log(f"calibrate/{self.loss}", loss, prog_bar=True)
+        self.log(f"calibrate/{self.loss_name}", loss, prog_bar=True)
 
         return loss
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(params=self.parameters(), lr=LR)
 
 
 def load_data():
@@ -176,7 +181,7 @@ def load_data():
 def train(name: Name):
     pl.seed_everything(42)
 
-    out = Path(f"models/{name}.pt")
+    out = pt.model(name)
 
     if out.exists():
         print(f"Skipping training: {out} already exists")
@@ -196,7 +201,7 @@ def train(name: Name):
 
 def load_model(name: Name):
     model = Model(name=name)
-    model.load_state_dict(torch.load(f"models/{name}.pt"))
+    model.load_state_dict(torch.load(pt.model(name)))
     model.eval()
     return model
 
@@ -220,10 +225,30 @@ def eval(*, model_name: Name, loss_name: Name):
 
 
 def calibrate(*, model_name: Name, loss_name: Name):
+    path = pt.cal(model_name=model_name, loss_name=loss_name)
+    if path.exists():
+        return
+
     pred, y = predict(model_name=model_name)
 
-    # TODO: build a datamodule from pred, y and train a Calibration model on it
-    # to find the best linear transformation of pred to minimize loss_name with respect to y
+    ds = torch.utils.data.TensorDataset(pred.unsqueeze(1), y)
+    dl = DataLoader(ds, batch_size=1024)
+
+    cal = Calibration(loss_name=loss_name)
+    trainer = pl.Trainer(max_epochs=500, enable_model_summary=False)
+    trainer.fit(cal, dl)
+
+    torch.save(cal.state_dict(), path)
+
+
+class pt:
+    @staticmethod
+    def model(name: Name):
+        return Path(f'models/{name}.pt')
+
+    @staticmethod
+    def cal(*, model_name: Name, loss_name: Name):
+        return Path(f'models/cal_{model_name}_on_{loss_name}.pt')
 
 
 if __name__ == "__main__":
@@ -232,6 +257,15 @@ if __name__ == "__main__":
     train(name="pin_10")
 
     names: list[Name] = ["l1", "pin_5", "pin_10"]
+
+    for model_name, loss_name in product(names, names):
+        if model_name == loss_name:
+            continue
+
+        calibrate(model_name=model_name, loss_name=loss_name)
+
+    # TODO: generate another table with the calibrated losses.
+    # Only calibrate models on other losses, not on their own loss (e.g. calibrate l1 on pin_5 and pin_10, but not on l1).
     rows = [
         {"model": m, "loss": ls, "value": eval(model_name=m, loss_name=ls)}
         for m in names
