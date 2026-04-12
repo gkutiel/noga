@@ -13,7 +13,7 @@ def pinball(pred: torch.Tensor, y: torch.Tensor, fact=5) -> torch.Tensor:
 
 def gen(pred: Tensor, y: Tensor):
     e = pred - y
-    return torch.where(e < 0, -.2 * e + 1.5 * e**2, e * .5).mean()
+    return torch.where(e < 0, -.2 * e + 1.5 * e**2, e * .2).mean()
 
 
 def pwa(
