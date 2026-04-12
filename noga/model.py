@@ -113,11 +113,13 @@ class Data(Dataset):
 
 
 class Calibration(pl.LightningModule):
-    def __init__(self, loss_name: Name):
+    def __init__(self, *, model_name,  loss_name: Name):
         super().__init__()
 
-        self.net = nn.Linear(1, 1)
+        self.model_name = model_name
         self.loss_name = loss_name
+
+        self.net = nn.Linear(1, 1)
         self.loss = loss_fns[loss_name]
 
     def forward(self, X):
@@ -128,7 +130,10 @@ class Calibration(pl.LightningModule):
         y_hat = self(pred)
         loss = self.loss(y_hat, y)
 
-        self.log(f"calibrate/{self.loss_name}", loss, prog_bar=True)
+        self.log(
+            f"cal/{self.model_name}-{self.loss_name}",
+            loss,
+            prog_bar=True)
 
         return loss
 
@@ -252,7 +257,10 @@ def calibrate(*, model_name: Name, loss_name: Name):
     ds = torch.utils.data.TensorDataset(pred.unsqueeze(1), y)
     dl = DataLoader(ds, batch_size=1024)
 
-    cal = Calibration(loss_name=loss_name)
+    cal = Calibration(
+        model_name=model_name,
+        loss_name=loss_name)
+
     trainer = pl.Trainer(max_epochs=CAL_EPOCHS, deterministic=True)
     trainer.fit(cal, dl)
 
@@ -267,7 +275,10 @@ def calibrate(*, model_name: Name, loss_name: Name):
 def load_calibrated(*, model_name: Name, loss_name: Name):
     path = pt.cal(model_name=model_name, loss_name=loss_name)
 
-    cal = Calibration(loss_name=loss_name)
+    cal = Calibration(
+        model_name=model_name,
+        loss_name=loss_name)
+
     cal.load_state_dict(torch.load(path))
     cal.eval()
 
