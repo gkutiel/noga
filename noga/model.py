@@ -68,6 +68,9 @@ class Model(pl.LightningModule):
     def predict_step(self, batch, batch_idx): ...
 
     def configure_optimizers(self):
+        return torch.optim.SGD(
+            params=self.parameters(),
+            lr=lrs[self.name])
         return torch.optim.Adam(
             params=self.parameters(),
             lr=lrs[self.name])

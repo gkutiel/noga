@@ -38,5 +38,5 @@ cal_epochs: dict[tuple[Name, Name], int] = {
 lrs: dict[Name, float] = {
     "l1": 1e-2,
     "pinball": 1e-2,
-    "gen": 2e-2,
+    "gen": 1e-2,
 }
