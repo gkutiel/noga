@@ -215,6 +215,25 @@ def pred_test(*, model_name: Name):
     return pred, y
 
 
+def save_preds(name: Name):
+    model = load_model(name)
+
+    _, val_dl = load_data()
+
+    preds, actuals = [], []
+    with torch.no_grad():
+        for X, h, y in val_dl:
+            preds.append(model(X, h))
+            actuals.append(y)
+
+    pred = torch.cat(preds).numpy() * Y_SCALE
+    actual = torch.cat(actuals).numpy() * Y_SCALE
+
+    out = Path(f"csv/pred_{name}.csv")
+    pd.DataFrame({"pred": pred, "actual": actual}).to_csv(out, index=False)
+    print(f"Saved predictions to {out}")
+
+
 def eval(*, model_name: Name, loss_name: Name):
     pred, y = pred_test(model_name=model_name)
 
@@ -286,6 +305,9 @@ def report():
 
     for name in names:
         train(name)
+
+    for name in names:
+        save_preds(name)
 
     for model_name, loss_name in product(names, names):
         if model_name == loss_name:

@@ -6,6 +6,7 @@ lightning_logs
 
 data
 plots
+csv
 
 *.egg*
 
