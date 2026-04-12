@@ -239,10 +239,38 @@ def day_ahead_forecast_abs_error():
     plt.close()
 
 
+def plot_loss_fns():
+    import torch
+
+    from noga.cost import loss_fns
+
+    errors = torch.linspace(-1, 1, 500)
+    zeros = torch.zeros(1)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    for name, fn in loss_fns.items():
+        costs = [fn(errors[i:i+1], zeros).item() for i in range(len(errors))]
+        ax.plot(errors.numpy(), costs, label=name, linewidth=2)
+
+    ax.axvline(0, color="gray", linewidth=0.8, linestyle="--")
+    ax.set_title("Loss functions (error = pred − y)")
+    ax.set_xlabel("Error")
+    ax.set_ylabel("Cost")
+    ax.legend()
+    fig.tight_layout()
+
+    out = PLOTS_DIR / "loss_fns.png"
+    print("Saving plot to:", out)
+    plt.savefig(out, dpi=150)
+    plt.close()
+
+
 if __name__ == "__main__":
     # daily_demand_by_time()
-    demand_vs_temp()
+    # demand_vs_temp()
     # demand_by_time()
-    daily_demand_vs_forecast()
-    day_ahead_forecast_abs_error()
+    # daily_demand_vs_forecast()
+    # day_ahead_forecast_abs_error()
     # demand_vs_forecast_kde_histogram()
+    plot_loss_fns()
