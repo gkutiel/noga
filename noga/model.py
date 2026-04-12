@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader, Dataset
 from noga.cost import Name, loss_fns
 
 # TRAIN
-LR = 1e-2
-EPOCHS = 1_000
+LR = 2e-2
+EPOCHS = 2_000
 B_SIZE = 1024
 
 # DATA
