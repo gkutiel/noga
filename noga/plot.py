@@ -310,59 +310,51 @@ def plot_error_kde_hist():
     plt.close()
 
 
-def plot_day_embeddings():
-    from noga.cost import Name, loss_fns
+def print_params():
+    from noga.cost import loss_fns
     from noga.model import load_model
 
     DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    CITY_LABELS = ["Haifa", "Jerusalem", "Tel Aviv"]
+    CITIES = ["Haifa", "Jerusalem", "Tel Aviv"]
 
-    names: list[Name] = list(loss_fns)  # type: ignore[assignment]
-    n = len(names)
-    fig, axes = plt.subplots(3, n, figsize=(5 * n, 13))
+    # net.weight layout (1, 23): [temp×3, h, day×7, month×12]
+    H_IDX = 0
+    TEMP_IDX = slice(1, 4)
+    DAY_IDX = slice(4, 11)
+    MONTH_IDX = slice(11, 23)
 
-    for col, name in enumerate(names):
-        model = load_model(name)
+    names = list(loss_fns)
+    for name in names:
+        try:
+            model = load_model(name)
+            w = model.net.weight.detach().squeeze()  # (23,)
 
-        # --- day embeddings (7×2) ---
-        day_w = model.day.weight.detach().numpy()
-        ax = axes[0, col]
-        ax.scatter(day_w[:, 0], day_w[:, 1], color="#3b82f6", s=60, zorder=3)
-        for i, label in enumerate(DAY_LABELS):
-            ax.annotate(label, (day_w[i, 0], day_w[i, 1]),
-                        textcoords="offset points", xytext=(6, 4), fontsize=9)
-        ax.axhline(0, color="gray", linewidth=0.5)
-        ax.axvline(0, color="gray", linewidth=0.5)
-        ax.set_title(f"{name} — day")
+            print(f"\n{'='*44}")
+            print(f"  Model: {name}")
+            print(f"{'='*44}")
 
-        # --- month embeddings (12×2) ---
-        month_w = model.month.weight.detach().numpy()
-        ax = axes[1, col]
-        ax.scatter(month_w[:, 0], month_w[:, 1],
-                   color="#a855f7", s=60, zorder=3)
-        for i, label in enumerate(MONTH_LABELS):
-            ax.annotate(label, (month_w[i, 0], month_w[i, 1]),
-                        textcoords="offset points", xytext=(6, 4), fontsize=9)
-        ax.axhline(0, color="gray", linewidth=0.5)
-        ax.axvline(0, color="gray", linewidth=0.5)
-        ax.set_title(f"{name} — month")
+            print("\nBalance temperatures (°C):")
+            for city, val in zip(CITIES, model.balance.detach().tolist()):
+                print(f"  {city:<12} {val:+.2f}")
 
-        # --- balance temperatures ---
-        balance = model.balance.detach().numpy()
-        ax = axes[2, col]
-        ax.bar(CITY_LABELS, balance, color="#f97316", alpha=0.8)
-        ax.set_ylabel("°C")
-        ax.set_title(f"{name} — balance temp")
+            print("\nTemperature sensitivity:")
+            for city, val in zip(CITIES, w[TEMP_IDX].tolist()):
+                print(f"  {city:<12} {val:+.4f}")
 
-    fig.suptitle("Learned embeddings and balance temperatures by model")
-    fig.tight_layout()
+            print(f"\nLag (h) coefficient:  {w[H_IDX].item():+.4f}")
 
-    out = PLOTS_DIR / "embeddings.png"
-    print("Saving plot to:", out)
-    plt.savefig(out, dpi=150)
-    plt.close()
+            print("\nDay bias:")
+            for label, val in zip(DAY_LABELS, w[DAY_IDX].tolist()):
+                print(f"  {label}   {val:+.4f}")
+
+            print("\nMonth bias:")
+            for label, val in zip(MONTH_LABELS, w[MONTH_IDX].tolist()):
+                print(f"  {label}   {val:+.4f}")
+
+        except FileNotFoundError:
+            print(f"\nModel '{name}' not found, skipping.")
 
 
 if __name__ == "__main__":
@@ -374,4 +366,5 @@ if __name__ == "__main__":
     # demand_vs_forecast_kde_histogram()
     # plot_loss_fns()
     # plot_error_kde_hist()
-    plot_day_embeddings()
+    # plot_day_embeddings()
+    print_params()

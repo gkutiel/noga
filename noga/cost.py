@@ -37,8 +37,9 @@ def pwa(
     return lambda pred, y: cost(pred, y).mean()
 
 
+SYM_FACTOR = 1
 loss_fns: dict[Name, LossFn] = {
-    "sym": lambda pred, y: torch.mean(torch.abs(pred - y) * 3),
+    "sym": lambda pred, y: torch.mean(torch.abs(pred - y) * SYM_FACTOR),
     "pinball": lambda pred, y: pinball(pred, y),
     'pwa': pwa(),
 }

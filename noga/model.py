@@ -6,23 +6,22 @@ import pandas as pd
 import pytorch_lightning as pl
 import torch
 from torch import nn
+from torch.nn.functional import one_hot
 from torch.utils.data import DataLoader, Dataset
 
 from noga.cost import Name, loss_fns
 
 # TRAIN
-LR = 2e-3
+LR = 1e-2
 EPOCHS = 1_000
-B_SIZE = 64
+B_SIZE = 1024
 
 # DATA
 Y_SCALE = 100_000
 
 # MODEL
-DAY_EMBED = 2
-MONTH_EMBED = 2
 SEQ_LEN = 1
-INPUT_SIZE = 3 + DAY_EMBED + MONTH_EMBED + SEQ_LEN
+INPUT_SIZE = 3 + 7 + 12 + SEQ_LEN
 
 # CALIBRATION
 CAL_EPOCHS = 300
@@ -33,23 +32,22 @@ class Model(pl.LightningModule):
     def __init__(self, name: Name):
         super().__init__()
 
-        self.day = nn.Embedding(7, DAY_EMBED)
-        self.month = nn.Embedding(12, MONTH_EMBED)
-
         self.balance = torch.nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
-        self.net = nn.Linear(INPUT_SIZE, 1)
+        self.net = nn.Linear(INPUT_SIZE, 1, bias=False)
 
         self.name = name
         self.loss = loss_fns[name]
 
     def forward(self, X, h):
-        day = self.day(X[:, 0].long())
-        month = self.month(X[:, 1].long())
+        day = X[:, 0]
+        month = X[:, 1]
         temps = X[:, 2:]
 
-        f = (temps - self.balance).abs()
-        f = torch.cat([f, h, day, month], dim=1)
+        day_oh = one_hot(day.long(), num_classes=7)
+        month_oh = one_hot(month.long(), num_classes=12)
 
+        f = (temps - self.balance).abs()
+        f = torch.cat([h, f, day_oh, month_oh], dim=1)
         return self.net(f).squeeze(1)
 
     def step(self, batch, batch_idx, step='train'):
@@ -109,7 +107,8 @@ class Data(Dataset):
         return len(self.y) - SEQ_LEN
 
     def __getitem__(self, idx):
-        return self.X[idx + SEQ_LEN], self.y[idx:idx+SEQ_LEN], self.y[idx+SEQ_LEN]
+        h = self.y[idx:idx+SEQ_LEN]
+        return self.X[idx + SEQ_LEN], h, self.y[idx+SEQ_LEN]
 
 
 class Calibration(pl.LightningModule):
@@ -156,12 +155,14 @@ def load_data():
     train_dl = DataLoader(
         train_ds,
         batch_size=B_SIZE,
+        num_workers=4,
         shuffle=False,
-        drop_last=True)
+        drop_last=False)
 
     val_dl = DataLoader(
         test_ds,
         batch_size=1024,
+        num_workers=4,
         shuffle=False,
         drop_last=False)
 
@@ -181,13 +182,13 @@ def train(name: Name):
     trainer = pl.Trainer(
         max_epochs=EPOCHS,
         deterministic=True,
-        check_val_every_n_epoch=EPOCHS // 2)
+        log_every_n_steps=4,
+        check_val_every_n_epoch=100)
 
     train_dl, val_dl = load_data()
     trainer.fit(model, train_dl, val_dl)
 
     torch.save(model.state_dict(), out)
-    save_params(name)
 
 
 def load_model(name: Name):
@@ -195,45 +196,6 @@ def load_model(name: Name):
     model.load_state_dict(torch.load(pt.model(name)))
     model.eval()
     return model
-
-
-def save_params(name: Name):
-    model = load_model(name)
-
-    day_labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    month_labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    city_labels = ["Haifa", "Jerusalem", "Tel_Aviv"]
-
-    rows: list[dict] = []
-
-    for i, city in enumerate(city_labels):
-        rows.append({"param": f"balance_{city}",
-                    "value": model.balance[i].item()})
-
-    day_w = model.day.weight.detach()
-    for i, day in enumerate(day_labels):
-        for j in range(day_w.shape[1]):
-            rows.append({"param": f"day_{day}_{j}",
-                        "value": day_w[i, j].item()})
-
-    month_w = model.month.weight.detach()
-    for i, month in enumerate(month_labels):
-        for j in range(month_w.shape[1]):
-            rows.append({"param": f"month_{month}_{j}",
-                        "value": month_w[i, j].item()})
-
-    net_w = model.net.weight.detach().squeeze()
-    for i, v in enumerate(net_w):
-        rows.append({"param": f"net_weight_{i}", "value": v.item()})
-    rows.append({"param": "net_bias", "value": model.net.bias.item()})
-
-    df = pd.DataFrame(rows)
-    print(df.to_string(index=False))
-
-    out = Path(f"params/{name}.csv")
-    df.to_csv(out, index=False)
-    print(f"Saved params to {out}")
 
 
 def pred_train(*, model_name: Name):
@@ -405,3 +367,5 @@ def report():
 if __name__ == "__main__":
     # report()
     train("sym")
+    score = eval(model_name="sym", loss_name="sym")
+    print(f"Symmetric loss score: {score:.4f}")
