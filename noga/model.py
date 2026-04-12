@@ -6,23 +6,23 @@ import pandas as pd
 import pytorch_lightning as pl
 import torch
 from torch import nn
+from torch.nn import Parameter
 from torch.utils.data import DataLoader, Dataset
 
 from noga.cost import Name, loss_fns
 
 # TRAIN
-LR = 2e-3
+LR = 1e-3
 EPOCHS = 1_000
-B_SIZE = 64
+B_SIZE = 128
 
 # DATA
 Y_SCALE = 100_000
 
 # MODEL
-DAY_EMBED = 2
-MONTH_EMBED = 2
 SEQ_LEN = 1
-INPUT_SIZE = 3 + DAY_EMBED + MONTH_EMBED + SEQ_LEN
+BP = 20.0
+INPUT_SIZE = 3 + SEQ_LEN
 
 # CALIBRATION
 CAL_EPOCHS = 300
@@ -33,24 +33,24 @@ class Model(pl.LightningModule):
     def __init__(self, name: Name):
         super().__init__()
 
-        self.day = nn.Embedding(7, DAY_EMBED)
-        self.month = nn.Embedding(12, MONTH_EMBED)
+        self.day_bias = Parameter(torch.zeros(7))
+        self.month_bias = Parameter(torch.zeros(12))
 
-        self.balance = torch.nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
-        self.net = nn.Linear(INPUT_SIZE, 1)
+        self.balance = Parameter(torch.tensor([BP, BP, BP]))
+        self.net = nn.Linear(INPUT_SIZE, 1, bias=False)
 
         self.name = name
         self.loss = loss_fns[name]
 
     def forward(self, X, h):
-        day = self.day(X[:, 0].long())
-        month = self.month(X[:, 1].long())
+        day_bias = self.day_bias[X[:, 0].long()]
+        month_bias = self.month_bias[X[:, 1].long()]
         temps = X[:, 2:]
 
         f = (temps - self.balance).abs()
-        f = torch.cat([f, h, day, month], dim=1)
+        f = torch.cat([f, h], dim=1)
 
-        return self.net(f).squeeze(1)
+        return (self.net(f) + day_bias + month_bias).squeeze(1)
 
     def step(self, batch, batch_idx, step='train'):
         X, h, y = batch
@@ -201,8 +201,10 @@ def save_params(name: Name):
     model = load_model(name)
 
     day_labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    month_labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    # month_labels = [
+    #     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    #     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
     city_labels = ["Haifa", "Jerusalem", "Tel_Aviv"]
 
     rows: list[dict] = []
@@ -211,26 +213,17 @@ def save_params(name: Name):
         rows.append({"param": f"balance_{city}",
                     "value": model.balance[i].item()})
 
-    day_w = model.day.weight.detach()
+    day_bias = model.day_bias.detach()
     for i, day in enumerate(day_labels):
-        for j in range(day_w.shape[1]):
-            rows.append({"param": f"day_{day}_{j}",
-                        "value": day_w[i, j].item()})
-
-    month_w = model.month.weight.detach()
-    for i, month in enumerate(month_labels):
-        for j in range(month_w.shape[1]):
-            rows.append({"param": f"month_{month}_{j}",
-                        "value": month_w[i, j].item()})
+        rows.append({"param": f"day_bias_{day}", "value": day_bias[i].item()})
 
     net_w = model.net.weight.detach().squeeze()
     for i, v in enumerate(net_w):
         rows.append({"param": f"net_weight_{i}", "value": v.item()})
-    rows.append({"param": "net_bias", "value": model.net.bias.item()})
+
+    # rows.append({"param": "net_bias", "value": model.net.bias.item()})
 
     df = pd.DataFrame(rows)
-    print(df.to_string(index=False))
-
     out = Path(f"params/{name}.csv")
     df.to_csv(out, index=False)
     print(f"Saved params to {out}")
