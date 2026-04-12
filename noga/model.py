@@ -309,7 +309,7 @@ class pt:
 
     @staticmethod
     def cal(*, model_name: Name, loss_name: Name):
-        return Path(f'models/cal_{model_name}_on_{loss_name}.pt')
+        return Path(f'cal/cal_{model_name}_on_{loss_name}.pt')
 
 
 def report():

@@ -310,6 +310,14 @@ def plot_error_kde_hist():
     plt.close()
 
 
+def plot_day_embeddings():
+    # TODO: for each of the models (modes/*.pt) :
+    # 1. plot the day embeddings in 2D.
+    # 2. plot the month embeddings in 2D.
+    # 3. Plot the balance temp for the 3 cities
+    pass
+
+
 if __name__ == "__main__":
     # daily_demand_by_time()
     # demand_vs_temp()

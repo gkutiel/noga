@@ -7,7 +7,7 @@ LossFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 Name = Literal["sym", "pinball", "pwa"]
 
 
-def pinball(pred: torch.Tensor, y: torch.Tensor, under=6) -> torch.Tensor:
+def pinball(pred: torch.Tensor, y: torch.Tensor, under=5) -> torch.Tensor:
     error = pred - y
     loss = torch.where(error > 0, error, -under * error)
     return torch.mean(loss)
