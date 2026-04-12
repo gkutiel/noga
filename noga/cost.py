@@ -25,16 +25,6 @@ loss_fns: dict[Name, LossFn] = {
     'gen': gen,
 }
 
-epochs: dict[Name, int] = {
-    "l1": 10_000,
-    "pinball": 10_000,
-    "gen": 10_000,
-}
-
-cal_epochs: dict[tuple[Name, Name], int] = {
-    ('l1', 'gen'): 10_000,
-}
-
 lrs: dict[Name, float] = {
     "l1": 1e-2,
     "pinball": 1e-2,

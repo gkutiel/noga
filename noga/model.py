@@ -10,10 +10,11 @@ from torch import nn
 from torch.nn.functional import one_hot
 from torch.utils.data import DataLoader, Dataset
 
-from noga.cost import Name, cal_epochs, epochs, loss_fns, lrs
+from noga.cost import Name, loss_fns, lrs
 
 # TRAIN
 B_SIZE = 1024
+MAX_EPOCHS = 10_000
 
 # DATA
 Y_SCALE = 100_000
@@ -182,7 +183,7 @@ def train(name: Name):
     model = Model(name=name)
     logger = TensorBoardLogger("logs", name=name)
     trainer = pl.Trainer(
-        max_epochs=epochs[name],
+        max_epochs=MAX_EPOCHS,
         deterministic=True,
         log_every_n_steps=4,
         check_val_every_n_epoch=100,
@@ -268,9 +269,8 @@ def calibrate(*, model_name: Name, loss_name: Name):
         loss_name=loss_name)
 
     logger = TensorBoardLogger("logs", name=f'cal_{model_name}_on_{loss_name}')
-    max_epochs = cal_epochs.get((model_name, loss_name), 1_000)
     trainer = pl.Trainer(
-        max_epochs=max_epochs,
+        max_epochs=MAX_EPOCHS,
         deterministic=True,
         logger=logger)
 
