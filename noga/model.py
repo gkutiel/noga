@@ -365,7 +365,4 @@ def report():
 
 
 if __name__ == "__main__":
-    # report()
-    train("sym")
-    score = eval(model_name="sym", loss_name="sym")
-    print(f"Symmetric loss score: {score:.4f}")
+    report()
