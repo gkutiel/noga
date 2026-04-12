@@ -5,12 +5,13 @@ from typing import get_args
 import pandas as pd
 import pytorch_lightning as pl
 import torch
+from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
 from torch import nn
 from torch.nn.functional import one_hot
 from torch.utils.data import DataLoader, Dataset
 
-from noga.cost import Name, loss_fns, lrs
+from noga.cost import Name, loss_fns, optims
 
 # TRAIN
 B_SIZE = 1024
@@ -69,12 +70,7 @@ class Model(pl.LightningModule):
     def predict_step(self, batch, batch_idx): ...
 
     def configure_optimizers(self):
-        return torch.optim.SGD(
-            params=self.parameters(),
-            lr=lrs[self.name])
-        return torch.optim.Adam(
-            params=self.parameters(),
-            lr=lrs[self.name])
+        return optims[self.name](self.parameters())
 
 
 class Data(Dataset):
@@ -182,11 +178,18 @@ def train(name: Name):
 
     model = Model(name=name)
     logger = TensorBoardLogger("logs", name=name)
+
+    early_stopping = EarlyStopping(
+        monitor=f"val/{name}",
+        patience=10,
+        mode="min")
+
     trainer = pl.Trainer(
         max_epochs=MAX_EPOCHS,
         deterministic=True,
         log_every_n_steps=4,
         check_val_every_n_epoch=100,
+        callbacks=[early_stopping],
         logger=logger)
 
     train_dl, val_dl = load_data()
@@ -269,9 +272,16 @@ def calibrate(*, model_name: Name, loss_name: Name):
         loss_name=loss_name)
 
     logger = TensorBoardLogger("logs", name=f'cal_{model_name}_on_{loss_name}')
+
+    early_stopping = EarlyStopping(
+        monitor=f"cal/{model_name}-{loss_name}",
+        patience=10,
+        mode="min")
+
     trainer = pl.Trainer(
         max_epochs=MAX_EPOCHS,
         deterministic=True,
+        callbacks=[early_stopping],
         logger=logger)
 
     trainer.fit(cal, dl)

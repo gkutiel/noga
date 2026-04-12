@@ -1,7 +1,9 @@
-from typing import Callable, Literal
+from typing import Callable, Iterator, Literal
 
 import torch
 from torch import Tensor
+from torch.nn import Parameter
+from torch.optim import Adam
 
 
 def pinball(pred: torch.Tensor, y: torch.Tensor, fac=10) -> torch.Tensor:
@@ -25,8 +27,8 @@ loss_fns: dict[Name, LossFn] = {
     'gen': gen,
 }
 
-lrs: dict[Name, float] = {
-    "l1": 1e-2,
-    "pinball": 1e-2,
-    "gen": 1e-2,
+optims: dict[Name, Callable[[Iterator[Parameter]], torch.optim.Optimizer]] = {
+    "l1": lambda params: Adam(params, lr=1e-2),
+    "pinball": lambda params: Adam(params, lr=1e-2),
+    "gen": lambda params: Adam(params, lr=1e-2),
 }
