@@ -332,11 +332,10 @@ class pt:
 
 
 def report():
-    train(name="l1")
-    train(name="pin_5")
-    train(name="pin_10")
-
     names = get_args(Name)
+
+    for name in names:
+        train(name)
 
     for model_name, loss_name in product(names, names):
         if model_name == loss_name:
@@ -358,7 +357,6 @@ def report():
     print(results.to_string(float_format="{:.4f}".format))
     results.to_csv("data/eval.csv")
 
-    # TODO: when model and loss are the same, eval_calibrated should be the same as eval
     cal_rows = [
         {
             "model": m,
