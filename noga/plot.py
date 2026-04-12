@@ -364,7 +364,7 @@ if __name__ == "__main__":
     # daily_demand_vs_forecast()
     # day_ahead_forecast_abs_error()
     # demand_vs_forecast_kde_histogram()
-    # plot_loss_fns()
+    plot_loss_fns()
     # plot_error_kde_hist()
     # plot_day_embeddings()
     print_params()

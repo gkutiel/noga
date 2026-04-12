@@ -4,13 +4,14 @@ import torch
 from torch import Tensor
 
 LossFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-Name = Literal["sym", "pinball", "pwa"]
+Name = Literal["l1", "pinball", "pwa"]
 
 
-def pinball(pred: torch.Tensor, y: torch.Tensor, under=5) -> torch.Tensor:
+def pinball(pred: torch.Tensor, y: torch.Tensor, fact=5) -> torch.Tensor:
+    u = 1 / (1 + fact)
     error = pred - y
-    loss = torch.where(error > 0, error, -under * error)
-    return torch.mean(loss)
+    loss = torch.where(error > 0, u * error, (1-u) * -error)
+    return torch.mean(loss * 2)
 
 
 def pwa(
@@ -18,9 +19,9 @@ def pwa(
         bp: float = -0.7,
         costs: tuple[float, float, float] = (
             # UNDER
-            12, 4,
+            18/6, 8/6,
             # OVER
-            .9)):
+            .9/6)):
 
     c1, c2, c3 = costs
 
@@ -39,7 +40,7 @@ def pwa(
 
 SYM_FACTOR = 1
 loss_fns: dict[Name, LossFn] = {
-    "sym": lambda pred, y: torch.mean(torch.abs(pred - y) * SYM_FACTOR),
+    "l1": lambda pred, y: torch.mean(torch.abs(pred - y) * SYM_FACTOR),
     "pinball": lambda pred, y: pinball(pred, y),
     'pwa': pwa(),
 }
