@@ -266,6 +266,11 @@ def plot_loss_fns():
     plt.close()
 
 
+def plot_error_hist():
+    # TODO: for each of the models, plot a histogram of the errors on the test set. Use the predictions .csv files generated in model.py. They are in the csv/ folder.
+    pass
+
+
 if __name__ == "__main__":
     # daily_demand_by_time()
     # demand_vs_temp()
