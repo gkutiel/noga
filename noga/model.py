@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader, Dataset
 from noga.cost import Name, loss_fns
 
 # TRAIN
-LR = 1e-3
+LR = 1e-4
 EPOCHS = 1_000
 B_SIZE = 128
 
@@ -33,24 +33,25 @@ class Model(pl.LightningModule):
     def __init__(self, name: Name):
         super().__init__()
 
-        self.day_bias = Parameter(torch.zeros(7))
-        self.month_bias = Parameter(torch.zeros(12))
+        self.day_bias = Parameter(torch.ones(7) * BP)
+        # self.month_bias = Parameter(torch.zeros(12))
 
         self.balance = Parameter(torch.tensor([BP, BP, BP]))
         self.net = nn.Linear(INPUT_SIZE, 1, bias=False)
-
+        # self.net = nn.Linear(INPUT_SIZE, 1)
+        self.net.weight.data.fill_(1)
         self.name = name
         self.loss = loss_fns[name]
 
     def forward(self, X, h):
         day_bias = self.day_bias[X[:, 0].long()]
-        month_bias = self.month_bias[X[:, 1].long()]
+        # month_bias = self.month_bias[X[:, 1].long()]
         temps = X[:, 2:]
 
         f = (temps - self.balance).abs()
         f = torch.cat([f, h], dim=1)
 
-        return (self.net(f) + day_bias + month_bias).squeeze(1)
+        return (self.net(f) + day_bias).squeeze(1)
 
     def step(self, batch, batch_idx, step='train'):
         X, h, y = batch
@@ -200,33 +201,8 @@ def load_model(name: Name):
 def save_params(name: Name):
     model = load_model(name)
 
-    day_labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    # month_labels = [
-    #     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    #     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-
-    city_labels = ["Haifa", "Jerusalem", "Tel_Aviv"]
-
-    rows: list[dict] = []
-
-    for i, city in enumerate(city_labels):
-        rows.append({"param": f"balance_{city}",
-                    "value": model.balance[i].item()})
-
-    day_bias = model.day_bias.detach()
-    for i, day in enumerate(day_labels):
-        rows.append({"param": f"day_bias_{day}", "value": day_bias[i].item()})
-
-    net_w = model.net.weight.detach().squeeze()
-    for i, v in enumerate(net_w):
-        rows.append({"param": f"net_weight_{i}", "value": v.item()})
-
-    # rows.append({"param": "net_bias", "value": model.net.bias.item()})
-
-    df = pd.DataFrame(rows)
-    out = Path(f"params/{name}.csv")
-    df.to_csv(out, index=False)
-    print(f"Saved params to {out}")
+    for n, param in model.named_parameters():
+        print(f"{n}: {param.data.numpy()}")
 
 
 def pred_train(*, model_name: Name):
