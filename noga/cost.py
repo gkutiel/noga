@@ -15,10 +15,10 @@ def pinball(pred: torch.Tensor, y: torch.Tensor, under=5) -> torch.Tensor:
 
 def pwa(
         *,
-        bp: float = -0.6,
+        bp: float = -0.7,
         costs: tuple[float, float, float] = (
             # UNDER
-            7, 4,
+            10, 4,
             # OVER
             .9)):
 
