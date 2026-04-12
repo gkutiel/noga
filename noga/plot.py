@@ -311,11 +311,58 @@ def plot_error_kde_hist():
 
 
 def plot_day_embeddings():
-    # TODO: for each of the models (modes/*.pt) :
-    # 1. plot the day embeddings in 2D.
-    # 2. plot the month embeddings in 2D.
-    # 3. Plot the balance temp for the 3 cities
-    pass
+    from noga.cost import Name, loss_fns
+    from noga.model import load_model
+
+    DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    CITY_LABELS = ["Haifa", "Jerusalem", "Tel Aviv"]
+
+    names: list[Name] = list(loss_fns)  # type: ignore[assignment]
+    n = len(names)
+    fig, axes = plt.subplots(3, n, figsize=(5 * n, 13))
+
+    for col, name in enumerate(names):
+        model = load_model(name)
+
+        # --- day embeddings (7×2) ---
+        day_w = model.day.weight.detach().numpy()
+        ax = axes[0, col]
+        ax.scatter(day_w[:, 0], day_w[:, 1], color="#3b82f6", s=60, zorder=3)
+        for i, label in enumerate(DAY_LABELS):
+            ax.annotate(label, (day_w[i, 0], day_w[i, 1]),
+                        textcoords="offset points", xytext=(6, 4), fontsize=9)
+        ax.axhline(0, color="gray", linewidth=0.5)
+        ax.axvline(0, color="gray", linewidth=0.5)
+        ax.set_title(f"{name} — day")
+
+        # --- month embeddings (12×2) ---
+        month_w = model.month.weight.detach().numpy()
+        ax = axes[1, col]
+        ax.scatter(month_w[:, 0], month_w[:, 1],
+                   color="#a855f7", s=60, zorder=3)
+        for i, label in enumerate(MONTH_LABELS):
+            ax.annotate(label, (month_w[i, 0], month_w[i, 1]),
+                        textcoords="offset points", xytext=(6, 4), fontsize=9)
+        ax.axhline(0, color="gray", linewidth=0.5)
+        ax.axvline(0, color="gray", linewidth=0.5)
+        ax.set_title(f"{name} — month")
+
+        # --- balance temperatures ---
+        balance = model.balance.detach().numpy()
+        ax = axes[2, col]
+        ax.bar(CITY_LABELS, balance, color="#f97316", alpha=0.8)
+        ax.set_ylabel("°C")
+        ax.set_title(f"{name} — balance temp")
+
+    fig.suptitle("Learned embeddings and balance temperatures by model")
+    fig.tight_layout()
+
+    out = PLOTS_DIR / "embeddings.png"
+    print("Saving plot to:", out)
+    plt.savefig(out, dpi=150)
+    plt.close()
 
 
 if __name__ == "__main__":
@@ -325,5 +372,6 @@ if __name__ == "__main__":
     # daily_demand_vs_forecast()
     # day_ahead_forecast_abs_error()
     # demand_vs_forecast_kde_histogram()
-    plot_loss_fns()
-    plot_error_kde_hist()
+    # plot_loss_fns()
+    # plot_error_kde_hist()
+    plot_day_embeddings()
