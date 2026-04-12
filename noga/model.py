@@ -19,10 +19,11 @@ B_SIZE = 64
 Y_SCALE = 100_000
 
 # MODEL
-DAY_EMBED = 2
-MONTH_EMBED = 2
+# DAY_EMBED = 2
+# MONTH_EMBED = 2
 SEQ_LEN = 1
-INPUT_SIZE = 3 + DAY_EMBED + MONTH_EMBED + SEQ_LEN
+# INPUT_SIZE = 3 + DAY_EMBED + MONTH_EMBED + SEQ_LEN
+INPUT_SIZE = 3 + SEQ_LEN
 
 # CALIBRATION
 CAL_EPOCHS = 300
@@ -33,24 +34,26 @@ class Model(pl.LightningModule):
     def __init__(self, name: Name):
         super().__init__()
 
-        self.day = nn.Embedding(7, DAY_EMBED)
-        self.month = nn.Embedding(12, MONTH_EMBED)
+        # self.day = nn.Embedding(7, DAY_EMBED)
+        # self.month = nn.Embedding(12, MONTH_EMBED)
 
         self.balance = torch.nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
+        self.day_boost = torch.nn.Parameter(torch.ones(7))
+        self.month_boost = torch.nn.Parameter(torch.ones(12))
         self.net = nn.Linear(INPUT_SIZE, 1)
 
         self.name = name
         self.loss = loss_fns[name]
 
     def forward(self, X, h):
-        day = self.day(X[:, 0].long())
-        month = self.month(X[:, 1].long())
+        day = self.day_boost[X[:, 0].long()]
+        # month = self.month_boost[X[:, 1].long()]
         temps = X[:, 2:]
 
         f = (temps - self.balance).abs()
-        f = torch.cat([f, h, day, month], dim=1)
+        f = torch.cat([f, h], dim=1)
 
-        return self.net(f).squeeze(1)
+        return (self.net(f) * day).squeeze(1)
 
     def step(self, batch, batch_idx, step='train'):
         X, h, y = batch
@@ -363,4 +366,5 @@ def report():
 
 
 if __name__ == "__main__":
-    report()
+    # report()
+    train("sym")
