@@ -57,8 +57,9 @@ class Model(pl.LightningModule):
 
         pred = self(X, h)
         loss = self.loss(pred, y)
-        self.log(f"{step}/{self.name}", loss, on_epoch=True,
-                 on_step=False, prog_bar=True)
+
+        self.log(f"{step}/{self.name}", loss, prog_bar=True)
+        self.log(f"{step}/l1", torch.mean(torch.abs(pred - y)), prog_bar=True)
 
         return loss
 
