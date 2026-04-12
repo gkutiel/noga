@@ -1,6 +1,6 @@
 from itertools import product
 from pathlib import Path
-from typing import Callable, Literal
+from typing import Callable, Literal, get_args
 
 import pandas as pd
 import pytorch_lightning as pl
@@ -336,7 +336,7 @@ def report():
     train(name="pin_5")
     train(name="pin_10")
 
-    names: list[Name] = ["l1", "pin_5", "pin_10"]
+    names = get_args(Name)
 
     for model_name, loss_name in product(names, names):
         if model_name == loss_name:
