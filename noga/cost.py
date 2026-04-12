@@ -15,30 +15,24 @@ def pinball(pred: torch.Tensor, y: torch.Tensor, under=5) -> torch.Tensor:
 
 def pwa(
         *,
-        breakpoints: tuple[float, float] = (-0.6, 0.6),
-        costs: tuple[float, float, float, float] = (
+        bp: float = -0.6,
+        costs: tuple[float, float, float] = (
             # UNDER
             7, 4,
             # OVER
-            .9, 2)):
+            .9)):
 
-    c1, c2, c3, c4 = costs
-    b1, b2 = breakpoints
+    c1, c2, c3 = costs
 
     def cost(pred: Tensor, y: Tensor):
         e = pred - y
         return torch.where(
-            e <= b1,
-            abs(c2 * b1) + c1 * (e - b1).abs(),
+            e <= bp,
+            abs(c2 * bp) + c1 * (e - bp).abs(),
             torch.where(
                 e <= 0,
-                c2 * e.abs(),
-                torch.where(
-                    # x > 0
-                    e <= b2,
-                    c3 * e,
-                    c3 * b2 + c4 * (e - b2),
-                )))
+                c2 * -e,
+                c3 * e))
 
     return lambda pred, y: cost(pred, y).mean()
 
