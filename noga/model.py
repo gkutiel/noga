@@ -341,7 +341,7 @@ def report():
         values="value")
 
     print(results.to_string(float_format="{:.4f}".format))
-    results.to_csv("data/eval.csv")
+    results.to_csv("res/eval.csv", float_format="%.3f")
 
     cal_rows = [
         {
@@ -361,7 +361,7 @@ def report():
         values="value")
 
     print(cal_results.to_string(float_format="{:.4f}".format))
-    cal_results.to_csv("data/eval_calibrated.csv")
+    cal_results.to_csv("res/eval_calibrated.csv", float_format="%.3f")
 
 
 if __name__ == "__main__":

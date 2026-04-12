@@ -19,7 +19,7 @@ def pwa(
         bp: float = -0.7,
         costs: tuple[float, float, float] = (
             # UNDER
-            18/6, 8/6,
+            20/6, 5/6,
             # OVER
             1.9/6)):
 

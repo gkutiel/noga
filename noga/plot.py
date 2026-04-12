@@ -310,7 +310,7 @@ def plot_error_kde_hist():
     plt.close()
 
 
-def print_params():
+def plot_params():
     from noga.cost import loss_fns
     from noga.model import load_model
 
@@ -318,43 +318,60 @@ def print_params():
     MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     CITIES = ["Haifa", "Jerusalem", "Tel Aviv"]
+    TEMP_HIST_LABELS = CITIES + ["History"]
 
-    # net.weight layout (1, 23): [temp×3, h, day×7, month×12]
     H_IDX = 0
     TEMP_IDX = slice(1, 4)
     DAY_IDX = slice(4, 11)
     MONTH_IDX = slice(11, 23)
 
     names = list(loss_fns)
-    for name in names:
+    n = len(names)
+    fig, axes = plt.subplots(4, n, figsize=(5 * n, 16))
+    if n == 1:
+        axes = axes.reshape(-1, 1)
+
+    for col, name in enumerate(names):
         try:
             model = load_model(name)
-            w = model.net.weight.detach().squeeze()  # (23,)
-
-            print(f"\n{'='*44}")
-            print(f"  Model: {name}")
-            print(f"{'='*44}")
-
-            print("\nBalance temperatures (°C):")
-            for city, val in zip(CITIES, model.balance.detach().tolist()):
-                print(f"  {city:<12} {val:+.2f}")
-
-            print("\nTemperature sensitivity:")
-            for city, val in zip(CITIES, w[TEMP_IDX].tolist()):
-                print(f"  {city:<12} {val:+.4f}")
-
-            print(f"\nLag (h) coefficient:  {w[H_IDX].item():+.4f}")
-
-            print("\nDay bias:")
-            for label, val in zip(DAY_LABELS, w[DAY_IDX].tolist()):
-                print(f"  {label}   {val:+.4f}")
-
-            print("\nMonth bias:")
-            for label, val in zip(MONTH_LABELS, w[MONTH_IDX].tolist()):
-                print(f"  {label}   {val:+.4f}")
-
         except FileNotFoundError:
-            print(f"\nModel '{name}' not found, skipping.")
+            continue
+        w = model.net.weight.detach().squeeze()
+
+        # 1. Day bias
+        ax = axes[0, col]
+        ax.bar(DAY_LABELS, w[DAY_IDX].tolist(), color="#3b82f6")
+        ax.axhline(0, color="gray", linewidth=0.6)
+        ax.set_title(f"{name} — day bias")
+
+        # 2. Month bias
+        ax = axes[1, col]
+        ax.bar(MONTH_LABELS, w[MONTH_IDX].tolist(), color="#a855f7")
+        ax.axhline(0, color="gray", linewidth=0.6)
+        ax.set_title(f"{name} — month bias")
+        ax.tick_params(axis="x", labelrotation=45)
+
+        # 3. Temperature sensitivity + history
+        ax = axes[2, col]
+        vals = w[TEMP_IDX].tolist() + [w[H_IDX].item()]
+        ax.bar(TEMP_HIST_LABELS, vals, color=["#f97316"] * 3 + ["#10b981"])
+        ax.axhline(0, color="gray", linewidth=0.6)
+        ax.set_title(f"{name} — sensitivity")
+
+        # 4. Balance temperatures
+        ax = axes[3, col]
+        ax.bar(CITIES, model.balance.detach().tolist(),
+               color="#ef4444", alpha=0.8)
+        ax.set_title(f"{name} — balance (°C)")
+        ax.set_ylabel("°C")
+
+    fig.suptitle("Model parameters by model")
+    fig.tight_layout()
+
+    out = PLOTS_DIR / "params.png"
+    print("Saving plot to:", out)
+    plt.savefig(out, dpi=150)
+    plt.close()
 
 
 if __name__ == "__main__":
@@ -365,6 +382,6 @@ if __name__ == "__main__":
     # day_ahead_forecast_abs_error()
     # demand_vs_forecast_kde_histogram()
     plot_loss_fns()
-    # plot_error_kde_hist()
+    plot_error_kde_hist()
     # plot_day_embeddings()
-    print_params()
+    plot_params()
