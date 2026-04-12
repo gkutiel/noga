@@ -21,7 +21,7 @@ def pwa(
             # UNDER
             18/6, 8/6,
             # OVER
-            .9/6)):
+            1.9/6)):
 
     c1, c2, c3 = costs
 
