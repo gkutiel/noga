@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader, Dataset
 from noga.cost import Name, loss_fns
 
 # TRAIN
-LR = 1e-2
-EPOCHS = 1_000
+LR = 3e-2
+EPOCHS = 2_000
 B_SIZE = 1024
 
 # DATA
@@ -24,7 +24,7 @@ SEQ_LEN = 1
 INPUT_SIZE = 3 + 7 + 12 + SEQ_LEN
 
 # CALIBRATION
-CAL_EPOCHS = 200
+CAL_EPOCHS = 500
 CAL_LR = 1e-2
 
 
