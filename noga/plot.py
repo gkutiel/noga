@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import gaussian_kde
 
+from noga.cost import loss_fns
 from noga.date import DT_FRMT
 
 PLOTS_DIR = Path("plots")
@@ -266,9 +267,47 @@ def plot_loss_fns():
     plt.close()
 
 
-def plot_error_hist():
-    # TODO: for each of the models, plot a histogram of the errors on the test set. Use the predictions .csv files generated in model.py. They are in the csv/ folder.
-    pass
+def plot_error_kde_hist():
+    # TODO: make a smooth nice histogram.
+
+    csv_dir = Path("csv")
+    names = list(loss_fns)
+    fig, axes = plt.subplots(1, len(names), figsize=(
+        5 * len(names), 5), sharey=True)
+
+    for ax, name in zip(axes, names):
+        df = pd.read_csv(csv_dir / f"pred_{name}.csv")
+        errors = (df["pred"] - df["actual"])
+
+        print(errors.describe())
+        ax.hist(
+            errors,
+            bins=30,
+            density=True,
+            # range=(-XLIM, XLIM),
+            color="#3b82f6",
+            alpha=0.5,
+            edgecolor="white")
+
+        kde = gaussian_kde(errors, bw_method="scott")
+        x = np.linspace(errors.min(), errors.max(), 500)
+        ax.plot(x, kde(x), color="#1d4ed8", linewidth=2)
+
+        ax.axvline(0, color="#ef4444", linewidth=1.5, linestyle="--")
+        ax.set_title(name)
+        ax.set_xlabel("Error (pred − actual, MW)")
+        ax.set_xlim(errors.min(), errors.max())
+        # ax.xaxis.set_major_formatter(
+        #     FuncFormatter(lambda v, _: f"{int(v/1000)}k" if v != 0 else "0"))
+
+    axes[0].set_ylabel("Density")
+    fig.suptitle("Prediction error distributions by model (test set)")
+    fig.tight_layout()
+
+    out = PLOTS_DIR / "error_histograms.png"
+    print("Saving plot to:", out)
+    plt.savefig(out, dpi=150)
+    plt.close()
 
 
 if __name__ == "__main__":
@@ -279,3 +318,4 @@ if __name__ == "__main__":
     # day_ahead_forecast_abs_error()
     # demand_vs_forecast_kde_histogram()
     plot_loss_fns()
+    plot_error_kde_hist()

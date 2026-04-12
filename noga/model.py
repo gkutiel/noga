@@ -226,8 +226,8 @@ def save_preds(name: Name):
             preds.append(model(X, h))
             actuals.append(y)
 
-    pred = torch.cat(preds).numpy() * Y_SCALE
-    actual = torch.cat(actuals).numpy() * Y_SCALE
+    pred = torch.cat(preds).numpy()
+    actual = torch.cat(actuals).numpy()
 
     out = Path(f"csv/pred_{name}.csv")
     pd.DataFrame({"pred": pred, "actual": actual}).to_csv(out, index=False)

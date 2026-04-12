@@ -15,12 +15,12 @@ def pinball(pred: torch.Tensor, y: torch.Tensor, under=5) -> torch.Tensor:
 
 def pwa(
         *,
-        breakpoints: tuple[float, float] = (-0.5, 0.5),
+        breakpoints: tuple[float, float] = (-0.6, 0.6),
         costs: tuple[float, float, float, float] = (
             # UNDER
-            8, 2,
+            7, 4,
             # OVER
-            .5, 2)):
+            .9, 2)):
 
     c1, c2, c3, c4 = costs
     b1, b2 = breakpoints
