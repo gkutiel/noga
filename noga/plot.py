@@ -245,7 +245,7 @@ def plot_loss_fns():
 
     from noga.cost import loss_fns
 
-    errors = torch.linspace(-1, 1, 500)
+    errors = torch.linspace(-2, 2, 500)
     zeros = torch.zeros(1)
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -279,7 +279,6 @@ def plot_error_kde_hist():
         df = pd.read_csv(csv_dir / f"pred_{name}.csv")
         errors = (df["pred"] - df["actual"])
 
-        print(errors.describe())
         ax.hist(
             errors,
             bins=30,
@@ -335,6 +334,8 @@ def plot_params():
         try:
             model = load_model(name)
         except FileNotFoundError:
+            print(
+                f"Model file for '{name}' not found. Skipping parameter plot.")
             continue
         w = model.net.weight.detach().squeeze()
 
@@ -383,5 +384,5 @@ if __name__ == "__main__":
     # demand_vs_forecast_kde_histogram()
     # plot_day_embeddings()
     plot_loss_fns()
-    # plot_error_kde_hist()
-    # plot_params()
+    plot_error_kde_hist()
+    plot_params()

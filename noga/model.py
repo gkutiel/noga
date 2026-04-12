@@ -5,15 +5,14 @@ from typing import get_args
 import pandas as pd
 import pytorch_lightning as pl
 import torch
+from pytorch_lightning.loggers import TensorBoardLogger
 from torch import nn
 from torch.nn.functional import one_hot
 from torch.utils.data import DataLoader, Dataset
 
-from noga.cost import Name, loss_fns
+from noga.cost import Name, cal_epochs, epochs, loss_fns, lrs
 
 # TRAIN
-LR = 3e-2
-EPOCHS = 2_000
 B_SIZE = 1024
 
 # DATA
@@ -24,7 +23,6 @@ SEQ_LEN = 1
 INPUT_SIZE = 3 + 7 + 12 + SEQ_LEN
 
 # CALIBRATION
-CAL_EPOCHS = 500
 CAL_LR = 1e-2
 
 
@@ -35,7 +33,7 @@ class Model(pl.LightningModule):
         self.balance = torch.nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
         self.net = nn.Linear(INPUT_SIZE, 1, bias=False)
 
-        self.name = name
+        self.name: Name = name
         self.loss = loss_fns[name]
 
     def forward(self, X, h):
@@ -72,7 +70,7 @@ class Model(pl.LightningModule):
     def configure_optimizers(self):
         return torch.optim.Adam(
             params=self.parameters(),
-            lr=LR)
+            lr=lrs[self.name])
 
 
 class Data(Dataset):
@@ -179,11 +177,13 @@ def train(name: Name):
         return
 
     model = Model(name=name)
+    logger = TensorBoardLogger("logs", name=name)
     trainer = pl.Trainer(
-        max_epochs=EPOCHS,
+        max_epochs=epochs[name],
         deterministic=True,
         log_every_n_steps=4,
-        check_val_every_n_epoch=100)
+        check_val_every_n_epoch=100,
+        logger=logger)
 
     train_dl, val_dl = load_data()
     trainer.fit(model, train_dl, val_dl)
@@ -264,7 +264,13 @@ def calibrate(*, model_name: Name, loss_name: Name):
         model_name=model_name,
         loss_name=loss_name)
 
-    trainer = pl.Trainer(max_epochs=CAL_EPOCHS, deterministic=True)
+    logger = TensorBoardLogger("logs", name=f'cal_{model_name}_on_{loss_name}')
+    max_epochs = cal_epochs.get((model_name, loss_name), 1_000)
+    trainer = pl.Trainer(
+        max_epochs=max_epochs,
+        deterministic=True,
+        logger=logger)
+
     trainer.fit(cal, dl)
 
     torch.save(cal.state_dict(), path)
@@ -360,6 +366,9 @@ def report():
         columns="loss",
         values="value")
 
+    print()
+    print('-' * 40)
+    print('Calibrated results:')
     print(cal_results.to_string(float_format="{:.4f}".format))
     cal_results.to_csv("res/eval_calibrated.csv", float_format="%.3f")
 
