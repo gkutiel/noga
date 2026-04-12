@@ -198,14 +198,15 @@ def load_model(name: Name):
 
 def pred_train(*, model_name: Name):
     model = load_model(model_name)
-
     train_dl, _ = load_data()
 
-    X, h, y = next(iter(train_dl))
+    preds, ys = [], []
     with torch.no_grad():
-        pred = model(X, h)
+        for X, h, y in train_dl:
+            preds.append(model(X, h))
+            ys.append(y)
 
-    return pred, y
+    return torch.cat(preds), torch.cat(ys)
 
 
 def pred_test(*, model_name: Name):
