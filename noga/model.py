@@ -187,6 +187,7 @@ def train(name: Name):
     trainer.fit(model, train_dl, val_dl)
 
     torch.save(model.state_dict(), out)
+    save_params(name)
 
 
 def load_model(name: Name):
@@ -194,6 +195,45 @@ def load_model(name: Name):
     model.load_state_dict(torch.load(pt.model(name)))
     model.eval()
     return model
+
+
+def save_params(name: Name):
+    model = load_model(name)
+
+    day_labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    month_labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    city_labels = ["Haifa", "Jerusalem", "Tel_Aviv"]
+
+    rows: list[dict] = []
+
+    for i, city in enumerate(city_labels):
+        rows.append({"param": f"balance_{city}",
+                    "value": model.balance[i].item()})
+
+    day_w = model.day.weight.detach()
+    for i, day in enumerate(day_labels):
+        for j in range(day_w.shape[1]):
+            rows.append({"param": f"day_{day}_{j}",
+                        "value": day_w[i, j].item()})
+
+    month_w = model.month.weight.detach()
+    for i, month in enumerate(month_labels):
+        for j in range(month_w.shape[1]):
+            rows.append({"param": f"month_{month}_{j}",
+                        "value": month_w[i, j].item()})
+
+    net_w = model.net.weight.detach().squeeze()
+    for i, v in enumerate(net_w):
+        rows.append({"param": f"net_weight_{i}", "value": v.item()})
+    rows.append({"param": "net_bias", "value": model.net.bias.item()})
+
+    df = pd.DataFrame(rows)
+    print(df.to_string(index=False))
+
+    out = Path(f"params/{name}.csv")
+    df.to_csv(out, index=False)
+    print(f"Saved params to {out}")
 
 
 def pred_train(*, model_name: Name):
@@ -363,4 +403,5 @@ def report():
 
 
 if __name__ == "__main__":
-    report()
+    # report()
+    train("sym")
