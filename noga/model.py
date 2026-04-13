@@ -198,6 +198,7 @@ def train(name: Name):
     checkpoint = ModelCheckpoint(
         dirpath=ckpt.parent,
         filename=ckpt.stem,
+        save_weights_only=True,
         monitor=f"val/{name}",
         mode="min",
         save_top_k=1)
@@ -213,9 +214,11 @@ def train(name: Name):
     train_dl, val_dl = load_data()
     trainer.fit(model, train_dl, val_dl)
 
-    best = Model(name=name)
-    best.load_state_dict(torch.load(checkpoint.best_model_path)["state_dict"])
-    torch.save(best.state_dict(), out)
+    best_weights = torch.load(
+        checkpoint.best_model_path,
+        weights_only=True)
+
+    torch.save(best_weights, out)
 
 
 def load_model(name: Name):
