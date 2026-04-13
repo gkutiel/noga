@@ -376,7 +376,7 @@ def plot_params():
 
 
 if __name__ == "__main__":
-    # daily_demand_by_time()
+    daily_demand_by_time()
     # demand_vs_temp()
     # demand_by_time()
     # daily_demand_vs_forecast()

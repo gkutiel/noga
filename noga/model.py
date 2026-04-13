@@ -21,8 +21,8 @@ Y_SCALE = 100_000
 
 # MODEL
 SEQ_LEN = 1
-D_EMBD = 2
-M_EMBD = 2
+D_EMBD = 1
+M_EMBD = 1
 INPUT_SIZE = 3 + D_EMBD + M_EMBD + SEQ_LEN
 HIDDEN_SIZE = 12
 
@@ -38,26 +38,28 @@ class Model(pl.LightningModule):
         self.loss = loss_fns[name]
 
         self.balance = nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
+        self.h = nn.Embedding(7, 1)
         self.day = nn.Embedding(7, D_EMBD)
         self.month = nn.Embedding(12, M_EMBD)
 
-        self.net = nn.Sequential(
-            nn.Linear(INPUT_SIZE, HIDDEN_SIZE),
-            nn.LeakyReLU(),
-            nn.Linear(HIDDEN_SIZE, 1))
+        self.net = nn.Linear(3, 1, bias=False)
+        # self.net = nn.Sequential(
+        #     nn.Linear(INPUT_SIZE, HIDDEN_SIZE),
+        #     nn.LeakyReLU(),
+        #     nn.Linear(HIDDEN_SIZE, 1))
 
     def forward(self, X: Tensor, h: Tensor):
         day = X[:, 0].long()
         month = X[:, 1].long()
         temps = X[:, 2:]
-        f = (temps - self.balance).abs()
 
-        f = torch.cat([
-            h, f,
-            self.day(day),
-            self.month(month)], dim=1)
+        t = self.net((temps - self.balance).abs())
 
-        return self.net(f).squeeze(1)
+        return (
+            t +
+            self.h(day) * h +
+            self.day(day) +
+            self.month(month)).squeeze(1)
 
     def step(self, batch, batch_idx, step='train'):
         X, h, y = batch
