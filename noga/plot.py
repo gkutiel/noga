@@ -349,7 +349,7 @@ def plot_params():
 
         # 3. Temperature sensitivities: neg (below balance) and pos (above balance)
         ax = axes[2, col]
-        neg_vals = model.neg.weight.detach().squeeze().tolist()
+        neg_vals = (-model.neg.weight).detach().squeeze().tolist()
         pos_vals = model.pos.weight.detach().squeeze().tolist()
         x = np.arange(len(CITIES))
         w = 0.35
