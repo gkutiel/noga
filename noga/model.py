@@ -24,6 +24,7 @@ SEQ_LEN = 1
 D_EMBD = 2
 M_EMBD = 2
 INPUT_SIZE = 3 + D_EMBD + M_EMBD + SEQ_LEN
+HIDDEN_SIZE = 8
 
 # CALIBRATION
 CAL_LR = 1e-2
@@ -40,7 +41,10 @@ class Model(pl.LightningModule):
         self.day = nn.Embedding(7, D_EMBD)
         self.month = nn.Embedding(12, M_EMBD)
 
-        self.net = nn.Linear(INPUT_SIZE, 1, bias=False)
+        self.net = nn.Sequential(
+            nn.Linear(INPUT_SIZE, HIDDEN_SIZE),
+            nn.LeakyReLU(),
+            nn.Linear(HIDDEN_SIZE, 1))
 
     def forward(self, X: Tensor, h: Tensor):
         day = X[:, 0].long()
@@ -173,6 +177,7 @@ def load_data():
 
 
 def train(name: Name):
+    # TODO: track validation error and keep the best model.
     pl.seed_everything(42)
 
     out = pt.model(name)

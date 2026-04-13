@@ -28,7 +28,7 @@ loss_fns: dict[Name, LossFn] = {
 }
 
 optims: dict[Name, Callable[[Iterator[Parameter]], torch.optim.Optimizer]] = {
-    "l1": lambda params: Adam(params, lr=2e-2),
+    "l1": lambda params: Adam(params, lr=3e-2),
     "pinball": lambda params: Adam(params, lr=1e-2),
     "gen": lambda params: Adam(params, lr=1e-2),
 }
