@@ -73,33 +73,86 @@ def daily_demand_by_time():
     plt.close()
 
 
+def _fit_piecewise_linear(temp: np.ndarray, demand: np.ndarray):
+    """
+    Fit a V-shaped piecewise linear model: y = c + m_neg*(T-T_b) for T<=T_b,
+    y = c + m_pos*(T-T_b) for T>T_b. Both lines pass through (T_b, c).
+    Returns (t_balance, m_neg, m_pos, c).
+    """
+    from scipy.optimize import minimize_scalar
+
+    def total_sse(t_b):
+        x1 = np.minimum(temp - t_b, 0.0)
+        x2 = np.maximum(temp - t_b, 0.0)
+        X = np.column_stack([np.ones(len(temp)), x1, x2])
+        coeffs, _, _, _ = np.linalg.lstsq(X, demand, rcond=None)
+        residuals = demand - X @ coeffs
+        return float(np.sum(residuals ** 2))
+
+    t_lo, t_hi = float(np.percentile(temp, 10)), float(np.percentile(temp, 90))
+    result = minimize_scalar(total_sse, bounds=(t_lo, t_hi), method="bounded")
+    t_b = float(result.x)  # type: ignore
+
+    x1 = np.minimum(temp - t_b, 0.0)
+    x2 = np.maximum(temp - t_b, 0.0)
+    X = np.column_stack([np.ones(len(temp)), x1, x2])
+    coeffs, _, _, _ = np.linalg.lstsq(X, demand, rcond=None)
+    c, m_neg, m_pos = coeffs
+    return t_b, float(m_neg), float(m_pos), float(c)
+
+
 def demand_vs_temp():
-    # TODO:
-    # Make a plot for each city X year (2024, 2025) with 2 regression lines.
-    # Estimate the balance point (where the lines intersect) and add it as a vertical line.
-    # Write the values of the balanced point and the sensitivities in the plot title.
     data = pd.read_csv("data/daily.csv")
-    # data = pd.read_csv("data/data.csv")
-    # data = data[data['year'] == 2023]
+    data["date"] = pd.to_datetime(data["date"], format=DT_FRMT)
+    data["year"] = data["date"].dt.year
 
-    for city in ["Jerusalem", "Haifa", "Tel_Aviv"]:
-        plt.figure(figsize=(10, 6))
-        plt.scatter(
-            data[f'temperature_{city}'],
-            data['total_demand'],
-            color="#3b82f6",
-            s=3,
-            alpha=0.85)
+    years = [2024, 2025]
+    cities = ["Jerusalem", "Haifa", "Tel_Aviv"]
 
-        plt.title(f"Actual Demand vs Temperature ({city})")
-        plt.xlabel("Temperature (°C)")
-        plt.ylabel("Actual Demand (MW)")
-        plt.tight_layout()
+    for city in cities:
+        temp_col = f"temperature_{city}"
+        fig, axes = plt.subplots(1, len(years), figsize=(14, 6), sharey=True)
 
-        out = PLOTS_DIR / f"ec_vs_temperature_{city}.png"
-        print('Saving plot to:', out)
+        for ax, year in zip(axes, years):
+            subset = data[data["year"] == year].dropna(
+                subset=[temp_col, "total_demand"])
+            temp = subset[temp_col].to_numpy(dtype=float)
+            demand = subset["total_demand"].to_numpy(dtype=float)
+
+            ax.scatter(temp, demand, color="#3b82f6", s=6, alpha=0.5,
+                       zorder=2, label="Daily demand")
+
+            t_b, m_neg, m_pos, c = _fit_piecewise_linear(temp, demand)
+
+            t_min, t_max = temp.min(), temp.max()
+            t_left = np.linspace(t_min, t_b, 100)
+            t_right = np.linspace(t_b, t_max, 100)
+            ax.plot(t_left, c + m_neg * (t_left - t_b),
+                    color="#ef4444", linewidth=2, label=f"Neg slope: {m_neg:,.0f} MW/°C")
+            ax.plot(t_right, c + m_pos * (t_right - t_b),
+                    color="#f97316", linewidth=2, label=f"Pos slope: {m_pos:,.0f} MW/°C")
+            ax.axvline(t_b, color="#10b981", linewidth=1.5, linestyle="--",
+                       label=f"Balance: {t_b:.1f}°C")
+
+            ax.set_title(
+                f"{year}\n"
+                f"Balance: {t_b:.1f}°C  |  "
+                f"Neg: {m_neg:,.0f}  Pos: {m_pos:,.0f} MW/°C",
+                fontsize=9,
+            )
+            ax.set_xlabel("Temperature (°C)")
+            if ax is axes[0]:
+                ax.set_ylabel("Total Demand (MW)")
+            ax.legend(fontsize=8)
+
+        city_label = city.replace("_", " ")
+        fig.suptitle(
+            f"Daily Demand vs Temperature — {city_label}", fontsize=12)
+        fig.tight_layout()
+
+        out = PLOTS_DIR / f"demand_vs_temperature_{city}.png"
+        print("Saving plot to:", out)
         plt.savefig(out, dpi=150)
-
         plt.close()
 
 
@@ -249,7 +302,7 @@ def plot_loss_fns():
 
     from noga.cost import loss_fns
 
-    errors = torch.linspace(-2, 2, 500)
+    errors = torch.linspace(-3, 3, 500)
     zeros = torch.zeros(1)
 
     fig, ax = plt.subplots(figsize=(10, 6))

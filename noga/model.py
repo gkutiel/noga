@@ -212,7 +212,7 @@ def train(name: Name):
         max_epochs=MAX_EPOCHS,
         deterministic=True,
         log_every_n_steps=4,
-        check_val_every_n_epoch=100,
+        check_val_every_n_epoch=20,
         callbacks=[early_stopping, checkpoint],
         logger=logger)
 
