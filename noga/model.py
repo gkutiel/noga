@@ -7,8 +7,7 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
-from torch import nn
-from torch.nn.functional import one_hot
+from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset
 
 from noga.cost import Name, loss_fns, optims
@@ -22,7 +21,9 @@ Y_SCALE = 100_000
 
 # MODEL
 SEQ_LEN = 1
-INPUT_SIZE = 3 + 7 + 12 + SEQ_LEN
+D_EMBD = 2
+M_EMBD = 2
+INPUT_SIZE = 3 + D_EMBD + M_EMBD + SEQ_LEN
 
 # CALIBRATION
 CAL_LR = 1e-2
@@ -32,22 +33,26 @@ class Model(pl.LightningModule):
     def __init__(self, name: Name):
         super().__init__()
 
-        self.balance = torch.nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
-        self.net = nn.Linear(INPUT_SIZE, 1, bias=False)
-
         self.name: Name = name
         self.loss = loss_fns[name]
 
-    def forward(self, X, h):
-        day = X[:, 0]
-        month = X[:, 1]
+        self.balance = nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
+        self.day = nn.Embedding(7, D_EMBD)
+        self.month = nn.Embedding(12, M_EMBD)
+
+        self.net = nn.Linear(INPUT_SIZE, 1, bias=False)
+
+    def forward(self, X: Tensor, h: Tensor):
+        day = X[:, 0].long()
+        month = X[:, 1].long()
         temps = X[:, 2:]
-
-        day_oh = one_hot(day.long(), num_classes=7)
-        month_oh = one_hot(month.long(), num_classes=12)
-
         f = (temps - self.balance).abs()
-        f = torch.cat([h, f, day_oh, month_oh], dim=1)
+
+        f = torch.cat([
+            h, f,
+            self.day(day),
+            self.month(month)], dim=1)
+
         return self.net(f).squeeze(1)
 
     def step(self, batch, batch_idx, step='train'):
