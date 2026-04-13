@@ -17,21 +17,23 @@ def gen(pred: Tensor, y: Tensor):
     e = pred - y
     return torch.where(
         e < 0,
-        e**2,
+        1.1 * e**2,
         .2 * e ** 2
     ).mean()
 
 
 LossFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-Name = Literal["l1", "pinball", "gen"]
+Name = Literal["l2", "l1", "pinball", "gen"]
 
 loss_fns: dict[Name, LossFn] = {
+    "l2": lambda pred, y: torch.mean((pred - y) ** 2),
     "l1": lambda pred, y: torch.mean(torch.abs(pred - y)),
     "pinball": lambda pred, y: pinball(pred, y),
     'gen': gen,
 }
 
 optims: dict[Name, Callable[[Iterator[Parameter]], torch.optim.Optimizer]] = {
+    "l2": lambda params: Adam(params, lr=2e-2),
     "l1": lambda params: Adam(params, lr=2e-2),
     "pinball": lambda params: Adam(params, lr=1e-2),
     "gen": lambda params: Adam(params, lr=1e-2),

@@ -320,7 +320,7 @@ def plot_params():
 
     names = list(loss_fns)
     n = len(names)
-    fig, axes = plt.subplots(5, n, figsize=(8 * n, 20))
+    fig, axes = plt.subplots(5, n, figsize=(8 * n, 8 * n))
     if n == 1:
         axes = axes.reshape(-1, 1)
 
