@@ -74,6 +74,10 @@ def daily_demand_by_time():
 
 
 def demand_vs_temp():
+    # TODO:
+    # Make a plot for each city X year (2024, 2025) with 2 regression lines.
+    # Estimate the balance point (where the lines intersect) and add it as a vertical line.
+    # Write the values of the balanced point and the sensitivities in the plot title.
     data = pd.read_csv("data/daily.csv")
     # data = pd.read_csv("data/data.csv")
     # data = data[data['year'] == 2023]
@@ -320,7 +324,8 @@ def plot_params():
 
     names = list(loss_fns)
     n = len(names)
-    fig, axes = plt.subplots(5, n, figsize=(8 * n, 8 * n))
+    h = 5 * n
+    fig, axes = plt.subplots(5, n, figsize=(h * 1.2, h))
     if n == 1:
         axes = axes.reshape(-1, 1)
 
@@ -352,9 +357,9 @@ def plot_params():
         neg_vals = (-model.neg.weight).detach().squeeze().tolist()
         pos_vals = model.pos.weight.detach().squeeze().tolist()
         x = np.arange(len(CITIES))
-        w = 0.35
-        ax.bar(x - w / 2, neg_vals, w, label="neg", color="#3b82f6", alpha=0.8)
-        ax.bar(x + w / 2, pos_vals, w, label="pos", color="#f97316", alpha=0.8)
+        h = 0.35
+        ax.bar(x - h / 2, neg_vals, h, label="neg", color="#3b82f6", alpha=0.8)
+        ax.bar(x + h / 2, pos_vals, h, label="pos", color="#f97316", alpha=0.8)
         ax.set_xticks(x)
         ax.set_xticklabels(CITIES)
         ax.axhline(0, color="gray", linewidth=0.6)
