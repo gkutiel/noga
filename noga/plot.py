@@ -317,16 +317,10 @@ def plot_params():
     MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     CITIES = ["Haifa", "Jerusalem", "Tel Aviv"]
-    TEMP_HIST_LABELS = CITIES + ["History"]
-
-    H_IDX = 0
-    TEMP_IDX = slice(1, 4)
-    DAY_IDX = slice(4, 11)
-    MONTH_IDX = slice(11, 23)
 
     names = list(loss_fns)
     n = len(names)
-    fig, axes = plt.subplots(4, n, figsize=(5 * n, 16))
+    fig, axes = plt.subplots(5, n, figsize=(8 * n, 20))
     if n == 1:
         axes = axes.reshape(-1, 1)
 
@@ -337,34 +331,49 @@ def plot_params():
             print(
                 f"Model file for '{name}' not found. Skipping parameter plot.")
             continue
-        w = model.net.weight.detach().squeeze()
 
-        # 1. Day bias
+        # 1. Day embeddings (7,)
         ax = axes[0, col]
-        ax.bar(DAY_LABELS, w[DAY_IDX].tolist(), color="#3b82f6")
+        day_vals = model.day.weight.detach().squeeze().tolist()
+        ax.bar(DAY_LABELS, day_vals, color="#3b82f6")
         ax.axhline(0, color="gray", linewidth=0.6)
-        ax.set_title(f"{name} — day bias")
+        ax.set_title(f"{name} — day embedding")
 
-        # 2. Month bias
+        # 2. Month embeddings (12,)
         ax = axes[1, col]
-        ax.bar(MONTH_LABELS, w[MONTH_IDX].tolist(), color="#a855f7")
+        month_vals = model.month.weight.detach().squeeze().tolist()
+        ax.bar(MONTH_LABELS, month_vals, color="#a855f7")
         ax.axhline(0, color="gray", linewidth=0.6)
-        ax.set_title(f"{name} — month bias")
+        ax.set_title(f"{name} — month embedding")
         ax.tick_params(axis="x", labelrotation=45)
 
-        # 3. Temperature sensitivity + history
+        # 3. Temperature sensitivities: neg (below balance) and pos (above balance)
         ax = axes[2, col]
-        vals = w[TEMP_IDX].tolist() + [w[H_IDX].item()]
-        ax.bar(TEMP_HIST_LABELS, vals, color=["#f97316"] * 3 + ["#10b981"])
+        neg_vals = model.neg.weight.detach().squeeze().tolist()
+        pos_vals = model.pos.weight.detach().squeeze().tolist()
+        x = np.arange(len(CITIES))
+        w = 0.35
+        ax.bar(x - w / 2, neg_vals, w, label="neg", color="#3b82f6", alpha=0.8)
+        ax.bar(x + w / 2, pos_vals, w, label="pos", color="#f97316", alpha=0.8)
+        ax.set_xticks(x)
+        ax.set_xticklabels(CITIES)
         ax.axhline(0, color="gray", linewidth=0.6)
-        ax.set_title(f"{name} — sensitivity")
+        ax.legend(fontsize=8)
+        ax.set_title(f"{name} — temperature sensitivity")
 
-        # 4. Balance temperatures
+        # 4. Balance parameters (3,)
         ax = axes[3, col]
         ax.bar(CITIES, model.balance.detach().tolist(),
                color="#ef4444", alpha=0.8)
         ax.set_title(f"{name} — balance (°C)")
         ax.set_ylabel("°C")
+
+        # 5. h embedding (7,)
+        ax = axes[4, col]
+        h_vals = model.h.weight.detach().squeeze().tolist()
+        ax.bar(DAY_LABELS, h_vals, color="#10b981")
+        ax.axhline(0, color="gray", linewidth=0.6)
+        ax.set_title(f"{name} — h embedding")
 
     fig.suptitle("Model parameters by model")
     fig.tight_layout()
@@ -376,7 +385,7 @@ def plot_params():
 
 
 if __name__ == "__main__":
-    daily_demand_by_time()
+    # daily_demand_by_time()
     # demand_vs_temp()
     # demand_by_time()
     # daily_demand_vs_forecast()
@@ -385,4 +394,4 @@ if __name__ == "__main__":
     # plot_day_embeddings()
     plot_loss_fns()
     plot_error_kde_hist()
-    # plot_params()
+    plot_params()

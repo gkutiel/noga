@@ -13,15 +13,12 @@ def pinball(pred: torch.Tensor, y: torch.Tensor, fac=10) -> torch.Tensor:
     return torch.mean(loss * 2)
 
 
-eps = 1e-6
-
-
 def gen(pred: Tensor, y: Tensor):
     e = pred - y
     return torch.where(
-        e < eps,
+        e < 0,
         e**2,
-        e.clamp(min=eps)**.5
+        .2 * e ** 2
     ).mean()
 
 

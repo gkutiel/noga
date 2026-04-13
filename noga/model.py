@@ -42,7 +42,8 @@ class Model(pl.LightningModule):
         self.day = nn.Embedding(7, D_EMBD)
         self.month = nn.Embedding(12, M_EMBD)
 
-        self.net = nn.Linear(3, 1, bias=False)
+        self.neg = nn.Linear(3, 1, bias=False)
+        self.pos = nn.Linear(3, 1, bias=False)
         # self.net = nn.Sequential(
         #     nn.Linear(INPUT_SIZE, HIDDEN_SIZE),
         #     nn.LeakyReLU(),
@@ -53,10 +54,12 @@ class Model(pl.LightningModule):
         month = X[:, 1].long()
         temps = X[:, 2:]
 
-        t = self.net((temps - self.balance).abs())
+        dev = (temps - self.balance)
+        neg = self.neg(dev.clamp(max=0))
+        pos = self.pos(dev.clamp(min=0))
 
         return (
-            t +
+            neg + pos +
             self.h(day) * h +
             self.day(day) +
             self.month(month)).squeeze(1)
