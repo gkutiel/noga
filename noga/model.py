@@ -24,7 +24,7 @@ SEQ_LEN = 1
 D_EMBD = 2
 M_EMBD = 2
 INPUT_SIZE = 3 + D_EMBD + M_EMBD + SEQ_LEN
-HIDDEN_SIZE = 8
+HIDDEN_SIZE = 12
 
 # CALIBRATION
 CAL_LR = 1e-2
@@ -190,7 +190,7 @@ def train(name: Name):
 
     early_stopping = EarlyStopping(
         monitor=f"val/{name}",
-        patience=10,
+        patience=5,
         mode="min")
 
     ckpt = pt.ckpt(name)
@@ -298,7 +298,7 @@ def calibrate(*, model_name: Name, loss_name: Name):
 
     early_stopping = EarlyStopping(
         monitor=f"cal/{model_name}-{loss_name}",
-        patience=10,
+        patience=5,
         mode="min")
 
     trainer = pl.Trainer(
