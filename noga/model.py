@@ -5,7 +5,7 @@ from typing import get_args
 import pandas as pd
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset
@@ -177,7 +177,6 @@ def load_data():
 
 
 def train(name: Name):
-    # TODO: track validation error and keep the best model.
     pl.seed_everything(42)
 
     out = pt.model(name)
@@ -194,18 +193,29 @@ def train(name: Name):
         patience=10,
         mode="min")
 
+    ckpt = pt.ckpt(name)
+
+    checkpoint = ModelCheckpoint(
+        dirpath=ckpt.parent,
+        filename=ckpt.stem,
+        monitor=f"val/{name}",
+        mode="min",
+        save_top_k=1)
+
     trainer = pl.Trainer(
         max_epochs=MAX_EPOCHS,
         deterministic=True,
         log_every_n_steps=4,
         check_val_every_n_epoch=100,
-        callbacks=[early_stopping],
+        callbacks=[early_stopping, checkpoint],
         logger=logger)
 
     train_dl, val_dl = load_data()
     trainer.fit(model, train_dl, val_dl)
 
-    torch.save(model.state_dict(), out)
+    best = Model(name=name)
+    best.load_state_dict(torch.load(checkpoint.best_model_path)["state_dict"])
+    torch.save(best.state_dict(), out)
 
 
 def load_model(name: Name):
@@ -337,6 +347,10 @@ class pt:
     @staticmethod
     def model(name: Name):
         return Path(f'models/{name}.pt')
+
+    @staticmethod
+    def ckpt(name: Name):
+        return Path(f'models/{name}.ckpt')
 
     @staticmethod
     def cal(*, model_name: Name, loss_name: Name):
