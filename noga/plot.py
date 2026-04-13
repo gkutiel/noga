@@ -385,4 +385,4 @@ if __name__ == "__main__":
     # plot_day_embeddings()
     plot_loss_fns()
     plot_error_kde_hist()
-    plot_params()
+    # plot_params()

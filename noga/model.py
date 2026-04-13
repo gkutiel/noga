@@ -218,7 +218,7 @@ def train(name: Name):
         checkpoint.best_model_path,
         weights_only=True)
 
-    torch.save(best_weights, out)
+    torch.save(best_weights["state_dict"], out)
 
 
 def load_model(name: Name):
