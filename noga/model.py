@@ -293,6 +293,9 @@ def calibrate(*, model_name: Name, loss_name: Name):
         return
 
     pred, y = pred_train(model_name=model_name)
+    pred_val, y_val = pred_test(model_name=model_name)
+    # TODO: sample from (pred_val, y_val) to create a validation set for calibration
+    # Track validation set and use it for checkpointing and early stopping, instead of the training set.
 
     ds = torch.utils.data.TensorDataset(pred.unsqueeze(1), y)
     dl = DataLoader(ds, batch_size=1024)
@@ -305,7 +308,7 @@ def calibrate(*, model_name: Name, loss_name: Name):
 
     early_stopping = EarlyStopping(
         monitor=f"cal/{model_name}-{loss_name}",
-        patience=10,
+        patience=50,
         mode="min")
 
     ckpt_path = path.with_suffix(".ckpt")
