@@ -306,16 +306,28 @@ def calibrate(*, model_name: Name, loss_name: Name):
         patience=5,
         mode="min")
 
+    ckpt_path = path.with_suffix(".ckpt")
+
+    checkpoint = ModelCheckpoint(
+        dirpath=ckpt_path.parent,
+        filename=ckpt_path.stem,
+        save_weights_only=True,
+        monitor=f"cal/{model_name}-{loss_name}",
+        mode="min",
+        save_top_k=1)
+
     trainer = pl.Trainer(
         max_epochs=MAX_EPOCHS,
         deterministic=True,
-        callbacks=[early_stopping],
+        callbacks=[early_stopping, checkpoint],
         logger=logger)
 
     trainer.fit(cal, dl)
 
-    torch.save(cal.state_dict(), path)
+    best_weights = torch.load(checkpoint.best_model_path, weights_only=True)
+    torch.save(best_weights["state_dict"], path)
 
+    cal.load_state_dict(best_weights["state_dict"])
     weight = cal.net.weight.item()
     bias = cal.net.bias.item()
     print(
