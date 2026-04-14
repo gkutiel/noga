@@ -367,17 +367,29 @@ def plot_error_kde_hist():
 
 
 def plot_confusion_matrix():
+    import matplotlib.cm as cm
+    from matplotlib.colors import to_rgba
+
     raw = pd.read_csv("res/eval.csv", index_col="model")
     cal = pd.read_csv("res/eval_calibrated.csv", index_col="model")
 
+    cmap = cm.get_cmap("RdYlGn_r")  # green=low(best), red=high(worst)
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
     for ax, df, title in [
         (axes[0], raw, "Before calibration"),
         (axes[1], cal, "After calibration"),
     ]:
-        im = ax.imshow(df.values, cmap="YlOrRd_r", aspect="auto")
-        fig.colorbar(im, ax=ax, shrink=0.8)
+        # Normalize each column independently so green=best, red=worst per loss
+        cell_colors = np.zeros((*df.shape, 4))
+        for j in range(len(df.columns)):
+            col = df.values[:, j].astype(float)
+            lo, hi = col.min(), col.max()
+            norm = (col - lo) / (hi - lo) if hi > lo else np.zeros_like(col)
+            for i, n in enumerate(norm):
+                cell_colors[i, j] = to_rgba(cmap(n))
+
+        ax.imshow(cell_colors, aspect="auto")
 
         ax.set_xticks(range(len(df.columns)))
         ax.set_xticklabels(df.columns, rotation=45, ha="right")
@@ -386,18 +398,15 @@ def plot_confusion_matrix():
 
         for i in range(len(df.index)):
             for j in range(len(df.columns)):
-                val = df.values[i, j]
-                color = "white" if val > (
-                    df.values.max() + df.values.min()) / 2 else "black"
-                ax.text(j, i, f"{val:.3f}", ha="center", va="center",
-                        fontsize=9, color=color)
+                ax.text(j, i, f"{df.values[i, j]:.3f}", ha="center",
+                        va="center", fontsize=9, color="black")
 
         ax.set_xlabel("Loss function")
         ax.set_ylabel("Model")
         ax.set_title(title)
 
     fig.suptitle(
-        "Model × Loss evaluation matrix (lower = better)", fontsize=13)
+        "Model × Loss matrix — green=best, red=worst (per column)", fontsize=13)
     fig.tight_layout()
 
     out = PLOTS_DIR / "confusion_matrix.png"
