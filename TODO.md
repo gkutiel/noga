@@ -9,5 +9,5 @@ I use 4 loss functions:
 3. l2
 4. pinball
 
-For some reason the performance of the calibrated models are better than the original model, could you check why? 
+For some reason the performance of the calibrated models are better than the ad hoc model. This should not be the case. could you check why? 
 
