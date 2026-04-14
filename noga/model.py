@@ -2,13 +2,14 @@ from itertools import product
 from pathlib import Path
 from typing import get_args
 
+import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from torch import Tensor, nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 
 from noga.cost import Name, loss_fns, optims
 
@@ -161,8 +162,14 @@ def load_data():
     test_df = daily[daily["date"] >= test_date]
 
     train_ds = Data(train_df)
-    val_ds = Data(test_df.sample(frac=0.2, random_state=42))
     test_ds = Data(test_df)
+
+    indices = np.random.choice(
+        len(test_ds),
+        size=int(0.2 * len(test_ds)),
+        replace=False)
+
+    val_ds = Subset(test_ds, indices)  # type: ignore
 
     def dl(ds: Dataset):
         return DataLoader(
