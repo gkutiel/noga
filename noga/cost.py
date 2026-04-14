@@ -17,7 +17,7 @@ def gen(pred: Tensor, y: Tensor):
     e = pred - y
     return torch.where(
         e < 0,
-        1.1 * e.abs() ** 1.4,
+        1.1 * e.abs() ** 1.6,
         .2 * e
     ).mean()
 

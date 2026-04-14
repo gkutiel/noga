@@ -172,7 +172,7 @@ def load_data():
 
     indices = np.random.choice(
         len(test_ds),
-        size=int(0.2 * len(test_ds)),
+        size=int(0.3 * len(test_ds)),
         replace=False)
 
     val_ds = Subset(test_ds, indices)  # type: ignore
@@ -202,7 +202,7 @@ def train(name: Name):
 
     early_stopping = EarlyStopping(
         monitor=f"val/{name}",
-        patience=5,
+        patience=20,
         mode="min")
 
     ckpt = pt.ckpt(name)
@@ -304,7 +304,7 @@ def calibrate(*, model_name: Name, loss_name: Name):
 
     val_pred, val_y = pred_test(model_name=model_name)
     val_ds = torch.utils.data.TensorDataset(val_pred.unsqueeze(1), val_y)
-    n_val = max(1, int(0.2 * len(val_ds)))
+    n_val = max(1, int(0.1 * len(val_ds)))
     val_ds, _ = torch.utils.data.random_split(
         val_ds,
         [n_val, len(val_ds) - n_val])
