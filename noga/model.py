@@ -305,7 +305,10 @@ def calibrate(*, model_name: Name, loss_name: Name):
     val_pred, val_y = pred_test(model_name=model_name)
     val_ds = torch.utils.data.TensorDataset(val_pred.unsqueeze(1), val_y)
     n_val = max(1, int(0.2 * len(val_ds)))
-    val_ds, _ = torch.utils.data.random_split(val_ds, [n_val, len(val_ds) - n_val])
+    val_ds, _ = torch.utils.data.random_split(
+        val_ds,
+        [n_val, len(val_ds) - n_val])
+
     val_dl = DataLoader(val_ds, batch_size=1024)
 
     cal = Calibration(
