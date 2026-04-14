@@ -136,17 +136,23 @@ class Calibration(pl.LightningModule):
     def forward(self, X):
         return self.net(X).squeeze(1)
 
-    def training_step(self, batch, batch_idx):
+    def _step(self, batch, step: str):
         pred, y = batch
         y_hat = self(pred)
         loss = self.loss(y_hat, y)
 
         self.log(
-            f"cal/{self.model_name}-{self.loss_name}",
+            f"{step}/{self.model_name}-{self.loss_name}",
             loss,
             prog_bar=True)
 
         return loss
+
+    def training_step(self, batch, batch_idx):
+        return self._step(batch, "cal")
+
+    def validation_step(self, batch, batch_idx):
+        return self._step(batch, "cal_val")
 
     def configure_optimizers(self):
         return torch.optim.Adam(params=self.parameters(), lr=CAL_LR)
@@ -294,11 +300,12 @@ def calibrate(*, model_name: Name, loss_name: Name):
 
     pred, y = pred_train(model_name=model_name)
     pred_val, y_val = pred_test(model_name=model_name)
-    # TODO: sample from (pred_val, y_val) to create a validation set for calibration
-    # Track validation set and use it for checkpointing and early stopping, instead of the training set.
 
-    ds = torch.utils.data.TensorDataset(pred.unsqueeze(1), y)
-    dl = DataLoader(ds, batch_size=1024)
+    train_ds = torch.utils.data.TensorDataset(pred.unsqueeze(1), y)
+    train_dl = DataLoader(train_ds, batch_size=1024)
+
+    val_ds = torch.utils.data.TensorDataset(pred_val.unsqueeze(1), y_val)
+    val_dl = DataLoader(val_ds, batch_size=1024)
 
     cal = Calibration(
         model_name=model_name,
@@ -306,8 +313,10 @@ def calibrate(*, model_name: Name, loss_name: Name):
 
     logger = TensorBoardLogger("logs", name=f'cal_{model_name}_on_{loss_name}')
 
+    val_metric = f"cal_val/{model_name}-{loss_name}"
+
     early_stopping = EarlyStopping(
-        monitor=f"cal/{model_name}-{loss_name}",
+        monitor=val_metric,
         patience=50,
         mode="min")
 
@@ -317,7 +326,7 @@ def calibrate(*, model_name: Name, loss_name: Name):
         dirpath=ckpt_path.parent,
         filename=ckpt_path.stem,
         save_weights_only=True,
-        monitor=f"cal/{model_name}-{loss_name}",
+        monitor=val_metric,
         mode="min",
         save_top_k=1)
 
@@ -330,7 +339,7 @@ def calibrate(*, model_name: Name, loss_name: Name):
         ],
         logger=logger)
 
-    trainer.fit(cal, dl)
+    trainer.fit(cal, train_dl, val_dl)
 
     best_weights = torch.load(
         checkpoint.best_model_path,
