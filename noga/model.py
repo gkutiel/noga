@@ -162,6 +162,7 @@ def load_data():
     test_df = daily[daily["date"] >= test_date]
 
     train_ds = Data(train_df)
+    val_ds = Data(test_df.sample(frac=0.1, random_state=42))
     test_ds = Data(test_df)
 
     train_dl = DataLoader(
@@ -172,13 +173,20 @@ def load_data():
         drop_last=False)
 
     val_dl = DataLoader(
+        val_ds,
+        batch_size=1024,
+        num_workers=4,
+        shuffle=False,
+        drop_last=False)
+
+    test_dl = DataLoader(
         test_ds,
         batch_size=1024,
         num_workers=4,
         shuffle=False,
         drop_last=False)
 
-    return train_dl, val_dl
+    return train_dl, val_dl, test_dl
 
 
 def train(name: Name):
@@ -216,7 +224,7 @@ def train(name: Name):
         callbacks=[early_stopping, checkpoint],
         logger=logger)
 
-    train_dl, val_dl = load_data()
+    train_dl, val_dl, _ = load_data()
     trainer.fit(model, train_dl, val_dl)
 
     best_weights = torch.load(
@@ -235,23 +243,21 @@ def load_model(name: Name):
 
 def pred_train(*, model_name: Name):
     model = load_model(model_name)
-    train_dl, _ = load_data()
+    train_dl, _, _ = load_data()
 
-    preds, ys = [], []
+    X, h, y = next(iter(train_dl))
     with torch.no_grad():
-        for X, h, y in train_dl:
-            preds.append(model(X, h))
-            ys.append(y)
+        pred = model(X, h)
 
-    return torch.cat(preds), torch.cat(ys)
+    return pred, y
 
 
 def pred_test(*, model_name: Name):
     model = load_model(model_name)
 
-    _, val_dl = load_data()
+    _, _, test_dl = load_data()
 
-    X, h, y = next(iter(val_dl))
+    X, h, y = next(iter(test_dl))
     with torch.no_grad():
         pred = model(X, h)
 
@@ -261,11 +267,11 @@ def pred_test(*, model_name: Name):
 def save_preds(name: Name):
     model = load_model(name)
 
-    _, val_dl = load_data()
+    _, _, test_dl = load_data()
 
     preds, actuals = [], []
     with torch.no_grad():
-        for X, h, y in val_dl:
+        for X, h, y in test_dl:
             preds.append(model(X, h))
             actuals.append(y)
 
@@ -286,7 +292,10 @@ def eval(*, model_name: Name, loss_name: Name):
 def calibrate(*, model_name: Name, loss_name: Name):
     pl.seed_everything(42)
 
-    path = pt.cal(model_name=model_name, loss_name=loss_name)
+    path = pt.cal(
+        model_name=model_name,
+        loss_name=loss_name)
+
     if path.exists():
         return
 
@@ -303,7 +312,7 @@ def calibrate(*, model_name: Name, loss_name: Name):
 
     early_stopping = EarlyStopping(
         monitor=f"cal/{model_name}-{loss_name}",
-        patience=5,
+        patience=10,
         mode="min")
 
     ckpt_path = path.with_suffix(".ckpt")
@@ -319,19 +328,21 @@ def calibrate(*, model_name: Name, loss_name: Name):
     trainer = pl.Trainer(
         max_epochs=MAX_EPOCHS,
         deterministic=True,
-        callbacks=[early_stopping, checkpoint],
+        callbacks=[
+            early_stopping,
+            checkpoint
+        ],
         logger=logger)
 
     trainer.fit(cal, dl)
 
-    best_weights = torch.load(checkpoint.best_model_path, weights_only=True)
+    best_weights = torch.load(
+        checkpoint.best_model_path,
+        weights_only=True)
+
     torch.save(best_weights["state_dict"], path)
 
-    cal.load_state_dict(best_weights["state_dict"])
-    weight = cal.net.weight.item()
-    bias = cal.net.bias.item()
-    print(
-        f"Calibration ({model_name} → {loss_name}): weight={weight:.4f}, bias={bias:.4f}")
+    # torch.save(cal.state_dict(), path)
 
 
 def load_calibrated(*, model_name: Name, loss_name: Name):
