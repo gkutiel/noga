@@ -366,6 +366,46 @@ def plot_error_kde_hist():
     plt.close()
 
 
+def plot_confusion_matrix():
+    raw = pd.read_csv("res/eval.csv", index_col="model")
+    cal = pd.read_csv("res/eval_calibrated.csv", index_col="model")
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    for ax, df, title in [
+        (axes[0], raw, "Before calibration"),
+        (axes[1], cal, "After calibration"),
+    ]:
+        im = ax.imshow(df.values, cmap="YlOrRd_r", aspect="auto")
+        fig.colorbar(im, ax=ax, shrink=0.8)
+
+        ax.set_xticks(range(len(df.columns)))
+        ax.set_xticklabels(df.columns, rotation=45, ha="right")
+        ax.set_yticks(range(len(df.index)))
+        ax.set_yticklabels(df.index)
+
+        for i in range(len(df.index)):
+            for j in range(len(df.columns)):
+                val = df.values[i, j]
+                color = "white" if val > (
+                    df.values.max() + df.values.min()) / 2 else "black"
+                ax.text(j, i, f"{val:.3f}", ha="center", va="center",
+                        fontsize=9, color=color)
+
+        ax.set_xlabel("Loss function")
+        ax.set_ylabel("Model")
+        ax.set_title(title)
+
+    fig.suptitle(
+        "Model × Loss evaluation matrix (lower = better)", fontsize=13)
+    fig.tight_layout()
+
+    out = PLOTS_DIR / "confusion_matrix.png"
+    print("Saving plot to:", out)
+    plt.savefig(out, dpi=150)
+    plt.close()
+
+
 def plot_params():
     from noga.cost import loss_fns
     from noga.model import load_model
@@ -451,5 +491,6 @@ if __name__ == "__main__":
     # demand_vs_forecast_kde_histogram()
     # plot_day_embeddings()
     plot_loss_fns()
+    plot_confusion_matrix()
     plot_error_kde_hist()
     plot_params()
