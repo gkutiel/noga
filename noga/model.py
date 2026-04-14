@@ -13,7 +13,6 @@ from torch.utils.data import DataLoader, Dataset
 from noga.cost import Name, loss_fns, optims
 
 # TRAIN
-B_SIZE = 1024
 MAX_EPOCHS = 10_000
 
 # DATA
@@ -27,7 +26,7 @@ INPUT_SIZE = 3 + D_EMBD + M_EMBD + SEQ_LEN
 HIDDEN_SIZE = 12
 
 # CALIBRATION
-CAL_LR = 1e-2
+CAL_LR = 2e-2
 
 
 class Model(pl.LightningModule):
@@ -162,31 +161,18 @@ def load_data():
     test_df = daily[daily["date"] >= test_date]
 
     train_ds = Data(train_df)
-    val_ds = Data(test_df.sample(frac=0.1, random_state=42))
+    val_ds = Data(test_df.sample(frac=0.2, random_state=42))
     test_ds = Data(test_df)
 
-    train_dl = DataLoader(
-        train_ds,
-        batch_size=B_SIZE,
-        num_workers=4,
-        shuffle=False,
-        drop_last=False)
+    def dl(ds: Dataset):
+        return DataLoader(
+            ds,
+            batch_size=1024,
+            num_workers=4,
+            shuffle=False,
+            drop_last=False)
 
-    val_dl = DataLoader(
-        val_ds,
-        batch_size=1024,
-        num_workers=4,
-        shuffle=False,
-        drop_last=False)
-
-    test_dl = DataLoader(
-        test_ds,
-        batch_size=1024,
-        num_workers=4,
-        shuffle=False,
-        drop_last=False)
-
-    return train_dl, val_dl, test_dl
+    return dl(train_ds), dl(val_ds), dl(test_ds)
 
 
 def train(name: Name):
@@ -203,7 +189,7 @@ def train(name: Name):
 
     early_stopping = EarlyStopping(
         monitor=f"val/{name}",
-        patience=5,
+        patience=10,
         mode="min")
 
     ckpt = pt.ckpt(name)
