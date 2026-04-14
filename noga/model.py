@@ -298,13 +298,12 @@ def calibrate(*, model_name: Name, loss_name: Name):
     if path.exists():
         return
 
-    pred, y = pred_train(model_name=model_name)
-    pred_val, y_val = pred_test(model_name=model_name)
-
-    train_ds = torch.utils.data.TensorDataset(pred.unsqueeze(1), y)
+    train_pred, train_y = pred_train(model_name=model_name)
+    train_ds = torch.utils.data.TensorDataset(train_pred.unsqueeze(1), train_y)
     train_dl = DataLoader(train_ds, batch_size=1024)
 
-    val_ds = torch.utils.data.TensorDataset(pred_val.unsqueeze(1), y_val)
+    val_pred, val_y = pred_test(model_name=model_name)
+    val_ds = torch.utils.data.TensorDataset(val_pred.unsqueeze(1), val_y)
     val_dl = DataLoader(val_ds, batch_size=1024)
 
     cal = Calibration(
@@ -317,7 +316,7 @@ def calibrate(*, model_name: Name, loss_name: Name):
 
     early_stopping = EarlyStopping(
         monitor=val_metric,
-        patience=50,
+        patience=5,
         mode="min")
 
     ckpt_path = path.with_suffix(".ckpt")
@@ -332,6 +331,7 @@ def calibrate(*, model_name: Name, loss_name: Name):
 
     trainer = pl.Trainer(
         max_epochs=MAX_EPOCHS,
+        check_val_every_n_epoch=10,
         deterministic=True,
         callbacks=[
             early_stopping,
