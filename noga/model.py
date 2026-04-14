@@ -202,7 +202,7 @@ def train(name: Name):
 
     early_stopping = EarlyStopping(
         monitor=f"val/{name}",
-        patience=10,
+        patience=5,
         mode="min")
 
     ckpt = pt.ckpt(name)
@@ -219,7 +219,7 @@ def train(name: Name):
         max_epochs=MAX_EPOCHS,
         deterministic=True,
         log_every_n_steps=4,
-        check_val_every_n_epoch=20,
+        check_val_every_n_epoch=10,
         callbacks=[early_stopping, checkpoint],
         logger=logger)
 
@@ -321,7 +321,7 @@ def calibrate(*, model_name: Name, loss_name: Name):
 
     early_stopping = EarlyStopping(
         monitor=val_metric,
-        patience=5,
+        patience=3,
         mode="min")
 
     ckpt_path = path.with_suffix(".ckpt")
