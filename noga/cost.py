@@ -16,14 +16,20 @@ def pinball(pred: torch.Tensor, y: torch.Tensor, fac=5) -> torch.Tensor:
     return torch.mean(loss * 2)
 
 
-def plf(pred: Tensor, y: Tensor):
+def plf(pred: Tensor, y: Tensor) -> Tensor:
     e = pred - y
-    # TODO:
-    # A loss function that is picewise linear.
-    # If e is positive just return e.
-    # If e in [-1, 0] return abs(2 * e)
-    # If e is less than -1 return the above + abs(5 * e)
-    pass
+    bp = -1
+    c1 = .8
+    c2 = 3
+    return torch.where(
+        e > 0,
+        .5 * e,
+        torch.where(
+            e >= bp,
+            c1 * e.abs(),
+            (e - bp).abs() * c2 - bp * c1
+        )
+    ).mean()
 
 
 loss_fns: dict[Name, LossFn] = {
