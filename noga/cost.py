@@ -5,6 +5,9 @@ from torch import Tensor
 from torch.nn import Parameter
 from torch.optim import Adam
 
+LossFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+Name = Literal["l2", "l1", "pinball", "plf"]
+
 
 def pinball(pred: torch.Tensor, y: torch.Tensor, fac=5) -> torch.Tensor:
     u = 1 / (1 + fac)
@@ -13,23 +16,21 @@ def pinball(pred: torch.Tensor, y: torch.Tensor, fac=5) -> torch.Tensor:
     return torch.mean(loss * 2)
 
 
-def gen(pred: Tensor, y: Tensor):
+def plf(pred: Tensor, y: Tensor):
     e = pred - y
-    return torch.where(
-        e < 0,
-        1.1 * e.abs() ** 1.6,
-        .2 * e
-    ).mean()
+    # TODO:
+    # A loss function that is picewise linear.
+    # If e is positive just return e.
+    # If e in [-1, 0] return abs(2 * e)
+    # If e is less than -1 return the above + abs(5 * e)
+    pass
 
-
-LossFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-Name = Literal["l2", "l1", "pinball", "gen"]
 
 loss_fns: dict[Name, LossFn] = {
     "l2": lambda pred, y: torch.mean((pred - y) ** 2),
     "l1": lambda pred, y: torch.mean(torch.abs(pred - y)),
     "pinball": lambda pred, y: pinball(pred, y),
-    'gen': gen,
+    'plf': plf,
 }
 
 
@@ -41,5 +42,5 @@ optims: dict[Name, Callable[[Iterator[Parameter]], torch.optim.Optimizer]] = {
     "l2": opt,
     "l1": opt,
     "pinball": opt,
-    "gen": opt,
+    "plf": opt,
 }
