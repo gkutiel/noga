@@ -19,7 +19,7 @@ BATCH_SIZE = 8192
 
 # MODEL
 M_EMBD = 2
-D_EMBD = 2
+D_EMBD = 3
 T_EMBED = 16
 N_LAYERS = 1
 HIDDEN_SIZE = 32
@@ -42,9 +42,9 @@ FEATURES = [
     'relative_humidity_percent_Haifa',
     'relative_humidity_percent_Jerusalem',
     'relative_humidity_percent_TelAviv',
-    'wind_speed_m_s_Haifa',
-    'wind_speed_m_s_Jerusalem',
-    'wind_speed_m_s_TelAviv',
+    # 'wind_speed_m_s_Haifa',
+    # 'wind_speed_m_s_Jerusalem',
+    # 'wind_speed_m_s_TelAviv',
 ]
 N = len(FEATURES) + HISTORY_LEN
 
