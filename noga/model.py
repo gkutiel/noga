@@ -12,16 +12,16 @@ from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, Subset
 
 from noga.cost import Name, loss_fns, optims
+from noga.model import HIDDEN_SIZE
 
 # TRAIN
 MAX_EPOCHS = 10
 BATCH_SIZE = 1024
 
 # MODEL
-D_EMBD = 1
-M_EMBD = 1
-INPUT_SIZE = 3 + D_EMBD + M_EMBD
-HIDDEN_SIZE = 12
+D_EMBD = 2
+M_EMBD = 2
+HIDDEN_SIZE = 8
 Y_SCALE = 100
 
 
@@ -79,9 +79,9 @@ class Model(pl.LightningModule):
         # self.neg = nn.Linear(N, 1, bias=False)
         # self.pos = nn.Linear(N, 1, bias=False)
         self.net = nn.Sequential(
-            nn.Linear(N, N),
+            nn.Linear(N + D_EMBD, HIDDEN_SIZE),
             nn.LeakyReLU(),
-            nn.Linear(N, 1))
+            nn.Linear(HIDDEN_SIZE, 1))
 
     def forward(self, day: Tensor, X: Tensor):
         print(day)
@@ -100,9 +100,9 @@ class Model(pl.LightningModule):
         return self.net(f).squeeze(1)
 
     def step(self, batch, batch_idx, step='train'):
-        X, y = batch
+        day, X, y = batch
 
-        pred = self(X)
+        pred = self(day, X)
         loss = self.loss(pred, y)
 
         self.log(f"{step}/{self.name}", loss, prog_bar=True)
