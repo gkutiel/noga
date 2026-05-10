@@ -71,7 +71,7 @@ class Model(pl.LightningModule):
 
         # self.balance = nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
         # self.h = nn.Embedding(7, 1)
-        # self.day = nn.Embedding(7, D_EMBD)
+        self.day = nn.Embedding(7, D_EMBD)
         # self.month = nn.Embedding(12, M_EMBD)
 
         # self.neg = nn.Linear(N, 1, bias=False)
@@ -82,7 +82,11 @@ class Model(pl.LightningModule):
             nn.Linear(N, 1))
 
     def forward(self, X: Tensor):
-        # day = X[:, 0].long()
+        day = X[:, 0].long()
+        f = torch.concat([
+            self.day(day),
+            X[:, 1:].float()
+        ], dim=1)
         # month = X[:, 1].long()
         # temps = X[:, 2:]
         # temps = X
@@ -91,7 +95,7 @@ class Model(pl.LightningModule):
         # neg = self.neg(dev.clamp(max=0))
         # pos = self.pos(dev.clamp(min=0))
 
-        return self.net(X).squeeze(1)
+        return self.net(f).squeeze(1)
 
     def step(self, batch, batch_idx, step='train'):
         X, y = batch
