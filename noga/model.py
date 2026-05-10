@@ -20,7 +20,8 @@ BATCH_SIZE = 8192
 # MODEL
 M_EMBD = 2
 D_EMBD = 2
-T_EMBED = 8
+T_EMBED = 16
+N_LAYERS = 1
 HIDDEN_SIZE = 32
 Y_SCALE = 100
 
@@ -122,15 +123,18 @@ class Model(pl.LightningModule):
         self.name: Name = name
         self.loss = loss_fns[name]
 
-        # self.balance = nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
         self.day = nn.Embedding(7, D_EMBD)
         self.month = nn.Embedding(12, M_EMBD)
         self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED)
 
         self.net = nn.Sequential(
             nn.Linear(N + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
-            nn.LeakyReLU(),
-            nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
+            *[
+                nn.Sequential(
+                    nn.LeakyReLU(),
+                    nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
+                ) for _ in range(N_LAYERS)
+            ],
             nn.LeakyReLU(),
             nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 1),
         )
@@ -144,14 +148,10 @@ class Model(pl.LightningModule):
         ], dim=1)
 
         hist = X[:, :HISTORY_LEN]
-        # temps = X[:, HISTORY_LEN:HISTORY_LEN+3]
-        # dev = (temps - self.balance).abs()
 
         out = self.net(f)
 
         hist = (hist * torch.softmax(out[:, :HISTORY_LEN], dim=1)).sum(dim=1)
-        # hist = (hist * torch.sigmoid(out[:, :HISTORY_LEN])).sum(dim=1)
-        # dev = (dev * out[:, HISTORY_LEN:HISTORY_LEN+3]).mean(dim=1)
 
         return hist + out[:, HISTORY_LEN]
 
