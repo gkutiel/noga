@@ -122,7 +122,7 @@ class Model(pl.LightningModule):
         self.name: Name = name
         self.loss = loss_fns[name]
 
-        self.balance = nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
+        # self.balance = nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
         self.day = nn.Embedding(7, D_EMBD)
         self.month = nn.Embedding(12, M_EMBD)
         self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED)
@@ -130,7 +130,9 @@ class Model(pl.LightningModule):
         self.net = nn.Sequential(
             nn.Linear(N + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
             nn.LeakyReLU(),
-            nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 3),
+            nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
+            nn.LeakyReLU(),
+            nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 1),
         )
 
     def forward(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
@@ -142,15 +144,16 @@ class Model(pl.LightningModule):
         ], dim=1)
 
         hist = X[:, :HISTORY_LEN]
-        temps = X[:, HISTORY_LEN:HISTORY_LEN+3]
-        dev = (temps - self.balance).abs()
+        # temps = X[:, HISTORY_LEN:HISTORY_LEN+3]
+        # dev = (temps - self.balance).abs()
 
         out = self.net(f)
 
-        hist = (hist * torch.sigmoid(out[:, :HISTORY_LEN])).mean(dim=1)
-        dev = (dev * out[:, HISTORY_LEN:HISTORY_LEN+3]).mean(dim=1)
+        hist = (hist * torch.softmax(out[:, :HISTORY_LEN], dim=1)).sum(dim=1)
+        # hist = (hist * torch.sigmoid(out[:, :HISTORY_LEN])).sum(dim=1)
+        # dev = (dev * out[:, HISTORY_LEN:HISTORY_LEN+3]).mean(dim=1)
 
-        return hist + dev
+        return hist + out[:, HISTORY_LEN]
 
     def step(self, batch, batch_idx, step='train'):
         month, day, time, X, y = batch
@@ -160,9 +163,9 @@ class Model(pl.LightningModule):
 
         self.log(f"{step}/{self.name}", loss, prog_bar=True)
         # self.log(f"{step}/l1", torch.mean(torch.abs(pred - y)), prog_bar=True)
-        self.log(f"{step}/bH", self.balance[0], prog_bar=True)
-        self.log(f"{step}/bJ", self.balance[1], prog_bar=True)
-        self.log(f"{step}/bT", self.balance[2], prog_bar=True)
+        # self.log(f"{step}/bH", self.balance[0], prog_bar=True)
+        # self.log(f"{step}/bJ", self.balance[1], prog_bar=True)
+        # self.log(f"{step}/bT", self.balance[2], prog_bar=True)
 
         return loss
 
