@@ -1,35 +1,35 @@
 data:
   noga.csv:
-    - date: 2024-01-01
+    - date: 2024-01-12
     - time: 00:05:00
     - day-ahead-forecast: 7415
     - actual-demand: 7378.6
 
   noga.fixed.csv:
     - This is the noga.csv data after interpolating the missing values.
-    - date: 2024-01-01
+    - date: 2024-01-12
     - time: 65
     - forecast: 7415
     - actual: 7378.6
 
   ims.csv:
-    - date: 01-01-2024
-    - time: 02:00
-    - temperature_c_Haifa: 14.7
-    - temperature_c_Jerusalem: 10.0
-    - temperature_c_Tel Aviv: 14.3
-    - wet_bulb_temperature_c_Haifa: 11.3
-    - wet_bulb_temperature_c_Jerusalem: 8.3
-    - wet_bulb_temperature_c_Tel Aviv: 12.4
-    - dew_point_temperature_c_Haifa: 8.2
-    - dew_point_temperature_c_Jerusalem: 6.5
-    - dew_point_temperature_c_Tel Aviv: 10.7
-    - relative_humidity_percent_Haifa: 65.0
-    - relative_humidity_percent_Jerusalem: 79.0
-    - relative_humidity_percent_Tel Aviv: 79.0
-    - wind_direction_degrees_Haifa: 64.0
-    - wind_direction_degrees_Jerusalem: 0.0
-    - wind_direction_degrees_Tel Aviv: 122.0
-    - wind_speed_m_s_Haifa: 2.3
-    - wind_speed_m_s_Jerusalem: 0.0
-    - wind_speed_m_s_Tel Aviv: 3.1
+    - date: 2023-04-01
+    - time: 120
+    - temp_Haifa: 10.2
+    - temp_Jerusalem: 6.6
+    - temp_Tel Aviv: 13.1
+    - wet_bulb_Haifa: 7.8
+    - wet_bulb_Jerusalem: 5.2
+    - wet_bulb_Tel Aviv: 10.0
+    - dew_point_Haifa: 5.0
+    - dew_point_Jerusalem: 3.4
+    - dew_point_Tel Aviv: 6.7
+    - relative_humidity_percent_Haifa: 70.0
+    - relative_humidity_percent_Jerusalem: 80.0
+    - relative_humidity_percent_Tel Aviv: 65.0
+    - wind_dir_deg_Haifa: 262.0
+    - wind_dir_deg_Jerusalem: 247.0
+    - wind_dir_deg_Tel Aviv: 125.0
+    - wind_speed_m_s_Haifa: 3.8
+    - wind_speed_m_s_Jerusalem: 1.2
+    - wind_speed_m_s_Tel Aviv: 1.9

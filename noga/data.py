@@ -1,6 +1,7 @@
 
 import re
 
+import numpy as np
 import pandas as pd
 
 HEADER_TRANSLATIONS = {
@@ -13,12 +14,12 @@ HEADER_TRANSLATIONS = {
 
 IMS_HEADER_TRANSLATIONS = {
     "תחנה": "station",
-    "תאריך ושעה (שעון חורף)": "datetime_winter_time",
-    "טמפרטורה (C°)": "temperature_c",
-    "טמפרטורה לחה (C°)": "wet_bulb_temperature_c",
-    "טמפרטורת נקודת הטל (C°)": "dew_point_temperature_c",
+    "תאריך ושעה (שעון חורף)": "datetime",
+    "טמפרטורה (C°)": "temp",
+    "טמפרטורה לחה (C°)": "wet_bulb",
+    "טמפרטורת נקודת הטל (C°)": "dew_point",
     "לחות יחסית (%)": "relative_humidity_percent",
-    "כיוון הרוח (מעלות)": "wind_direction_degrees",
+    "כיוון הרוח (מעלות)": "wind_dir_deg",
     "מהירות רוח (מטר לשניה)": "wind_speed_m_s",
 }
 
@@ -60,11 +61,15 @@ def noga_fixed_csv():
 
     noga['forecast'] = pd.to_numeric(
         noga['day-ahead-forecast'],
-        errors='coerce').interpolate()
+        errors='coerce') \
+        .replace(0, np.nan) \
+        .interpolate()
 
     noga['actual'] = pd.to_numeric(
         noga['actual-demand'],
-        errors='coerce').interpolate()
+        errors='coerce') \
+        .replace(0, np.nan) \
+        .interpolate()
 
     noga = noga.drop(columns=[
         'day-ahead-forecast',
@@ -75,22 +80,67 @@ def noga_fixed_csv():
     noga.to_csv("data/noga.fixed.csv", index=False)
 
 
-def ims_fixed_csv():
-    ims = pd.read_csv("data/ims.csv")
+def ims_csv() -> None:
+    ims = pd.read_csv("data/ims.he.csv", encoding="utf-8")
+    ims.rename(columns=IMS_HEADER_TRANSLATIONS, inplace=True)
+    ims["station"] = ims["station"].astype(str).map(
+        lambda s: IMS_STATION_TRANSLATIONS.get(s, s))  # type: ignore
 
-    ims['date'] = pd.to_datetime(ims['date'], format='%m-%d-%Y')
-    ims['time'] = pd \
-        .to_timedelta(ims['time'] + ':00') \
-        .dt.total_seconds() / 60
+    ims['datetime'] = pd.to_datetime(
+        ims['datetime'],
+        format="%d-%m-%Y %H:%M",
+    )
 
-    ims.to_csv("data/ims.fixed.csv", index=False)
+    ims = ims.pivot(
+        index=["datetime"],
+        columns="station")
+
+    ims.columns = [f'{c}_{s}' for c, s in ims.columns]
+    ims = ims.reset_index()
+    dt = ims['datetime'].dt
+    ims.insert(1, "date", dt.strftime("%Y-%m-%d"))
+    ims.insert(2, "time", dt.hour * 60 + dt.minute)
+    ims.drop(columns=["datetime"], inplace=True)
+
+    ims.to_csv("data/ims.csv", index=False)
+
+    row = ims.iloc[0]
+    for col in ims.columns:
+        print(f"- {col}: {row[col]}")
 
 
 def data_csv():
     noga = pd.read_csv("data/noga.fixed.csv")
-    ims = pd.read_csv("data/ims.fixed.csv")
+    ims = pd.read_csv("data/ims.csv")
+
+    data = pd.merge(noga, ims, on=["date", "time"], how="left")
+    int_cols = [col for col in ims.columns if col not in ["date", "time"]]
+    data[int_cols] = data[int_cols].interpolate()
+
+    dt = pd.to_datetime(data['date']).dt
+    data = data.dropna()
+
+    data['year'] = dt.year
+    data['month'] = dt.month - 1
+    data['day'] = (dt.dayofweek + 1) % 7
+
+    data.drop(columns=["date"], inplace=True)
+    data.to_csv("data/data.csv", index=False)
+
+
+def sample_csv():
+    data = pd.read_csv("data/data.csv")
+    sample = data[[
+        "year", "month", "day", "time",
+        "forecast", "actual", 'temp_Haifa']]
+
+    print(sample)
 
 
 if __name__ == "__main__":
-    print('-' * 10)
-    ims_fixed_csv()
+    # noga_csv()
+    # noga_fixed_csv()
+    # ims_csv()
+    # data_csv()
+    sample_csv()
+    pass
