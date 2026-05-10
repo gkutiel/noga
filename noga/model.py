@@ -14,14 +14,14 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from noga.cost import Name, loss_fns, optims
 
 # TRAIN
-MAX_EPOCHS = 50
+MAX_EPOCHS = 60
 BATCH_SIZE = 10_000
 
 # MODEL
 M_EMBD = 2
 D_EMBD = 3
 T_EMBED = 16
-N_LAYERS = 1
+N_LAYERS = 2
 HIDDEN_SIZE = 32
 Y_SCALE = 100
 
@@ -39,6 +39,7 @@ FEATURES = [
     'wet_bulb_Haifa',
     'wet_bulb_Jerusalem',
     'wet_bulb_TelAviv',
+
     'relative_humidity_percent_Haifa',
     'relative_humidity_percent_Jerusalem',
     'relative_humidity_percent_TelAviv',
