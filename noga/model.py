@@ -31,7 +31,6 @@ CAL_LR = 2e-2
 DAY_IN_5_MIN = 288
 HISTORY_LEN = 2
 FEATURES = [
-    'day',
     'temp_Haifa',
     'temp_Jerusalem',
     'temp_TelAviv'
@@ -47,7 +46,9 @@ def slice_j(idx: int):
 class Data(Dataset):
     def __init__(self, df: pd.DataFrame):
         X = df[FEATURES]
+        print(X.head())
         y = df["actual"]
+        self.day = df["day"].to_numpy().astype(int)
         self.X = torch.tensor(X.values, dtype=torch.float32)
         self.y = torch.tensor(
             y.values,
@@ -59,7 +60,8 @@ class Data(Dataset):
     def __getitem__(self, idx):
         s, j = slice_j(idx)
         h = self.y[s]
-        return torch.concat([h, self.X[j]], dim=0), self.y[j]
+        day = self.day[j]
+        return day, torch.concat([h, self.X[j]], dim=0), self.y[j]
 
 
 class Model(pl.LightningModule):
@@ -81,11 +83,11 @@ class Model(pl.LightningModule):
             nn.LeakyReLU(),
             nn.Linear(N, 1))
 
-    def forward(self, X: Tensor):
-        day = X[:, 0].long()
+    def forward(self, day: Tensor, X: Tensor):
+        print(day)
         f = torch.concat([
             self.day(day),
-            X[:, 1:].float()
+            X
         ], dim=1)
         # month = X[:, 1].long()
         # temps = X[:, 2:]
@@ -449,10 +451,10 @@ if __name__ == "__main__":
     # train_dl, val_dl, test_dl = load_data()
 
     # for name, dl in [("train", train_dl), ("val", val_dl), ("test", test_dl)]:
-    #     X, h, y = next(iter(dl))
+    #     day, X, y = next(iter(dl))
     #     print(f"\n--- {name} ---")
+    #     print(f"  day shape: {day.shape}, sample: {day[0]}")
     #     print(f"  X shape: {X.shape}, sample: {X[0]}")
-    #     print(f"  h shape: {h.shape}, sample: {h[0]}")
     #     print(f"  y shape: {y.shape}, sample: {y[0]:.4f}")
 
     train('l1')
