@@ -15,7 +15,7 @@ from noga.cost import Name, loss_fns, optims
 
 # TRAIN
 MAX_EPOCHS = 10
-BATCH_SIZE = 1024
+BATCH_SIZE = 2048
 
 # MODEL
 D_EMBD = 2
@@ -32,7 +32,10 @@ HISTORY_LEN = 2
 FEATURES = [
     'temp_Haifa',
     'temp_Jerusalem',
-    'temp_TelAviv'
+    'temp_TelAviv',
+    'wet_bulb_Haifa',
+    'wet_bulb_Jerusalem',
+    'wet_bulb_TelAviv',
 ]
 N = len(FEATURES) + HISTORY_LEN
 
@@ -47,7 +50,10 @@ class Data(Dataset):
         X = df[FEATURES]
         print(X.head())
         y = df["actual"]
+
         self.day = df["day"].to_numpy().astype(int)
+        self.month = df["month"].to_numpy().astype(int)
+
         self.X = torch.tensor(X.values, dtype=torch.float32)
         self.y = torch.tensor(
             y.values,
@@ -58,9 +64,19 @@ class Data(Dataset):
 
     def __getitem__(self, idx):
         s, j = slice_j(idx)
-        h = self.y[s]
+
+        month = self.month[j]
         day = self.day[j]
-        return day, torch.concat([h, self.X[j]], dim=0), self.y[j]
+
+        h = self.y[s]
+
+        return (
+            # EMBEDDINGS
+            month, day,
+            # X
+            torch.concat([h, self.X[j]], dim=0),
+            # y
+            self.y[j])
 
 
 class Model(pl.LightningModule):
@@ -73,19 +89,20 @@ class Model(pl.LightningModule):
         # self.balance = nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
         # self.h = nn.Embedding(7, 1)
         self.day = nn.Embedding(7, D_EMBD)
-        # self.month = nn.Embedding(12, M_EMBD)
+        self.month = nn.Embedding(12, M_EMBD)
 
         # self.neg = nn.Linear(N, 1, bias=False)
         # self.pos = nn.Linear(N, 1, bias=False)
         self.net = nn.Sequential(
-            nn.Linear(N + D_EMBD, HIDDEN_SIZE),
+            nn.Linear(N + D_EMBD + M_EMBD, HIDDEN_SIZE),
             nn.LeakyReLU(),
             nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
             nn.LeakyReLU(),
             nn.Linear(HIDDEN_SIZE, 1))
 
-    def forward(self, day: Tensor, X: Tensor):
+    def forward(self, month: Tensor, day: Tensor, X: Tensor):
         f = torch.concat([
+            self.month(month),
             self.day(day),
             X
         ], dim=1)
@@ -100,9 +117,9 @@ class Model(pl.LightningModule):
         return self.net(f).squeeze(1)
 
     def step(self, batch, batch_idx, step='train'):
-        day, X, y = batch
+        month, day, X, y = batch
 
-        pred = self(day, X)
+        pred = self(month, day, X)
         loss = self.loss(pred, y)
 
         self.log(f"{step}/{self.name}", loss, prog_bar=True)
