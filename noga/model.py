@@ -160,6 +160,9 @@ class Model(pl.LightningModule):
 
         self.log(f"{step}/{self.name}", loss, prog_bar=True)
         # self.log(f"{step}/l1", torch.mean(torch.abs(pred - y)), prog_bar=True)
+        self.log(f"{step}/bH", self.balance[0], prog_bar=True)
+        self.log(f"{step}/bJ", self.balance[1], prog_bar=True)
+        self.log(f"{step}/bT", self.balance[2], prog_bar=True)
 
         return loss
 
