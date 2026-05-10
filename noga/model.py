@@ -17,7 +17,7 @@ from noga.cost import Name, loss_fns, optims
 MAX_EPOCHS = 10_000
 
 # DATA
-Y_SCALE = 100_000
+Y_SCALE = 100
 
 # MODEL
 SEQ_LEN = 1
@@ -28,6 +28,29 @@ HIDDEN_SIZE = 12
 
 # CALIBRATION
 CAL_LR = 2e-2
+
+FEATURES = [
+    'temp_Haifa',
+    'temp_Jerusalem',
+    'temp_Tel_Aviv'
+]
+
+
+class Data(Dataset):
+    def __init__(self, df: pd.DataFrame):
+        X = df[FEATURES]
+        y = df["actual"]
+        self.X = torch.tensor(X.values, dtype=torch.float32)
+        self.y = torch.tensor(
+            y.values,
+            dtype=torch.float32) / Y_SCALE
+
+    def __len__(self):
+        return len(self.y) - SEQ_LEN
+
+    def __getitem__(self, idx):
+        h = self.y[idx:idx+SEQ_LEN]
+        return self.X[idx + SEQ_LEN], h, self.y[idx+SEQ_LEN]
 
 
 class Model(pl.LightningModule):
@@ -87,42 +110,6 @@ class Model(pl.LightningModule):
         return optims[self.name](self.parameters())
 
 
-class Data(Dataset):
-    def __init__(self, df: pd.DataFrame):
-        cols = [
-            # X
-            "date",
-            "temperature_Haifa",
-            "temperature_Jerusalem",
-            "temperature_Tel_Aviv",
-            # y
-            "total_demand"]
-
-        df = df[cols]
-
-        date = df['date']
-
-        X = pd.DataFrame({
-            "day": (date.dt.dayofweek + 1) % 7,
-            "month": date.dt.month - 1,
-            "temperature_Haifa": df["temperature_Haifa"],
-            "temperature_Jerusalem": df["temperature_Jerusalem"],
-            "temperature_Tel_Aviv": df["temperature_Tel_Aviv"],
-        })
-
-        self.X = torch.tensor(X.values, dtype=torch.float32)
-        self.y = torch.tensor(
-            df["total_demand"].values,
-            dtype=torch.float32) / Y_SCALE
-
-    def __len__(self):
-        return len(self.y) - SEQ_LEN
-
-    def __getitem__(self, idx):
-        h = self.y[idx:idx+SEQ_LEN]
-        return self.X[idx + SEQ_LEN], h, self.y[idx+SEQ_LEN]
-
-
 class Calibration(pl.LightningModule):
     def __init__(self, *, model_name,  loss_name: Name):
         super().__init__()
@@ -159,13 +146,12 @@ class Calibration(pl.LightningModule):
 
 
 def load_data():
-    daily = pd.read_csv(
-        "data/daily.csv",
+    data = pd.read_csv(
+        "data/data.csv",
         parse_dates=["date"])
 
-    test_date = "2025-01-01"
-    train_df = daily[daily["date"] < test_date]
-    test_df = daily[daily["date"] >= test_date]
+    train_df = data[data["year"] < 2025]
+    test_df = data[data["year"] == 2025]
 
     train_ds = Data(train_df)
     test_ds = Data(test_df)
@@ -452,4 +438,11 @@ def report():
 
 
 if __name__ == "__main__":
-    report()
+    train_dl, val_dl, test_dl = load_data()
+
+    for name, dl in [("train", train_dl), ("val", val_dl), ("test", test_dl)]:
+        X, h, y = next(iter(dl))
+        print(f"\n--- {name} ---")
+        print(f"  X shape: {X.shape}, sample: {X[0]}")
+        print(f"  h shape: {h.shape}, sample: {h[0]}")
+        print(f"  y shape: {y.shape}, sample: {y[0]:.4f}")
