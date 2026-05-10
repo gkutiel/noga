@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from noga.cost import Name, loss_fns, optims
 
 # TRAIN
-MAX_EPOCHS = 20
+MAX_EPOCHS = 100
 BATCH_SIZE = 8192
 
 # MODEL
