@@ -14,13 +14,14 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from noga.cost import Name, loss_fns, optims
 
 # TRAIN
-MAX_EPOCHS = 10
-BATCH_SIZE = 4096
+MAX_EPOCHS = 20
+BATCH_SIZE = 8192
 
 # MODEL
-D_EMBD = 2
 M_EMBD = 2
-HIDDEN_SIZE = 8
+D_EMBD = 2
+T_EMBED = 4
+HIDDEN_SIZE = 16
 Y_SCALE = 100
 
 
@@ -53,6 +54,7 @@ class Data(Dataset):
 
         self.day = df["day"].to_numpy().astype(int)
         self.month = df["month"].to_numpy().astype(int)
+        self.time = df["time"].to_numpy().astype(int) / 5
 
         self.X = torch.tensor(X.values, dtype=torch.float32)
         self.y = torch.tensor(
@@ -67,12 +69,13 @@ class Data(Dataset):
 
         month = self.month[j]
         day = self.day[j]
+        time = self.time[j]
 
         h = self.y[s]
 
         return (
             # EMBEDDINGS
-            month, day,
+            month, day, time,
             # X
             torch.concat([h, self.X[j]], dim=0),
             # y
@@ -90,6 +93,7 @@ class Model(pl.LightningModule):
         # self.h = nn.Embedding(7, 1)
         self.day = nn.Embedding(7, D_EMBD)
         self.month = nn.Embedding(12, M_EMBD)
+        self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED)
 
         # self.neg = nn.Linear(N, 1, bias=False)
         # self.pos = nn.Linear(N, 1, bias=False)
@@ -98,12 +102,15 @@ class Model(pl.LightningModule):
             nn.LeakyReLU(),
             nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
             nn.LeakyReLU(),
+            nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
+            nn.LeakyReLU(),
             nn.Linear(HIDDEN_SIZE, 1))
 
-    def forward(self, month: Tensor, day: Tensor, X: Tensor):
+    def forward(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
         f = torch.concat([
             self.month(month),
             self.day(day),
+            self.time(time),
             X
         ], dim=1)
         # month = X[:, 1].long()
