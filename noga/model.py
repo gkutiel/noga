@@ -446,13 +446,14 @@ def report():
 
 
 if __name__ == "__main__":
-    train_dl, val_dl, test_dl = load_data()
+    # train_dl, val_dl, test_dl = load_data()
 
-    for name, dl in [("train", train_dl), ("val", val_dl), ("test", test_dl)]:
-        day, X, y = next(iter(dl))
-        print(f"\n--- {name} ---")
-        print(f"  day shape: {day.shape}, sample: {day[0]}")
-        print(f"  X shape: {X.shape}, sample: {X[0]}")
-        print(f"  y shape: {y.shape}, sample: {y[0]:.4f}")
+    # for name, dl in [("train", train_dl), ("val", val_dl), ("test", test_dl)]:
+    #     day, X, y = next(iter(dl))
+    #     print(f"\n--- {name} ---")
+    #     print(f"  day shape: {day.shape}, sample: {day[0]}")
+    #     print(f"  X shape: {X.shape}, sample: {X[0]}")
+    #     print(f"  y shape: {y.shape}, sample: {y[0]:.4f}")
 
-    # train('l1')
+    train('l1')
+    pass
