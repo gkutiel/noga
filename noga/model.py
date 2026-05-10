@@ -15,7 +15,7 @@ from noga.cost import Name, loss_fns, optims
 
 # TRAIN
 MAX_EPOCHS = 10
-BATCH_SIZE = 2048
+BATCH_SIZE = 4096
 
 # MODEL
 D_EMBD = 2
