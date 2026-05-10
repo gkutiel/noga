@@ -54,7 +54,7 @@ class Data(Dataset):
 
         self.day = df["day"].to_numpy().astype(int)
         self.month = df["month"].to_numpy().astype(int)
-        self.time = df["time"].to_numpy().astype(int) / 5
+        self.time = (df["time"].to_numpy() / 5).astype(int)
 
         self.X = torch.tensor(X.values, dtype=torch.float32)
         self.y = torch.tensor(
