@@ -15,7 +15,7 @@ from noga.cost import Name, loss_fns, optims
 
 # TRAIN
 MAX_EPOCHS = 50
-BATCH_SIZE = 8192
+BATCH_SIZE = 10_000
 
 # MODEL
 M_EMBD = 2
@@ -110,7 +110,7 @@ def load_data():
             ds,
             batch_size=BATCH_SIZE,
             num_workers=4,
-            shuffle=False,
+            shuffle=True,
             drop_last=False)
 
     return dl(train_ds), dl(val_ds), dl(test_ds)
