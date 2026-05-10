@@ -16,15 +16,12 @@ from noga.cost import Name, loss_fns, optims
 # TRAIN
 MAX_EPOCHS = 10_000
 
-# DATA
-Y_SCALE = 100
-
 # MODEL
-SEQ_LEN = 1
 D_EMBD = 1
 M_EMBD = 1
-INPUT_SIZE = 3 + D_EMBD + M_EMBD + SEQ_LEN
+INPUT_SIZE = 3 + D_EMBD + M_EMBD
 HIDDEN_SIZE = 12
+Y_SCALE = 100
 
 # CALIBRATION
 CAL_LR = 2e-2
@@ -32,8 +29,17 @@ CAL_LR = 2e-2
 FEATURES = [
     'temp_Haifa',
     'temp_Jerusalem',
-    'temp_Tel_Aviv'
+    'temp_TelAviv'
 ]
+N = len(FEATURES)
+
+DAY_IN_5_MIN = 288
+HISTORY_LEN = 2
+
+
+def slice_j(idx: int):
+    # In 5min units.
+    return slice(idx, idx + HISTORY_LEN), idx + DAY_IN_5_MIN + HISTORY_LEN - 1
 
 
 class Data(Dataset):
@@ -46,11 +52,12 @@ class Data(Dataset):
             dtype=torch.float32) / Y_SCALE
 
     def __len__(self):
-        return len(self.y) - SEQ_LEN
+        return len(self.y) - DAY_IN_5_MIN - HISTORY_LEN
 
     def __getitem__(self, idx):
-        h = self.y[idx:idx+SEQ_LEN]
-        return self.X[idx + SEQ_LEN], h, self.y[idx+SEQ_LEN]
+        s, j = slice_j(idx)
+        h = self.y[s]
+        return self.X[j], h, self.y[j]
 
 
 class Model(pl.LightningModule):
@@ -65,27 +72,29 @@ class Model(pl.LightningModule):
         self.day = nn.Embedding(7, D_EMBD)
         self.month = nn.Embedding(12, M_EMBD)
 
-        self.neg = nn.Linear(3, 1, bias=False)
-        self.pos = nn.Linear(3, 1, bias=False)
+        self.neg = nn.Linear(N, 1, bias=False)
+        self.pos = nn.Linear(N, 1, bias=False)
         # self.net = nn.Sequential(
         #     nn.Linear(INPUT_SIZE, HIDDEN_SIZE),
         #     nn.LeakyReLU(),
         #     nn.Linear(HIDDEN_SIZE, 1))
 
     def forward(self, X: Tensor, h: Tensor):
-        day = X[:, 0].long()
-        month = X[:, 1].long()
-        temps = X[:, 2:]
+        # day = X[:, 0].long()
+        # month = X[:, 1].long()
+        # temps = X[:, 2:]
+        temps = X
 
         dev = (temps - self.balance)
         neg = self.neg(dev.clamp(max=0))
         pos = self.pos(dev.clamp(min=0))
 
         return (
-            neg + pos +
-            self.h(day) * h +
-            self.day(day) +
-            self.month(month)).squeeze(1)
+            neg + pos
+            # self.h(day) * h +
+            # self.day(day) +
+            # self.month(month)
+        ).squeeze(1)
 
     def step(self, batch, batch_idx, step='train'):
         X, h, y = batch
@@ -146,9 +155,7 @@ class Calibration(pl.LightningModule):
 
 
 def load_data():
-    data = pd.read_csv(
-        "data/data.csv",
-        parse_dates=["date"])
+    data = pd.read_csv("data/data.csv")
 
     train_df = data[data["year"] < 2025]
     test_df = data[data["year"] == 2025]
@@ -438,11 +445,13 @@ def report():
 
 
 if __name__ == "__main__":
-    train_dl, val_dl, test_dl = load_data()
+    # train_dl, val_dl, test_dl = load_data()
 
-    for name, dl in [("train", train_dl), ("val", val_dl), ("test", test_dl)]:
-        X, h, y = next(iter(dl))
-        print(f"\n--- {name} ---")
-        print(f"  X shape: {X.shape}, sample: {X[0]}")
-        print(f"  h shape: {h.shape}, sample: {h[0]}")
-        print(f"  y shape: {y.shape}, sample: {y[0]:.4f}")
+    # for name, dl in [("train", train_dl), ("val", val_dl), ("test", test_dl)]:
+    #     X, h, y = next(iter(dl))
+    #     print(f"\n--- {name} ---")
+    #     print(f"  X shape: {X.shape}, sample: {X[0]}")
+    #     print(f"  h shape: {h.shape}, sample: {h[0]}")
+    #     print(f"  y shape: {y.shape}, sample: {y[0]:.4f}")
+
+    train('l1')

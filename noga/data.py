@@ -25,7 +25,7 @@ IMS_HEADER_TRANSLATIONS = {
 
 IMS_STATION_TRANSLATIONS = {
     'חיפה אוניברסיטה 10/2001-12/2025': 'Haifa',
-    'תל-אביב חוף 04/2005-12/2025': 'Tel Aviv',
+    'תל-אביב חוף 04/2005-12/2025': 'TelAviv',
     'ירושלים מרכז 01/1997-12/2025': 'Jerusalem'
 }
 
