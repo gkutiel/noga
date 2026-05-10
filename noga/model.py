@@ -83,7 +83,6 @@ class Model(pl.LightningModule):
             nn.Linear(HIDDEN_SIZE, 1))
 
     def forward(self, day: Tensor, X: Tensor):
-        print(day)
         f = torch.concat([
             self.day(day),
             X
