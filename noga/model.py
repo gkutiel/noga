@@ -14,13 +14,13 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from noga.cost import Name, loss_fns, optims
 
 # TRAIN
-MAX_EPOCHS = 100
+MAX_EPOCHS = 500
 BATCH_SIZE = 8192
 
 # MODEL
-M_EMBD = 4
-D_EMBD = 4
-T_EMBED = 8
+M_EMBD = 8
+D_EMBD = 8
+T_EMBED = 32
 HIDDEN_SIZE = 32
 Y_SCALE = 100
 
@@ -29,11 +29,12 @@ Y_SCALE = 100
 CAL_LR = 2e-2
 
 DAY_IN_5_MIN = 288
-HISTORY_LEN = 10
+HISTORY_LEN = 20
 FEATURES = [
     'temp_Haifa',
     'temp_Jerusalem',
     'temp_TelAviv',
+
     'wet_bulb_Haifa',
     'wet_bulb_Jerusalem',
     'wet_bulb_TelAviv',
@@ -87,105 +88,6 @@ class Data(Dataset):
             self.y[j])
 
 
-class Model(pl.LightningModule):
-    def __init__(self, name: Name):
-        super().__init__()
-
-        self.name: Name = name
-        self.loss = loss_fns[name]
-
-        # self.balance = nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
-        # self.h = nn.Embedding(7, 1)
-        self.day = nn.Embedding(7, D_EMBD)
-        self.month = nn.Embedding(12, M_EMBD)
-        self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED)
-
-        # self.neg = nn.Linear(N, 1, bias=False)
-        # self.pos = nn.Linear(N, 1, bias=False)
-        self.net = nn.Sequential(
-            nn.Linear(N + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
-            nn.LeakyReLU(),
-            nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
-            nn.LeakyReLU(),
-            nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
-            nn.LeakyReLU(),
-            nn.Linear(HIDDEN_SIZE, 1))
-
-    def forward(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
-        f = torch.concat([
-            self.month(month),
-            self.day(day),
-            self.time(time),
-            X
-        ], dim=1)
-        # month = X[:, 1].long()
-        # temps = X[:, 2:]
-        # temps = X
-
-        # dev = (temps - self.balance)
-        # neg = self.neg(dev.clamp(max=0))
-        # pos = self.pos(dev.clamp(min=0))
-
-        return self.net(f).squeeze(1)
-
-    def step(self, batch, batch_idx, step='train'):
-        month, day, time, X, y = batch
-
-        pred = self(month, day, time, X)
-        loss = self.loss(pred, y)
-
-        self.log(f"{step}/{self.name}", loss, prog_bar=True)
-        # self.log(f"{step}/l1", torch.mean(torch.abs(pred - y)), prog_bar=True)
-
-        return loss
-
-    def training_step(self, batch, batch_idx):
-        return self.step(batch, batch_idx)
-
-    def validation_step(self, batch, batch_idx):
-        return self.step(batch, batch_idx, step='val')
-
-    def predict_step(self, batch, batch_idx): ...
-
-    def configure_optimizers(self):
-        return optims[self.name](self.parameters())
-
-
-class Calibration(pl.LightningModule):
-    def __init__(self, *, model_name,  loss_name: Name):
-        super().__init__()
-
-        self.model_name = model_name
-        self.loss_name = loss_name
-
-        self.net = nn.Linear(1, 1)
-        self.loss = loss_fns[loss_name]
-
-    def forward(self, X):
-        return self.net(X).squeeze(1)
-
-    def _step(self, batch, step: str):
-        pred, y = batch
-        y_hat = self(pred)
-        loss = self.loss(y_hat, y)
-
-        self.log(
-            f"{step}/{self.model_name}-{self.loss_name}",
-            loss,
-            prog_bar=True)
-
-        return loss
-
-    def training_step(self, batch, batch_idx):
-        return self._step(batch, "cal")
-
-    def validation_step(self, batch, batch_idx):
-        return self._step(batch, "cal_val")
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(params=self.parameters(), lr=CAL_LR)
-
-
 def load_data():
     data = pd.read_csv("data/data.csv")
 
@@ -211,6 +113,63 @@ def load_data():
             drop_last=False)
 
     return dl(train_ds), dl(val_ds), dl(test_ds)
+
+
+class Model(pl.LightningModule):
+    def __init__(self, name: Name):
+        super().__init__()
+
+        self.name: Name = name
+        self.loss = loss_fns[name]
+
+        self.balance = nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
+        self.day = nn.Embedding(7, D_EMBD)
+        self.month = nn.Embedding(12, M_EMBD)
+        self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED)
+
+        self.net = nn.Sequential(
+            nn.Linear(N + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
+            nn.LeakyReLU(),
+            nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 3),
+        )
+
+    def forward(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
+        f = torch.concat([
+            self.month(month),
+            self.day(day),
+            self.time(time),
+            X
+        ], dim=1)
+
+        hist = X[:, :HISTORY_LEN]
+        temps = X[:, HISTORY_LEN:HISTORY_LEN+3]
+        dev = (temps - self.balance)
+
+        out = self.net(f)
+        out = hist @ out[:, :HISTORY_LEN].T + \
+            dev @ out[:, HISTORY_LEN:HISTORY_LEN+3].T
+
+    def step(self, batch, batch_idx, step='train'):
+        month, day, time, X, y = batch
+
+        pred = self(month, day, time, X)
+        loss = self.loss(pred, y)
+
+        self.log(f"{step}/{self.name}", loss, prog_bar=True)
+        # self.log(f"{step}/l1", torch.mean(torch.abs(pred - y)), prog_bar=True)
+
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx)
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx, step='val')
+
+    def predict_step(self, batch, batch_idx): ...
+
+    def configure_optimizers(self):
+        return optims[self.name](self.parameters())
 
 
 def train(name: Name):
@@ -256,6 +215,41 @@ def train(name: Name):
         weights_only=True)
 
     torch.save(best_weights["state_dict"], out)
+
+
+class Calibration(pl.LightningModule):
+    def __init__(self, *, model_name,  loss_name: Name):
+        super().__init__()
+
+        self.model_name = model_name
+        self.loss_name = loss_name
+
+        self.net = nn.Linear(1, 1)
+        self.loss = loss_fns[loss_name]
+
+    def forward(self, X):
+        return self.net(X).squeeze(1)
+
+    def _step(self, batch, step: str):
+        pred, y = batch
+        y_hat = self(pred)
+        loss = self.loss(y_hat, y)
+
+        self.log(
+            f"{step}/{self.model_name}-{self.loss_name}",
+            loss,
+            prog_bar=True)
+
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        return self._step(batch, "cal")
+
+    def validation_step(self, batch, batch_idx):
+        return self._step(batch, "cal_val")
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(params=self.parameters(), lr=CAL_LR)
 
 
 def load_model(name: Name):
