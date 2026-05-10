@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from noga.cost import Name, loss_fns, optims
 
 # TRAIN
-MAX_EPOCHS = 100
+MAX_EPOCHS = 10
 BATCH_SIZE = 1024
 
 # MODEL
@@ -31,6 +31,7 @@ CAL_LR = 2e-2
 DAY_IN_5_MIN = 288
 HISTORY_LEN = 2
 FEATURES = [
+    'day',
     'temp_Haifa',
     'temp_Jerusalem',
     'temp_TelAviv'
