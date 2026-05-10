@@ -11,8 +11,11 @@ PLOTS_DIR = Path("plots")
 
 def mae_by_day(df: pd.DataFrame, year: int = 2024):
     df = df[df['year'] == year]
+
+    df = df.copy()
     df['mae'] = (df['forecast'] - df['actual']).abs()
     df['mae_percent'] = df['mae'] / df['actual'] * 100
+    agg = df.groupby('day')[['mae', 'mae_percent']].mean()
 
     days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -22,7 +25,7 @@ def mae_by_day(df: pd.DataFrame, year: int = 2024):
     fig, ax1 = plt.subplots()
     color1 = 'steelblue'
     ax1.bar(
-        x - width / 2, df['mae'],
+        x - width / 2, agg['mae'],
         width, color=color1, alpha=0.8, label='MAE')
 
     ax1.set_xlabel('Day of the week')
@@ -33,8 +36,10 @@ def mae_by_day(df: pd.DataFrame, year: int = 2024):
 
     ax2 = ax1.twinx()
     color2 = 'tomato'
-    ax2.bar(x + width / 2, df['mae_percent'],
-            width, color=color2, alpha=0.8, label='MAE %')
+    ax2.bar(
+        x + width / 2, agg['mae_percent'],
+        width, color=color2, alpha=0.8, label='MAE %')
+
     ax2.set_ylabel('MAE (%)', color=color2)
     ax2.tick_params(axis='y', labelcolor=color2)
 
