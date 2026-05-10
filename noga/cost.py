@@ -47,7 +47,7 @@ loss_fns: dict[Name, LossFn] = {
 
 
 def opt(params: Iterator[Parameter]):
-    return Adam(params, lr=3e-2)
+    return Adam(params, lr=1e-3)
 
 
 optims: dict[Name, Callable[[Iterator[Parameter]], torch.optim.Optimizer]] = {
