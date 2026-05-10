@@ -12,7 +12,6 @@ from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, Subset
 
 from noga.cost import Name, loss_fns, optims
-from noga.model import T_EMBED
 
 # TRAIN
 MAX_EPOCHS = 20
