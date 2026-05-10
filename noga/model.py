@@ -18,10 +18,10 @@ MAX_EPOCHS = 100
 BATCH_SIZE = 8192
 
 # MODEL
-M_EMBD = 2
-D_EMBD = 2
-T_EMBED = 4
-HIDDEN_SIZE = 16
+M_EMBD = 4
+D_EMBD = 4
+T_EMBED = 8
+HIDDEN_SIZE = 32
 Y_SCALE = 100
 
 
@@ -55,7 +55,6 @@ def slice_j(idx: int):
 class Data(Dataset):
     def __init__(self, df: pd.DataFrame):
         X = df[FEATURES]
-        print(X.head())
         y = df["actual"]
 
         self.day = df["day"].to_numpy().astype(int)
