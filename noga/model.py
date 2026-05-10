@@ -12,6 +12,7 @@ from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, Subset
 
 from noga.cost import Name, loss_fns, optims
+from noga.model import T_EMBED
 
 # TRAIN
 MAX_EPOCHS = 20
@@ -98,7 +99,7 @@ class Model(pl.LightningModule):
         # self.neg = nn.Linear(N, 1, bias=False)
         # self.pos = nn.Linear(N, 1, bias=False)
         self.net = nn.Sequential(
-            nn.Linear(N + D_EMBD + M_EMBD, HIDDEN_SIZE),
+            nn.Linear(N + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
             nn.LeakyReLU(),
             nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
             nn.LeakyReLU(),
