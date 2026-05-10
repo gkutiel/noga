@@ -37,6 +37,12 @@ FEATURES = [
     'wet_bulb_Haifa',
     'wet_bulb_Jerusalem',
     'wet_bulb_TelAviv',
+    'relative_humidity_percent_Haifa',
+    'relative_humidity_percent_Jerusalem',
+    'relative_humidity_percent_TelAviv',
+    'wind_speed_m_s_Haifa',
+    'wind_speed_m_s_Jerusalem',
+    'wind_speed_m_s_TelAviv',
 ]
 N = len(FEATURES) + HISTORY_LEN
 
