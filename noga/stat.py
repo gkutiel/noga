@@ -53,7 +53,21 @@ def mae_by_day(df: pd.DataFrame, year: int = 2024):
     plt.savefig(PLOTS_DIR / f"mae_by_day_{year}.png")
 
 
-if __name__ == "__main__":
+def mae():
     data = pd.read_csv("data/data.csv")
-    mae_by_day(data, year=2024)
-    mae_by_day(data, year=2025)
+    data_2024 = data[data['year'] == 2024]
+    mae_2024 = (data_2024['forecast'] - data_2024['actual']).abs().mean()
+
+    data_2025 = data[data['year'] == 2025]
+    mae_2025 = (data_2025['forecast'] - data_2025['actual']).abs().mean()
+
+    print(f"MAE for 2024: {mae_2024:.2f}")
+    print(f"MAE for 2025: {mae_2025:.2f}")
+
+
+if __name__ == "__main__":
+    # data = pd.read_csv("data/data.csv")
+    # mae_by_day(data, year=2024)
+    # mae_by_day(data, year=2025)
+    mae()
+    pass
