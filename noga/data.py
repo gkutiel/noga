@@ -75,5 +75,22 @@ def noga_fixed_csv():
     noga.to_csv("data/noga.fixed.csv", index=False)
 
 
+def ims_fixed_csv():
+    ims = pd.read_csv("data/ims.csv")
+
+    ims['date'] = pd.to_datetime(ims['date'], format='%m-%d-%Y')
+    ims['time'] = pd \
+        .to_timedelta(ims['time'] + ':00') \
+        .dt.total_seconds() / 60
+
+    ims.to_csv("data/ims.fixed.csv", index=False)
+
+
+def data_csv():
+    noga = pd.read_csv("data/noga.fixed.csv")
+    ims = pd.read_csv("data/ims.fixed.csv")
+
+
 if __name__ == "__main__":
-    noga_fixed_csv()
+    print('-' * 10)
+    ims_fixed_csv()

@@ -11,3 +11,25 @@ data:
     - time: 65
     - forecast: 7415
     - actual: 7378.6
+
+  ims.csv:
+    - date: 01-01-2024
+    - time: 02:00
+    - temperature_c_Haifa: 14.7
+    - temperature_c_Jerusalem: 10.0
+    - temperature_c_Tel Aviv: 14.3
+    - wet_bulb_temperature_c_Haifa: 11.3
+    - wet_bulb_temperature_c_Jerusalem: 8.3
+    - wet_bulb_temperature_c_Tel Aviv: 12.4
+    - dew_point_temperature_c_Haifa: 8.2
+    - dew_point_temperature_c_Jerusalem: 6.5
+    - dew_point_temperature_c_Tel Aviv: 10.7
+    - relative_humidity_percent_Haifa: 65.0
+    - relative_humidity_percent_Jerusalem: 79.0
+    - relative_humidity_percent_Tel Aviv: 79.0
+    - wind_direction_degrees_Haifa: 64.0
+    - wind_direction_degrees_Jerusalem: 0.0
+    - wind_direction_degrees_Tel Aviv: 122.0
+    - wind_speed_m_s_Haifa: 2.3
+    - wind_speed_m_s_Jerusalem: 0.0
+    - wind_speed_m_s_Tel Aviv: 3.1
