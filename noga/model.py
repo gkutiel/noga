@@ -14,13 +14,13 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from noga.cost import Name, loss_fns, optims
 
 # TRAIN
-MAX_EPOCHS = 500
+MAX_EPOCHS = 50
 BATCH_SIZE = 8192
 
 # MODEL
-M_EMBD = 8
-D_EMBD = 8
-T_EMBED = 32
+M_EMBD = 2
+D_EMBD = 2
+T_EMBED = 2
 HIDDEN_SIZE = 32
 Y_SCALE = 100
 
@@ -143,11 +143,14 @@ class Model(pl.LightningModule):
 
         hist = X[:, :HISTORY_LEN]
         temps = X[:, HISTORY_LEN:HISTORY_LEN+3]
-        dev = (temps - self.balance)
+        dev = (temps - self.balance).abs()
 
         out = self.net(f)
-        out = hist @ out[:, :HISTORY_LEN].T + \
-            dev @ out[:, HISTORY_LEN:HISTORY_LEN+3].T
+
+        hist = (hist * torch.sigmoid(out[:, :HISTORY_LEN])).mean(dim=1)
+        dev = (dev * out[:, HISTORY_LEN:HISTORY_LEN+3]).mean(dim=1)
+
+        return hist + dev
 
     def step(self, batch, batch_idx, step='train'):
         month, day, time, X, y = batch
