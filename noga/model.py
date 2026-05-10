@@ -29,7 +29,7 @@ Y_SCALE = 100
 CAL_LR = 2e-2
 
 DAY_IN_5_MIN = 288
-HISTORY_LEN = 2
+HISTORY_LEN = 10
 FEATURES = [
     'temp_Haifa',
     'temp_Jerusalem',
