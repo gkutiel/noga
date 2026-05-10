@@ -124,9 +124,9 @@ class Model(pl.LightningModule):
         return self.net(f).squeeze(1)
 
     def step(self, batch, batch_idx, step='train'):
-        month, day, X, y = batch
+        month, day, time, X, y = batch
 
-        pred = self(month, day, X)
+        pred = self(month, day, time, X)
         loss = self.loss(pred, y)
 
         self.log(f"{step}/{self.name}", loss, prog_bar=True)
