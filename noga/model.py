@@ -80,6 +80,8 @@ class Model(pl.LightningModule):
         self.net = nn.Sequential(
             nn.Linear(N + D_EMBD, HIDDEN_SIZE),
             nn.LeakyReLU(),
+            nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
+            nn.LeakyReLU(),
             nn.Linear(HIDDEN_SIZE, 1))
 
     def forward(self, day: Tensor, X: Tensor):
