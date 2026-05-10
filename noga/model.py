@@ -14,7 +14,8 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from noga.cost import Name, loss_fns, optims
 
 # TRAIN
-MAX_EPOCHS = 10_000
+MAX_EPOCHS = 100
+BATCH_SIZE = 1024
 
 # MODEL
 D_EMBD = 1
@@ -23,18 +24,18 @@ INPUT_SIZE = 3 + D_EMBD + M_EMBD
 HIDDEN_SIZE = 12
 Y_SCALE = 100
 
+
 # CALIBRATION
 CAL_LR = 2e-2
 
+DAY_IN_5_MIN = 288
+HISTORY_LEN = 2
 FEATURES = [
     'temp_Haifa',
     'temp_Jerusalem',
     'temp_TelAviv'
 ]
-N = len(FEATURES)
-
-DAY_IN_5_MIN = 288
-HISTORY_LEN = 2
+N = len(FEATURES) + HISTORY_LEN
 
 
 def slice_j(idx: int):
@@ -57,7 +58,7 @@ class Data(Dataset):
     def __getitem__(self, idx):
         s, j = slice_j(idx)
         h = self.y[s]
-        return self.X[j], h, self.y[j]
+        return torch.concat([h, self.X[j]], dim=0), self.y[j]
 
 
 class Model(pl.LightningModule):
@@ -67,39 +68,34 @@ class Model(pl.LightningModule):
         self.name: Name = name
         self.loss = loss_fns[name]
 
-        self.balance = nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
-        self.h = nn.Embedding(7, 1)
-        self.day = nn.Embedding(7, D_EMBD)
-        self.month = nn.Embedding(12, M_EMBD)
+        # self.balance = nn.Parameter(torch.tensor([20.0, 20.0, 20.0]))
+        # self.h = nn.Embedding(7, 1)
+        # self.day = nn.Embedding(7, D_EMBD)
+        # self.month = nn.Embedding(12, M_EMBD)
 
-        self.neg = nn.Linear(N, 1, bias=False)
-        self.pos = nn.Linear(N, 1, bias=False)
-        # self.net = nn.Sequential(
-        #     nn.Linear(INPUT_SIZE, HIDDEN_SIZE),
-        #     nn.LeakyReLU(),
-        #     nn.Linear(HIDDEN_SIZE, 1))
+        # self.neg = nn.Linear(N, 1, bias=False)
+        # self.pos = nn.Linear(N, 1, bias=False)
+        self.net = nn.Sequential(
+            nn.Linear(N, N),
+            nn.LeakyReLU(),
+            nn.Linear(N, 1))
 
-    def forward(self, X: Tensor, h: Tensor):
+    def forward(self, X: Tensor):
         # day = X[:, 0].long()
         # month = X[:, 1].long()
         # temps = X[:, 2:]
-        temps = X
+        # temps = X
 
-        dev = (temps - self.balance)
-        neg = self.neg(dev.clamp(max=0))
-        pos = self.pos(dev.clamp(min=0))
+        # dev = (temps - self.balance)
+        # neg = self.neg(dev.clamp(max=0))
+        # pos = self.pos(dev.clamp(min=0))
 
-        return (
-            neg + pos
-            # self.h(day) * h +
-            # self.day(day) +
-            # self.month(month)
-        ).squeeze(1)
+        return self.net(X).squeeze(1)
 
     def step(self, batch, batch_idx, step='train'):
-        X, h, y = batch
+        X, y = batch
 
-        pred = self(X, h)
+        pred = self(X)
         loss = self.loss(pred, y)
 
         self.log(f"{step}/{self.name}", loss, prog_bar=True)
@@ -173,7 +169,7 @@ def load_data():
     def dl(ds: Dataset):
         return DataLoader(
             ds,
-            batch_size=1024,
+            batch_size=BATCH_SIZE,
             num_workers=4,
             shuffle=False,
             drop_last=False)
