@@ -1,0 +1,13 @@
+data:
+  noga.csv:
+    - date: 2024-01-01
+    - time: 00:05:00
+    - day-ahead-forecast: 7415
+    - actual-demand: 7378.6
+
+  noga.fixed.csv:
+    - This is the noga.csv data after interpolating the missing values.
+    - date: 2024-01-01
+    - time: 65
+    - forecast: 7415
+    - actual: 7378.6

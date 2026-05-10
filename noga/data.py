@@ -3,8 +3,6 @@ import re
 
 import pandas as pd
 
-from noga.date import DT_FRMT
-
 HEADER_TRANSLATIONS = {
     "תאריך": "date",
     "שעה": "time",
@@ -42,235 +40,40 @@ def noga_csv() -> None:
     xlsx.to_csv("data/noga.csv", index=False)
 
 
-def ims_csv() -> None:
-    ims = pd.read_csv("data/ims.he.csv", encoding="utf-8")
-    ims.rename(columns=IMS_HEADER_TRANSLATIONS, inplace=True)
-    ims["station"] = ims["station"].astype(str).map(
-        lambda s: IMS_STATION_TRANSLATIONS.get(s, s))  # type: ignore
+def noga_fixed_csv():
+    '''
+    noga.csv:
+        - date: 2024-01-01
+        - time: 00:05:00
+        - day-ahead-forecast: 7415
+        - actual-demand: 7378.6
 
-    values = [
-        col for col in ims.columns
-        if col not in {"datetime_winter_time", "station"}]
-
-    ims = ims.pivot(
-        index=["datetime_winter_time"],
-        columns="station",
-        values=values)
-
-    ims.columns = ['_'.join(col).strip() for col in ims.columns.values]
-
-    ims.reset_index(inplace=True)
-
-    dt = pd.to_datetime(
-        ims["datetime_winter_time"],
-        format="%d-%m-%Y %H:%M",
-        errors="coerce",
-    )
-    ims.insert(1, "date", dt.dt.strftime("%d-%m-%Y"))
-    ims.insert(2, "time", dt.dt.strftime("%H:%M"))
-    ims.drop(columns=["datetime_winter_time"], inplace=True)
-
-    ims.to_csv("data/ims.csv", index=False)
-
-
-def data_csv() -> None:
+    1. Reads noga.csv
+    2. Interpolate missing values (day-ahead-forecast, actual-demand).
+    3. Saves to noga.fixed.csv
+    '''
     noga = pd.read_csv("data/noga.csv")
-    ims = pd.read_csv("data/ims.csv")
 
-    noga["date"] = pd.to_datetime(
-        noga["date"],
-        format="%Y-%m-%d").dt.strftime("%d-%m-%Y")
+    noga['date'] = pd.to_datetime(noga['date'])
+    noga['time'] = pd.to_timedelta(noga['time']).dt.total_seconds() / 60
+    noga['time'] = noga['time'].astype(int)
 
-    noga["time"] = pd.to_datetime(
-        noga["time"],
-        format="%H:%M:%S").dt.strftime("%H:%M")
+    noga['forecast'] = pd.to_numeric(
+        noga['day-ahead-forecast'],
+        errors='coerce').interpolate()
 
-    ims["date"] = pd.to_datetime(
-        ims["date"],
-        format="%d-%m-%Y").dt.strftime("%d-%m-%Y")
+    noga['actual'] = pd.to_numeric(
+        noga['actual-demand'],
+        errors='coerce').interpolate()
 
-    ims["time"] = pd.to_datetime(
-        ims["time"],
-        format="%H:%M").dt.strftime("%H:%M")
-
-    data = pd.merge(noga, ims, on=["date", "time"], how="inner")
-
-    # TO NUMERIC
-    data['day-ahead-forecast'] = pd.to_numeric(
-        data['day-ahead-forecast'],
-        errors='coerce')
-
-    data['actual-demand'] = pd.to_numeric(
-        data['actual-demand'],
-        errors='coerce')
-
-    data = data.dropna()
-
-    # TIME FEATURES
-    date = pd.to_datetime(
-        data['date'],
-        format="%d-%m-%Y")
-
-    data['year'] = date.dt.year
-    data['month'] = date.dt.month
-    data['day'] = (date.dt.dayofweek + 1) % 7
-
-    data['hour'] = pd.to_datetime(
-        data['time'],
-        format="%H:%M").dt.hour
-
-    cols = [
-        # TIME
-        # 'date',
-        # 'time',
-        'year',
-        'month',
-        'day',
-        'hour',
-        # TEMPERATURE
-        'temperature_c_Haifa',
-        'temperature_c_Jerusalem',
-        'temperature_c_Tel Aviv',
-        'wet_bulb_temperature_c_Haifa',
-        'wet_bulb_temperature_c_Jerusalem',
-        'wet_bulb_temperature_c_Tel Aviv',
-        'dew_point_temperature_c_Haifa',
-        'dew_point_temperature_c_Jerusalem',
-        'dew_point_temperature_c_Tel Aviv',
-        # HUMIDITY
-        'relative_humidity_percent_Haifa',
-        'relative_humidity_percent_Jerusalem',
-        'relative_humidity_percent_Tel Aviv',
-        # WIND
-        'wind_direction_degrees_Haifa',
-        'wind_direction_degrees_Jerusalem',
-        'wind_direction_degrees_Tel Aviv',
-        'wind_speed_m_s_Haifa',
-        'wind_speed_m_s_Jerusalem',
-        'wind_speed_m_s_Tel Aviv',
-        # DEMAND
+    noga = noga.drop(columns=[
         'day-ahead-forecast',
-        'updated-demand-forecast',
-        'actual-demand']
+        'actual-demand',
+        'updated-demand-forecast'
+    ])
 
-    data = data[cols]
-    data.to_csv("data/data.csv", index=False)
-
-
-def daily_demand():
-    # TODO: Make sure data covers the full date range, and fill missing dates with interpolation or forward/backward fill
-
-    noga = pd.read_csv("data/noga.csv")
-    ims = pd.read_csv("data/ims.csv")
-
-    noga["date"] = pd.to_datetime(
-        noga["date"],
-        format="%Y-%m-%d").dt.strftime("%d-%m-%Y")
-
-    noga["time"] = pd.to_datetime(
-        noga["time"],
-        format="%H:%M:%S").dt.strftime("%H:%M")
-
-    ims["date"] = pd.to_datetime(
-        ims["date"],
-        format="%d-%m-%Y").dt.strftime("%d-%m-%Y")
-
-    ims["time"] = pd.to_datetime(
-        ims["time"],
-        format="%H:%M").dt.strftime("%H:%M")
-
-    noga = noga[~(noga == '-').any(axis=1)]
-
-    data = pd.merge(noga, ims, on=["date", "time"], how="inner")
-
-    data["actual-demand"] = pd.to_numeric(data["actual-demand"])
-    data["day-ahead-forecast"] = pd.to_numeric(data["day-ahead-forecast"])
-
-    data = data[data["actual-demand"] > 0]
-    data = data[data["day-ahead-forecast"] > 0]
-
-    temperature_cols = [
-        "temperature_c_Haifa",
-        "temperature_c_Jerusalem",
-        "temperature_c_Tel Aviv",
-    ]
-
-    for col in temperature_cols:
-        data[col] = pd.to_numeric(data[col])
-
-    daily = data.groupby("date", sort=False).agg(
-        total_demand=("actual-demand", "mean"),
-        total_day_ahead_forecast=("day-ahead-forecast", "mean"),
-        temperature_Haifa=("temperature_c_Haifa", "mean"),
-        temperature_Jerusalem=("temperature_c_Jerusalem", "mean"),
-        temperature_Tel_Aviv=("temperature_c_Tel Aviv", "mean"),
-    ).reset_index()
-
-    temp_cols = [
-        "temperature_Haifa",
-        "temperature_Jerusalem",
-        "temperature_Tel_Aviv"]
-
-    daily[temp_cols] = daily[temp_cols] \
-        .interpolate() \
-        .ffill() \
-        .bfill()
-
-    daily["date"] = pd.to_datetime(daily["date"], format="%d-%m-%Y")
-    daily = daily.set_index("date").sort_index()
-
-    full_range = pd.date_range(
-        start=daily.index.min(),
-        end=daily.index.max(),
-        freq="D")
-
-    daily = daily.reindex(full_range).interpolate().ffill().bfill()
-
-    daily.index = daily.index.strftime(DT_FRMT)  # type: ignore
-    daily.index.name = "date"
-    daily = daily.reset_index()
-
-    total_factor = 12 * 24
-    daily["total_demand"] *= total_factor
-    daily["total_day_ahead_forecast"] *= total_factor
-
-    forecast_error = (
-        (daily['total_day_ahead_forecast'] < 1_000_000) |
-        (daily['total_day_ahead_forecast'] > 20_000_000))
-
-    daily.loc[
-        forecast_error,
-        'total_day_ahead_forecast'] = daily.loc[forecast_error, 'total_demand']
-
-    daily.to_csv("data/daily.csv", index=False)
-
-
-def forecast_mae():
-    daily = pd.read_csv("data/daily.csv")
-    daily["mae"] = (
-        daily["total_day_ahead_forecast"] -
-        daily["total_demand"]).abs()
-
-    print("MAE:", daily["mae"].mean())
+    noga.to_csv("data/noga.fixed.csv", index=False)
 
 
 if __name__ == "__main__":
-    # daily_demand()
-
-    # daily = pd.read_csv(
-    #     "data/daily.csv",
-    #     parse_dates=["date"])
-
-    # print(daily.describe())
-
-    # dt = pd.to_datetime(daily['date'])
-    # min_dt = dt.min()
-    # max_dt = dt.max()
-    # full_range = pd.date_range(
-    #     start=min_dt, end=max_dt, freq="D")
-
-    # missing = full_range.difference(dt)
-    # print(min_dt, max_dt)
-    # print(missing)
-
-    forecast_mae()
+    noga_fixed_csv()
