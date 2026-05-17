@@ -296,8 +296,8 @@ def save_preds(name: Name):
 
     preds, actuals = [], []
     with torch.no_grad():
-        for X, h, y in test_dl:
-            preds.append(model(X, h))
+        for m, d, t, X, y in test_dl:
+            preds.append(model(m, d, t, X))
             actuals.append(y)
 
     pred = torch.cat(preds).numpy()
