@@ -6,7 +6,11 @@ from torch.nn import Parameter
 from torch.optim import Adam
 
 LossFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-Name = Literal["l2", "l1", "pinball", "PLF"]
+Name = Literal[
+    # "l2",
+    "l1", "pinball",
+    # "PLF"
+]
 
 
 def pinball(pred: torch.Tensor, y: torch.Tensor, fac=5) -> torch.Tensor:
@@ -39,10 +43,10 @@ def plf(pred: Tensor, y: Tensor) -> Tensor:
 
 
 loss_fns: dict[Name, LossFn] = {
-    "l2": lambda pred, y: torch.mean((pred - y) ** 2),
+    # "l2": lambda pred, y: torch.mean((pred - y) ** 2),
     "l1": lambda pred, y: torch.mean(torch.abs(pred - y)),
     "pinball": lambda pred, y: pinball(pred, y),
-    'PLF': plf,
+    # 'PLF': plf,
 }
 
 
@@ -51,8 +55,8 @@ def opt(params: Iterator[Parameter]):
 
 
 optims: dict[Name, Callable[[Iterator[Parameter]], torch.optim.Optimizer]] = {
-    "l2": opt,
+    # "l2": opt,
     "l1": opt,
     "pinball": opt,
-    "PLF": opt,
+    # "PLF": opt,
 }

@@ -163,10 +163,7 @@ class Model(pl.LightningModule):
         loss = self.loss(pred, y)
 
         self.log(f"{step}/{self.name}", loss, prog_bar=True)
-        # self.log(f"{step}/l1", torch.mean(torch.abs(pred - y)), prog_bar=True)
-        # self.log(f"{step}/bH", self.balance[0], prog_bar=True)
-        # self.log(f"{step}/bJ", self.balance[1], prog_bar=True)
-        # self.log(f"{step}/bT", self.balance[2], prog_bar=True)
+        self.log(f"{step}/l1", torch.mean(torch.abs(pred - y)), prog_bar=True)
 
         return loss
 
@@ -481,14 +478,5 @@ def report():
 
 
 if __name__ == "__main__":
-    # train_dl, val_dl, test_dl = load_data()
-
-    # for name, dl in [("train", train_dl), ("val", val_dl), ("test", test_dl)]:
-    #     day, X, y = next(iter(dl))
-    #     print(f"\n--- {name} ---")
-    #     print(f"  day shape: {day.shape}, sample: {day[0]}")
-    #     print(f"  X shape: {X.shape}, sample: {X[0]}")
-    #     print(f"  y shape: {y.shape}, sample: {y[0]:.4f}")
-
-    train('l1')
+    report()
     pass
