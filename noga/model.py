@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from noga.cost import Name, loss_fns, optims
 
 # TRAIN
-MAX_EPOCHS = 500
+MAX_EPOCHS = 200
 BATCH_SIZE = 10_000
 
 # MODEL
@@ -270,9 +270,9 @@ def pred_train(*, model_name: Name):
     model = load_model(model_name)
     train_dl, _, _ = load_data()
 
-    X, h, y = next(iter(train_dl))
+    m, d, t, X, y = next(iter(train_dl))
     with torch.no_grad():
-        pred = model(X, h)
+        pred = model(m, d, t, X)
 
     return pred, y
 
