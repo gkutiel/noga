@@ -420,39 +420,41 @@ def plot_confusion_matrix():
 
 def plot_error_heatmap_percent():
     data = pd.read_csv("data/data.csv")
+    # drop the 7 off-grid timestamps (not multiples of 5 min) that are data artifacts
+    data = data[data["time"] % 5 == 0]
     data["abs_err_pct"] = (data["forecast"] - data["actual"]
                            ).abs() / data["actual"] * 100
 
-    # pivot: rows = time (minutes from midnight, 288 slots), cols = day-of-week (0–6)
+    # pivot: rows = day-of-week (0–6), cols = time (288 five-minute slots)
     pivot = (
-        data.groupby(["time", "day"])["abs_err_pct"]
+        data.groupby(["day", "time"])["abs_err_pct"]
         .mean()
-        .unstack("day")
+        .unstack("time")
     )
 
-    n_times = len(pivot)  # 288
-    n_days = len(pivot.columns)  # 7
+    n_days = len(pivot)        # 7
+    n_times = len(pivot.columns)  # 288
 
-    fig, ax = plt.subplots(figsize=(n_days * 1.8, n_times * 0.08))
+    fig, ax = plt.subplots(figsize=(n_times * 0.08, n_days * 1.5))
     im = ax.imshow(pivot.values, aspect="auto", cmap="YlOrRd",
                    origin="upper", interpolation="nearest")
 
-    # x-axis: day of week labels
+    # y-axis: day of week labels
     day_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    ax.set_xticks(range(n_days))
-    ax.set_xticklabels([day_labels[d] for d in pivot.columns])
+    ax.set_yticks(range(n_days))
+    ax.set_yticklabels([day_labels[d] for d in pivot.index])
 
-    # y-axis: HH:MM every 30 minutes (every 6th row)
-    tick_rows = [i for i, t in enumerate(pivot.index) if t % 30 == 0]
-    tick_labels = [
-        f"{int(pivot.index[i]) // 60:02d}:{int(pivot.index[i]) % 60:02d}" for i in tick_rows]
-    ax.set_yticks(tick_rows)
-    ax.set_yticklabels(tick_labels, fontsize=7)
+    # x-axis: HH:MM every 30 minutes (every 6th column)
+    tick_cols = [i for i, t in enumerate(pivot.columns) if t % 30 == 0]
+    tick_labels = [f"{int(pivot.columns[i]) // 60:02d}:{int(pivot.columns[i]) % 60:02d}"
+                   for i in tick_cols]
+    ax.set_xticks(tick_cols)
+    ax.set_xticklabels(tick_labels, rotation=90, fontsize=7)
 
     plt.colorbar(im, ax=ax, label="Mean Absolute Error (%)")
     ax.set_title("Day-Ahead Forecast Error % by Day of Week and Time of Day")
-    ax.set_xlabel("Day of Week")
-    ax.set_ylabel("Time of Day")
+    ax.set_ylabel("Day of Week")
+    ax.set_xlabel("Time of Day")
     fig.tight_layout()
 
     out = PLOTS_DIR / "error_heatmap_percent.png"
