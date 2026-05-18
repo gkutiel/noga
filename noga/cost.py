@@ -9,7 +9,7 @@ LossFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 Name = Literal[
     # "l2",
     "l1", "pinball",
-    # "PLF"
+    "PLF"
 ]
 
 
