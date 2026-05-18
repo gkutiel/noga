@@ -419,11 +419,46 @@ def plot_confusion_matrix():
 
 
 def plot_error_heatmap_percent():
-    # TODO: load data from data/data.csv
-    # Group by (day, time)
-    # Plot a heat map of mean absolute error percentage (abs(pred-actual)/actual) by day and time.
-    # Make sure the plot is large enough to contain all 288*7 cells and is readable (288 is 24 hours in 5-minute intervals).
-    pass
+    data = pd.read_csv("data/data.csv")
+    data["abs_err_pct"] = (data["forecast"] - data["actual"]
+                           ).abs() / data["actual"] * 100
+
+    # pivot: rows = time (minutes from midnight, 288 slots), cols = day-of-week (0–6)
+    pivot = (
+        data.groupby(["time", "day"])["abs_err_pct"]
+        .mean()
+        .unstack("day")
+    )
+
+    n_times = len(pivot)  # 288
+    n_days = len(pivot.columns)  # 7
+
+    fig, ax = plt.subplots(figsize=(n_days * 1.8, n_times * 0.08))
+    im = ax.imshow(pivot.values, aspect="auto", cmap="YlOrRd",
+                   origin="upper", interpolation="nearest")
+
+    # x-axis: day of week labels
+    day_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    ax.set_xticks(range(n_days))
+    ax.set_xticklabels([day_labels[d] for d in pivot.columns])
+
+    # y-axis: HH:MM every 30 minutes (every 6th row)
+    tick_rows = [i for i, t in enumerate(pivot.index) if t % 30 == 0]
+    tick_labels = [
+        f"{int(pivot.index[i]) // 60:02d}:{int(pivot.index[i]) % 60:02d}" for i in tick_rows]
+    ax.set_yticks(tick_rows)
+    ax.set_yticklabels(tick_labels, fontsize=7)
+
+    plt.colorbar(im, ax=ax, label="Mean Absolute Error (%)")
+    ax.set_title("Day-Ahead Forecast Error % by Day of Week and Time of Day")
+    ax.set_xlabel("Day of Week")
+    ax.set_ylabel("Time of Day")
+    fig.tight_layout()
+
+    out = PLOTS_DIR / "error_heatmap_percent.png"
+    print("Saving plot to:", out)
+    plt.savefig(out, dpi=150)
+    plt.close()
 
 
 if __name__ == "__main__":
@@ -437,3 +472,4 @@ if __name__ == "__main__":
     plot_loss_fns()
     plot_confusion_matrix()
     plot_error_kde_hist()
+    plot_error_heatmap_percent()
