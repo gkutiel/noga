@@ -321,9 +321,6 @@ def calibrate(*, model_name: Name, loss_name: Name):
         model_name=model_name,
         loss_name=loss_name)
 
-    if path.exists():
-        return
-
     train_pred, train_y = pred_train(model_name=model_name)
     train_ds = torch.utils.data.TensorDataset(train_pred.unsqueeze(1), train_y)
     train_dl = DataLoader(train_ds, batch_size=1024)
