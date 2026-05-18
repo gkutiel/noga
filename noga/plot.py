@@ -418,6 +418,14 @@ def plot_confusion_matrix():
     plt.close()
 
 
+def plot_error_heatmap_percent():
+    # TODO: load data from data/data.csv
+    # Group by (day, time)
+    # Plot a heat map of mean absolute error percentage (abs(pred-actual)/actual) by day and time.
+    # Make sure the plot is large enough to contain all 288*7 cells and is readable (288 is 24 hours in 5-minute intervals).
+    pass
+
+
 if __name__ == "__main__":
     # daily_demand_by_time()
     # demand_vs_temp()
