@@ -46,7 +46,7 @@ loss_fns: dict[Name, LossFn] = {
     # "l2": lambda pred, y: torch.mean((pred - y) ** 2),
     "l1": lambda pred, y: torch.mean(torch.abs(pred - y)),
     "pinball": lambda pred, y: pinball(pred, y),
-    # 'PLF': plf,
+    'PLF': plf,
 }
 
 
@@ -58,5 +58,5 @@ optims: dict[Name, Callable[[Iterator[Parameter]], torch.optim.Optimizer]] = {
     # "l2": opt,
     "l1": opt,
     "pinball": opt,
-    # "PLF": opt,
+    "PLF": opt,
 }
