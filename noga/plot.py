@@ -327,6 +327,8 @@ def plot_loss_fns():
 def plot_error_kde_hist():
     # TODO: make a smooth nice histogram.
 
+    LB = -10
+    UB = 10
     csv_dir = Path("csv")
     names = list(loss_fns)
     fig, axes = plt.subplots(1, len(names), figsize=(
@@ -335,6 +337,7 @@ def plot_error_kde_hist():
     for ax, name in zip(axes, names):
         df = pd.read_csv(csv_dir / f"pred_{name}.csv")
         errors = (df["pred"] - df["actual"])
+        errors = errors[(errors >= LB) & (errors <= UB)]
 
         ax.hist(
             errors,
