@@ -106,15 +106,15 @@ def load_data():
 
     val_ds = Subset(test_ds, indices)  # type: ignore
 
-    def dl(ds: Dataset):
+    def dl(ds: Dataset, shuffle=True):
         return DataLoader(
             ds,
             batch_size=BATCH_SIZE,
             num_workers=4,
-            shuffle=True,
+            shuffle=shuffle,
             drop_last=False)
 
-    return dl(train_ds), dl(val_ds), dl(test_ds)
+    return dl(train_ds), dl(val_ds), dl(test_ds, shuffle=False)
 
 
 class Model(pl.LightningModule):
@@ -270,23 +270,26 @@ def pred_train(*, model_name: Name):
     model = load_model(model_name)
     train_dl, _, _ = load_data()
 
-    m, d, t, X, y = next(iter(train_dl))
+    preds, ys = [], []
     with torch.no_grad():
-        pred = model(m, d, t, X)
+        for m, d, t, X, y in train_dl:
+            preds.append(model(m, d, t, X))
+            ys.append(y)
 
-    return pred, y
+    return torch.cat(preds), torch.cat(ys)
 
 
 def pred_test(*, model_name: Name):
     model = load_model(model_name)
-
     _, _, test_dl = load_data()
 
-    m, d, t, X, y = next(iter(test_dl))
+    preds, ys = [], []
     with torch.no_grad():
-        pred = model(m, d, t, X)
+        for m, d, t, X, y in test_dl:
+            preds.append(model(m, d, t, X))
+            ys.append(y)
 
-    return pred, y
+    return torch.cat(preds), torch.cat(ys)
 
 
 def save_preds(name: Name):
