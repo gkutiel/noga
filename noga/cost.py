@@ -22,22 +22,16 @@ def pinball(pred: torch.Tensor, y: torch.Tensor, fac=5) -> torch.Tensor:
 
 def plf(pred: Tensor, y: Tensor) -> Tensor:
     e = pred - y
-    bp1 = -.5
-    bp2 = -1.5
-    c1 = .5
-    c2 = 1.5
-    c3 = 3
+    bp = -1
+    bps = 1
+    bps2 = 3
     return torch.where(
         e > 0,
-        .5 * e,
+        0.5 * e,
         torch.where(
-            e >= bp1,
-            c1 * e.abs(),
-            torch.where(
-                e >= bp2,
-                (e - bp1).abs() * c2 - bp1 * c1,
-                (e - bp2).abs() * c3 - (bp2 - bp1) * c2 - bp1 * c1
-            )
+            e > bp,
+            bps * e.abs(),
+            -bp * bps + (e - bp).abs() * bps2
         )
     ).mean()
 
