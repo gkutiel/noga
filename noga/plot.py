@@ -404,12 +404,13 @@ def plot_confusion_matrix():
                 ax.text(j, i, f"{df.values[i, j]:.3f}", ha="center",
                         va="center", fontsize=9, color="black")
 
-        ax.set_xlabel("Loss function")
-        ax.set_ylabel("Model")
+        # TODO: make xlabel and ylabel global for the figure
+        ax.set_xlabel("Evaluation metric")
+        ax.set_ylabel("Train Loss")
         ax.set_title(title)
 
-    fig.suptitle(
-        "Model × Loss matrix — green=best, red=worst (per column)", fontsize=13)
+    # fig.suptitle(
+    #     "Model × Loss matrix — green=best, red=worst (per column)", fontsize=13)
     fig.tight_layout()
 
     out = PLOTS_DIR / "confusion_matrix.png"
@@ -445,7 +446,8 @@ def plot_error_heatmap_percent():
 
     # x-axis: one label per hour
     ax.set_xticks(range(n_hours))
-    ax.set_xticklabels([f"{h:02d}:00" for h in pivot.columns], rotation=90, fontsize=8)
+    ax.set_xticklabels(
+        [f"{h:02d}:00" for h in pivot.columns], rotation=90, fontsize=8)
 
     plt.colorbar(im, ax=ax, label="Mean Absolute Error (%)")
     ax.set_title("Day-Ahead Forecast Error % by Day of Week and Time of Day")
@@ -467,7 +469,7 @@ if __name__ == "__main__":
     # day_ahead_forecast_abs_error()
     # demand_vs_forecast_kde_histogram()
     # plot_day_embeddings()
-    plot_loss_fns()
+    # plot_loss_fns()
     plot_confusion_matrix()
-    plot_error_kde_hist()
-    plot_error_heatmap_percent()
+    # plot_error_kde_hist()
+    # plot_error_heatmap_percent()

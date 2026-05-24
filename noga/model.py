@@ -50,6 +50,68 @@ FEATURES = [
 N = len(FEATURES) + HISTORY_LEN
 
 
+class Model(pl.LightningModule):
+    def __init__(self, name: Name):
+        super().__init__()
+
+        self.name: Name = name
+        self.loss = loss_fns[name]
+
+        self.day = nn.Embedding(7, D_EMBD)
+        self.month = nn.Embedding(12, M_EMBD)
+        self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED)
+
+        self.net = nn.Sequential(
+            nn.Linear(N + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
+            *[
+                nn.Sequential(
+                    nn.LeakyReLU(),
+                    nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
+                ) for _ in range(N_LAYERS)
+            ],
+            nn.LeakyReLU(),
+            nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 1),
+        )
+
+    def forward(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
+        f = torch.concat([
+            self.month(month),
+            self.day(day),
+            self.time(time),
+            X
+        ], dim=1)
+
+        hist = X[:, :HISTORY_LEN]
+
+        out = self.net(f)
+
+        hist = (hist * torch.softmax(out[:, :HISTORY_LEN], dim=1)).sum(dim=1)
+
+        return hist + out[:, HISTORY_LEN]
+
+    def step(self, batch, batch_idx, step='train'):
+        month, day, time, X, y = batch
+
+        pred = self(month, day, time, X)
+        loss = self.loss(pred, y)
+
+        self.log(f"{step}/{self.name}", loss, prog_bar=True)
+        self.log(f"{step}/l1", torch.mean(torch.abs(pred - y)), prog_bar=True)
+
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx)
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx, step='val')
+
+    def predict_step(self, batch, batch_idx): ...
+
+    def configure_optimizers(self):
+        return optims[self.name](self.parameters())
+
+
 def slice_j(idx: int):
     # In 5min units.
     return slice(idx, idx + HISTORY_LEN), idx + DAY_IN_5_MIN + HISTORY_LEN - 1
@@ -115,68 +177,6 @@ def load_data():
             drop_last=False)
 
     return dl(train_ds), dl(val_ds), dl(test_ds, shuffle=False)
-
-
-class Model(pl.LightningModule):
-    def __init__(self, name: Name):
-        super().__init__()
-
-        self.name: Name = name
-        self.loss = loss_fns[name]
-
-        self.day = nn.Embedding(7, D_EMBD)
-        self.month = nn.Embedding(12, M_EMBD)
-        self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED)
-
-        self.net = nn.Sequential(
-            nn.Linear(N + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
-            *[
-                nn.Sequential(
-                    nn.LeakyReLU(),
-                    nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
-                ) for _ in range(N_LAYERS)
-            ],
-            nn.LeakyReLU(),
-            nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 1),
-        )
-
-    def forward(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
-        f = torch.concat([
-            self.month(month),
-            self.day(day),
-            self.time(time),
-            X
-        ], dim=1)
-
-        hist = X[:, :HISTORY_LEN]
-
-        out = self.net(f)
-
-        hist = (hist * torch.softmax(out[:, :HISTORY_LEN], dim=1)).sum(dim=1)
-
-        return hist + out[:, HISTORY_LEN]
-
-    def step(self, batch, batch_idx, step='train'):
-        month, day, time, X, y = batch
-
-        pred = self(month, day, time, X)
-        loss = self.loss(pred, y)
-
-        self.log(f"{step}/{self.name}", loss, prog_bar=True)
-        self.log(f"{step}/l1", torch.mean(torch.abs(pred - y)), prog_bar=True)
-
-        return loss
-
-    def training_step(self, batch, batch_idx):
-        return self.step(batch, batch_idx)
-
-    def validation_step(self, batch, batch_idx):
-        return self.step(batch, batch_idx, step='val')
-
-    def predict_step(self, batch, batch_idx): ...
-
-    def configure_optimizers(self):
-        return optims[self.name](self.parameters())
 
 
 def train(name: Name):
