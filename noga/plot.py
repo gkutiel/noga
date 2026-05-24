@@ -404,13 +404,12 @@ def plot_confusion_matrix():
                 ax.text(j, i, f"{df.values[i, j]:.3f}", ha="center",
                         va="center", fontsize=9, color="black")
 
-        # TODO: make xlabel and ylabel global for the figure
-        ax.set_xlabel("Evaluation metric")
-        ax.set_ylabel("Train Loss")
         ax.set_title(title)
 
     # fig.suptitle(
     #     "Model × Loss matrix — green=best, red=worst (per column)", fontsize=13)
+    fig.supxlabel("Evaluation metric")
+    fig.supylabel("Train Loss")
     fig.tight_layout()
 
     out = PLOTS_DIR / "confusion_matrix.png"
