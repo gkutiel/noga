@@ -312,9 +312,9 @@ def plot_loss_fns():
         ax.plot(errors.numpy(), costs, label=name, linewidth=2)
 
     ax.axvline(0, color="gray", linewidth=0.8, linestyle="--")
-    ax.set_title("Loss functions (error = pred − y)")
-    ax.set_xlabel("Error")
-    ax.set_ylabel("Cost")
+    # ax.set_title("Loss functions (error = pred − y)")
+    ax.set_xlabel("Error (MW)")
+    ax.set_ylabel("Cost (₪)")
     ax.legend()
     fig.tight_layout()
 
@@ -468,7 +468,7 @@ if __name__ == "__main__":
     # day_ahead_forecast_abs_error()
     # demand_vs_forecast_kde_histogram()
     # plot_day_embeddings()
-    # plot_loss_fns()
+    plot_loss_fns()
     plot_confusion_matrix()
     # plot_error_kde_hist()
     # plot_error_heatmap_percent()
