@@ -462,7 +462,13 @@ def plot_error_heatmap_percent():
 
 def plot_noga_vs_model_error_2025():
     df = pd.read_csv('data/data.csv')
-    noga_err = (df['forecast'] - df['actual']).abs()
+    df = df[df['year'] == 2025]
+    df['error'] = (df['forecast'] - df['actual']).abs()
+
+    pred = pd.read_csv('pred/pred_l1.csv')
+    df['model_error'] = (pred['pred'] - pred['actual']).abs()
+
+    # TODO: plot a timeline of errors with dates on the x-axis.
 
 
 if __name__ == "__main__":

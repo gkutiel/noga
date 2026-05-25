@@ -479,9 +479,13 @@ def report():
 
 def pred_l1():
     pred, y = pred_test(model_name='l1')
-    # TODO save csv to pred/pred_l1.csv
+    out = Path("pred/pred_l1.csv")
+    pd.DataFrame({"pred": pred.numpy() * Y_SCALE,
+                 "actual": y.numpy() * Y_SCALE}).to_csv(out, index=False)
+    print(f"Saved predictions to {out}")
 
 
 if __name__ == "__main__":
-    report()
+    # report()
+    pred_l1()
     pass
