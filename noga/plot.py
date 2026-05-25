@@ -461,10 +461,8 @@ def plot_error_heatmap_percent():
 
 
 def plot_noga_vs_model_error_2025():
-    # TODO: load data from data/data.csv
-    # load model prediction (l1)
-    # Plot a timeline of the prediction absolute error (l1) for noga vs the model.
-    pass
+    df = pd.read_csv('data/data.csv')
+    noga_err = (df['forecast'] - df['actual']).abs()
 
 
 if __name__ == "__main__":

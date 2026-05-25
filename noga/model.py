@@ -477,6 +477,11 @@ def report():
     cal_results.to_csv("res/eval_calibrated.csv", float_format="%.3f")
 
 
+def pred_l1():
+    pred, y = pred_test(model_name='l1')
+    # TODO save csv to pred/pred_l1.csv
+
+
 if __name__ == "__main__":
     report()
     pass
