@@ -461,14 +461,37 @@ def plot_error_heatmap_percent():
 
 
 def plot_noga_vs_model_error_2025():
+    OFFSET = 297  # DAY_IN_5_MIN + HISTORY_LEN - 1; pred row k → data row k+OFFSET
+
     df = pd.read_csv('data/data.csv')
-    df = df[df['year'] == 2025]
-    df['error'] = (df['forecast'] - df['actual']).abs()
+    df = df[df['year'] == 2025].reset_index(drop=True)
+    df['noga_error'] = (df['forecast'] - df['actual']).abs()
+
+    # Reconstruct calendar date: time==0 marks each new day; data starts on 2025-01-01
+    day_idx = (df['time'] == 0).cumsum() - 1
+    df['date'] = pd.Timestamp('2025-01-01') + pd.to_timedelta(day_idx, unit='D')
 
     pred = pd.read_csv('pred/pred_l1.csv')
-    df['model_error'] = (pred['pred'] - pred['actual']).abs()
+    aligned = df.iloc[OFFSET:].reset_index(drop=True)
+    aligned['model_error'] = (pred['pred'] - pred['actual']).abs()
 
-    # TODO: plot a timeline of errors with dates on the x-axis.
+    daily = aligned.groupby('date')[['noga_error', 'model_error']].mean()
+
+    fig, ax = plt.subplots(figsize=(14, 5))
+    ax.plot(daily.index, daily['noga_error'], linewidth=1,
+            color='#ef4444', alpha=0.8, label='NOGA forecast error')
+    ax.plot(daily.index, daily['model_error'], linewidth=1,
+            color='#3b82f6', alpha=0.8, label='Model error')
+    ax.set_title('Daily Mean Absolute Error — NOGA vs Model (2025)')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('MAE (MW)')
+    ax.legend(fontsize=9)
+    fig.tight_layout()
+
+    out = PLOTS_DIR / 'noga_vs_model_error_2025.png'
+    print('Saving plot to:', out)
+    plt.savefig(out, dpi=150)
+    plt.close()
 
 
 if __name__ == "__main__":

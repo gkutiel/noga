@@ -65,6 +65,13 @@ def mae():
     print(f"MAE for 2025: {mae_2025:.2f}")
 
 
+def noga_vs_model():
+    # TODO see the def plot_noga_vs_model_error_2025(): function for reference
+    # identify the 10 dates where the model improve the most compared to noga and save them to a csv file
+    # remove these dates from the evaluation and compare the MAE of noga and the model on the remaining dates
+    pass
+
+
 if __name__ == "__main__":
     # data = pd.read_csv("data/data.csv")
     # mae_by_day(data, year=2024)
