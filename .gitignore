@@ -10,6 +10,7 @@ csv
 params
 res
 logs
+pred
 
 *.egg*
 
