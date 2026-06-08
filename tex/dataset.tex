@@ -1,4 +1,28 @@
-In this section we describe the dataset we used for our experiments. 
+The dataset is collected from the Israeli electricity market.
+Israel is a small country in the Middle East, covering an area of approximately
+22{,}145~km\textsuperscript{2} with a population of roughly 9.8~million people.
+Despite this small size, the population is highly concentrated: the vast majority
+of Israelis live along the narrow Mediterranean coastal plain, a strip
+approximately 150~km long stretching from Haifa in the north through the
+greater Tel~Aviv metropolitan area and on to Ashdod in the south.
+Figure~\ref{fig:pop-density} illustrates this concentration and directly
+motivates our choice of weather stations: Tel~Aviv, Jerusalem, and Haifa are
+the three largest urban centres and together capture the climatic conditions
+experienced by the bulk of the population, whose electricity use drives the
+national demand signal.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.6\textwidth]{plot/Israel_population_density_2018.png}
+    \caption{Population density of Israel (2018).  The coastal plain, running
+    approximately 150~km from Haifa to Ashdod, concentrates the overwhelming
+    majority of the population.  This spatial clustering justifies using weather
+    observations from Tel~Aviv, Haifa, and Jerusalem as the primary climatic
+    features for demand forecasting.}
+    \label{fig:pop-density}
+\end{figure}
+
+In this section we describe the dataset we used for our experiments.
 The dataset consists of both electricity consumption and weather data, collected from various sources. 
 The electricity consumption data was obtained from the Israeli electricity system operator Noga~(\cite{noga}), 
 while the weather data was sourced from a nearby meteorological station~(\cite{ims}).
