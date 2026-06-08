@@ -1,4 +1,12 @@
 TODO:
+  General:
+    - Review the code and the text files and finalize the paper for submission:
+        - The main goal of the paper is to give a practical concrete model for day ahead electricity demand forecasting under asymmetric costs,
+          and to evaluate it on real world data.
+        - While not introducing novel methods, it suggest a practical approach for a problem in a huge market.
+        - If possible, try to estimate based on our findings how much money can be saved by using similar methods.
+        - Make sure all sections are coherent and well written, and that the paper is well structured and easy to follow.
+        - Make sure the paper is coherent with the model.
   PyTorch:
   TeX:
     - Data Analysis:
