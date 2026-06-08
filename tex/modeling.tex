@@ -73,6 +73,18 @@ distribution, relying instead on empirical samples via the training loss.
 
 Since we do not have access to actual cost data from the electricity market
 operator, we evaluate our models against \emph{synthetic} cost functions that
-satisfy the qualitative properties stated in the problem formulation.  
-A natural family that captures real-world characteristics is a piecewise linear function.
+satisfy the qualitative properties stated in the problem formulation.
+
+For simplicity, we conduct our main evaluation using two \emph{pinball loss}
+functions with under/over-prediction cost ratios of $1\!:\!5$ and $1\!:\!20$
+respectively.  These ratios are consistent with the findings of prior work on
+asymmetric costs in electricity demand forecasting, which reports that the cost
+of under-prediction typically exceeds the cost of over-prediction by a factor of
+five to twenty~\cite{weron2014electricity}.  Pinball losses are piecewise linear
+and widely used in quantile regression, making them a natural and interpretable
+baseline for cost-sensitive evaluation.
+
+For completeness, Appendix~\ref{app:nonlinear} reports additional results under
+non-linear cost functions, showing that the qualitative conclusions hold beyond
+the linear regime.
 
