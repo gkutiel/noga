@@ -75,6 +75,23 @@ each evaluation cost function, before and after post-hoc calibration.
     \end{tabular}
 \end{table}
 
+Figure~\ref{fig:confusion-matrix} visualises the same results as a colour-coded
+model~$\times$~loss matrix, making it easy to see at a glance which model wins
+on each metric and how calibration shifts the ranking.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{plot/confusion_matrix.png}
+    \caption{Model~$\times$~loss matrix.  Each cell shows the test-set cost of
+             a given model (row) under a given evaluation metric (column),
+             before calibration (left) and after post-hoc affine calibration
+             (right).  Green shading marks the best value in each column; red
+             marks the worst.  The diagonal tendency --- each model performing
+             best on its own training metric --- is clearly visible, as is the
+             PLF model's consistent advantage on the PLF column.}
+    \label{fig:confusion-matrix}
+\end{figure}
+
 \subsection{Discussion}
 
 \paragraph{Cost-aware training outperforms symmetric baselines.}

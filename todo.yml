@@ -5,5 +5,5 @@ TODO:
     - Dataset:
     - Method:
     - Results:
-        - Add the plots/confusion_matrix.png plot for simple presentation of the results.
 DONE:
+  - Added confusion_matrix.png figure to evaluation.tex Results subsection (after Table 1) with caption explaining the model×loss matrix color coding and the diagonal-dominance pattern.
