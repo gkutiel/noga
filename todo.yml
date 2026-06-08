@@ -1,13 +1,13 @@
 TODO:
   PyTorch:
   TeX:
+    - Embed the figures closer to where they are mentioned when possible.
     - Data Analysis:
-        - Include the plots/error_heatmap_percent.png and explain what it shows (A heatmap of percentage mean errors of noga day ahead forecasts over the year. Each cell in the heatmap  represents an hour of the week. )
-          Later on, in the evaluation explain that this figure can explain why a simple post-hoc calibration is not optimal, as correction is not uniform across hours of the week.
     - Dataset:
       Fix: Electricity consumption data includes hourly readings of power usage - hourly should be 5 minute intervals
     - Method:
 DONE:
+  - Added error_heatmap_percent.png figure to the Forecast Error Distribution subsection of dataset.tex with explanation of the hour-of-week structured bias pattern; added cross-reference in evaluation.tex Discussion explaining why the non-uniform pattern limits post-hoc affine calibration.
   - Rewrote method.tex intro paragraph and Neural Network Architecture subsection to match the actual model in noga/model.py: 5-minute granularity, soft attention over H=10 history readings, 9 weather features (temp/wet-bulb/humidity×3 cities), temporal embeddings (time-of-day/day/month), 2-layer MLP of width 32, Adam lr=2e-4.
   - Updated "Synthetic Cost Functions for Evaluation" subsection: stated two pinball ratios (1:5, 1:20), cited prior work justification, and noted appendix with non-linear cost function results.
   - Replaced the boilerplate "In this section..." sentence with a flowing continuation of the Israel intro paragraph.

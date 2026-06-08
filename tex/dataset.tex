@@ -185,7 +185,8 @@ The very high air-conditioning penetration ($>\!95$\% of households) makes
 summer peak demand extremely sensitive to temperature, complicating forecasting
 during heat waves.
 
-\subsection{Forecast Error Distribution}
+\subsection{Forecast Error Distribution}%
+\label{sec:forecast-error-dist}
 
 As shown in Figure~\ref{fig:demand-vs-forecast-kde}, the Noga day-ahead forecast
 errors (actual minus forecast) are strikingly close to zero-mean and nearly
@@ -204,6 +205,30 @@ fails to account for the asymmetric cost structure of the market, and will
 systematically incur higher expected operational cost than a cost-aware
 alternative.  This observation is central to the motivation of our approach and
 is quantified empirically in Section~\ref{sec:evaluation}.
+
+Figure~\ref{fig:error-heatmap} breaks down the Noga forecast error magnitude by
+hour of the day and day of the week.  Each cell shows the mean \emph{percentage}
+absolute error ($|actual - forecast| / actual$) for that hour-of-week slot over
+the entire dataset.  The heatmap reveals that forecast accuracy varies
+substantially across the week: certain hour-of-day and day-of-week combinations
+are consistently harder to forecast than others, with notable differences between
+weekdays, Friday, and Saturday.  This structured, non-uniform pattern has an
+important implication for post-hoc calibration: a global affine correction
+cannot account for the fact that errors are large in some slots and small in
+others.  We return to this point in Section~\ref{sec:evaluation}.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{plot/error_heatmap_percent.png}
+    \caption{Heatmap of mean percentage absolute error
+    ($|actual - forecast| / actual$) for Noga day-ahead forecasts,
+    broken down by hour of the day (rows) and day of the week (columns).
+    Each cell represents a specific hour-of-week slot.
+    The non-uniform pattern demonstrates that forecast difficulty varies
+    systematically across hours and days, and cannot be corrected by a
+    single global offset.}
+    \label{fig:error-heatmap}
+\end{figure}
 
 \subsection{Comparison with the Noga Operational Forecast}
 

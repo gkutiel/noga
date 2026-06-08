@@ -96,6 +96,15 @@ bias correction captures part of the asymmetric signal.
 However, the end-to-end PLF model still achieves the lowest PLF cost
 ($0.386$), because it adapts the correction to individual input patterns
 rather than applying a single global shift.
+Figure~\ref{fig:error-heatmap} (Section~\ref{sec:forecast-error-dist})
+illustrates exactly why: forecast error magnitude is far from uniform across
+hours of the week, exhibiting a structured, hour- and day-dependent pattern.
+A single affine correction applies the same rescaling to every prediction
+regardless of when it falls; it cannot reduce errors selectively in the
+high-error slots while leaving low-error slots unchanged.
+Only a model that conditions its output on time of day and day of week ---
+as our neural network does --- can adapt its correction to each slot
+individually.
 Notably, post-hoc calibration substantially \emph{worsens} the pinball model
 on the PLF metric ($0.438 \to 1.309$): the affine recalibration overfits the
 pinball model's bias to the training distribution in a way that does not
