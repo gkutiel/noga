@@ -1,5 +1,10 @@
 version: "3"
 
+includes:
+  latex:
+    taskfile: ./tex/Taskfile.yml
+    dir: ./tex
+
 tasks:
   noga_csv:
     desc: "Convert noga's data from xlsx to csv"

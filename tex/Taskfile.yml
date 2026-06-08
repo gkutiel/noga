@@ -1,0 +1,9 @@
+# cspell: disable
+version: 3
+
+tasks:
+  build:
+    cmds:
+      - ./evince-synctex.sh listen code --goto %f:%l  &
+      - evince main.pdf &
+      - latexmk -pvc -pdf -interaction=nonstopmode -synctex=1 main.tex

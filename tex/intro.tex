@@ -1,0 +1,95 @@
+The modern electricity grid operates through competitive wholesale markets in
+which producers and consumers continuously interact to determine how much power
+is generated and consumed.  In a typical day-ahead market, producers submit bids
+specifying the quantities of electricity they are willing to supply at various
+price points, while large consumers and aggregators submit corresponding demand
+bids.  The market operator clears the market by finding the price at which
+aggregate supply equals aggregate demand, setting a single clearing price for
+each settlement period (typically one hour).  This mechanism promotes economic
+efficiency by rewarding low-cost producers and incentivising demand
+response~\parencite{stoft2002power}.
+
+A central challenge in this market architecture is that procurement decisions
+must be finalised a day in advance, before actual real-time demand is known.
+The accuracy of demand forecasts therefore directly affects the bidding strategies
+and financial outcomes of all market participants.  A system operator that
+accurately anticipates demand can procure the right amount of energy at
+competitive prices.  Inaccurate forecasts, by contrast, force participants into
+costly corrective actions in the balancing or real-time markets, where prices can
+be dramatically different from day-ahead levels.
+
+\subsection{Asymmetric Costs in Electricity Markets}
+
+A critical and often overlooked aspect of electricity demand forecasting is the
+\emph{asymmetry} of the costs associated with forecast errors.  When demand is
+\emph{overestimated}, the system operator or retailer procures more electricity
+than is ultimately needed.  The excess supply can typically be sold back into the
+balancing market, curtailed, or stored (if storage is available), resulting in a
+relatively modest financial loss.  In deregulated markets with well-functioning
+balancing mechanisms, the per-unit cost of over-procurement is generally bounded
+and predictable.
+
+When demand is \emph{underestimated}, the consequences are far more severe.
+The system operator must source additional electricity in the real-time market at
+short notice.  Real-time prices are typically highly volatile and can spike to
+several multiples of the day-ahead price during periods of scarcity.  In extreme
+cases, the system may lack sufficient reserve capacity to meet demand, triggering
+involuntary load shedding, emergency imports, or the activation of expensive
+peaking units.  Beyond the direct financial costs, supply shortfalls carry
+significant reliability and regulatory implications~\parencite{stoft2002power}.
+
+Empirical studies in various electricity markets suggest that the ratio of
+under-procurement costs to over-procurement costs, $c_u / c_o$, typically lies in
+the range $[5,\,20]$, depending on market structure, regulatory context, and the
+availability of real-time resources~\parencite{zhang2022costoriented}.  This
+asymmetry fundamentally changes the optimal forecasting problem: rather than
+seeking a prediction that minimises expected squared error, a rational market
+participant should seek a prediction that minimises expected asymmetric cost.
+
+\subsection{Contributions and Paper Organisation}
+
+Despite the theoretical clarity of this framing, the majority of practical
+forecasting systems in electricity markets continue to use symmetric loss
+functions --- most commonly MSE or mean absolute error (MAE) --- both for
+training predictive models and for evaluating their performance.  This disconnect
+between training objective and operational cost constitutes a systematic source
+of suboptimal that has received growing attention in the academic
+literature~\parencite{wang2019pinball, lin2020asymmetric, wu2021svr,
+zhang2022costoriented} but has yet to see widespread adoption in practice.
+
+This paper makes the following contributions:
+
+\begin{enumerate}
+    \item We formalise the asymmetric cost forecasting problem for day-ahead
+          electricity demand, drawing on the newsvendor framework --- a classical
+          inventory-theoretic model --- to motivate the quantile-based optimality
+          condition under linear costs.  We highlight the key limitation of this
+          framework, namely its linearity assumption, and extend it to generalised
+          asymmetric cost functions more representative of real electricity markets.
+
+    \item We implement and evaluate a feedforward neural network trained with a
+          cost-sensitive asymmetric loss function that directly targets the
+          cost-minimising quantile.  We use a non-linear variant of the pinball
+          loss as a concrete instance of this general family, and compare the
+          model against a symmetric L1-trained neural network baseline.
+
+%     \item We demonstrate empirically that MSE is a misleading evaluation metric
+%           under asymmetric costs, and propose cost-weighted evaluation metrics as
+%           more appropriate alternatives.
+
+    \item We apply our methodology to a novel dataset of Israeli national
+          electricity demand spanning March~2023 to February~2026, augmented
+          with meteorological data from three major cities.  A key feature of
+          this dataset is that it includes the \emph{real day-ahead forecasts}
+          published by the Israeli system operator Noga, enabling direct
+          comparison of our learned models against the actual forecasts used in
+          the market and analysis of real-world prediction errors.
+\end{enumerate}
+
+The remainder of the paper is organised as follows.  Section~2 reviews related
+work on electricity demand forecasting, quantile regression, and cost-sensitive
+learning.  Section~3 describes the dataset.  Section~4 formalises the asymmetric
+cost modelling framework.  Section~5 describes the forecasting models and
+training procedures.  Section~6 presents the experimental evaluation.
+Section~7 concludes with a discussion of implications and future research
+directions.

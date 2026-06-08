@@ -1,0 +1,84 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[hidelinks]{hyperref}
+\usepackage[margin=1.3in]{geometry}
+\usepackage{placeins}
+\usepackage[style=authoryear,backend=biber,maxbibnames=6]{biblatex}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage{microtype}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+
+\emergencystretch=1em
+
+\addbibresource{ref.bib}
+
+\onehalfspacing
+
+\title{\textbf{Cost-Sensitive Electricity Demand Forecasting\\
+via Asymmetric Loss Optimisation}\\[0.6em]
+\large Beyond the Linear Newsvendor Framework}
+\author{[Author Names]}
+\date{March 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Accurate electricity demand forecasting is critical for market participants in
+deregulated power markets, where procurement decisions must be made before
+actual demand is observed.  Traditional forecasting approaches minimise symmetric
+loss functions such as mean squared error (MSE), which implicitly treat over- and
+under-prediction as equally costly.  In practice the costs of under-predicting
+demand --- triggering emergency reserve activation, load shedding, or costly
+real-time purchases --- substantially exceed those of over-prediction.  We formalise this asymmetry through an explicit cost function and incorporate it
+directly into the training objective, replacing symmetric loss functions with a
+cost-sensitive alternative.  Concretely, we train a feedforward neural network with an asymmetric loss function that directly targets
+the cost-minimising prediction under the prevailing cost structure.  Using a dataset of daily electricity demand in
+Israel spanning March~2023 to February~2026, augmented with meteorological data
+from three major cities, we evaluate our approach against MSE-trained baseline models.  Synthetic asymmetric cost functions are
+generated to assess performance across a range of cost scenarios.  Our results
+demonstrate that cost-aware training leads to statistically significant
+reductions in operational cost compared to symmetric baselines, and that MSE is a
+poor surrogate for operational cost under asymmetric loss.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+\input{intro}
+
+\section{Related Work}
+\input{related}
+
+\section{Dataset}
+\input{dataset}
+
+\section{Cost-Sensitive Forecasting: Problem Formulation and Asymmetric Loss}%
+\label{sec:modeling}
+\input{modeling}
+
+\section{Method}\label{sec:method}
+\input{method}
+
+\section{Evaluation}\label{sec:evaluation}
+\input{evaluation}
+
+\section{Conclusion and Future Work}\label{sec:conclusion}
+% \input{conclusion}
+
+\FloatBarrier
+\newpage
+\printbibliography
+
+\end{document}

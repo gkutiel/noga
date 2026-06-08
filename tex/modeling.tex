@@ -1,0 +1,78 @@
+\subsection{Problem Formulation}
+
+In day-ahead electricity demand forecasting, the system operator must commit to a
+procurement quantity $p$ before observing actual demand $X$.  We model $X$ as a
+random variable whose distribution is \emph{unknown} and must be inferred from
+data; we make no parametric assumption about its form.
+
+\paragraph{Assumptions.}  We adopt the following assumptions, which are mild and
+operationally grounded:
+
+\begin{enumerate}
+    \item \textbf{Asymmetry.}  Under-prediction is more costly than
+          over-prediction of equal magnitude: the costs incurred when actual
+          demand exceeds the forecast are larger than those incurred when the
+          forecast exceeds actual demand ($c_u > c_o > 0$).
+
+    \item \textbf{Monotonicity.}  Costs are non-decreasing in the magnitude of
+          the prediction error: larger errors are never cheaper than smaller
+          errors, in either direction.
+
+    \item \textbf{Known, differentiable costs.}  For the purposes of this paper
+          we assume that the cost functions are known and differentiable, so they
+          can be incorporated directly as training objectives for gradient-based
+          optimisers.
+\end{enumerate}
+
+\paragraph{Cost structure.}  Let $\ell_o:\mathbb{R}_{\geq 0}\to\mathbb{R}_{\geq
+0}$ and $\ell_u:\mathbb{R}_{\geq 0}\to\mathbb{R}_{\geq 0}$ denote the cost
+functions for over- and under-prediction respectively, where the argument is the
+magnitude of the error.  
+The total realised cost of procurement decision $p$ against actual demand $X$ is:
+
+\begin{equation}
+    C(p, X) =
+    \begin{cases}
+        \ell_o(p - X) & \text{if } X \leq p \quad \text{(over-prediction)} \\
+        \ell_u(X - p) & \text{if } X > p \quad \text{(under-prediction)}
+    \end{cases}
+    \label{eq:cost}
+\end{equation}
+
+\paragraph{Goal.}  The objective is to find a procurement decision $p^*$ that
+minimises the \emph{expected cost}, and not the expected prediction error.
+
+\paragraph{The Newsvendor Special Case:}
+\label{sec:newsvendor}
+
+to gain analytical insight, we first consider the classical special case in which
+costs are \emph{linear} 
+the setting of the \emph{newsvendor model}~\cite{arrow1951optimal}, a classical
+inventory-theoretic framework in which a decision-maker commits to a quantity
+before demand is realised.  
+Let $c_o>0$ and $c_u > c_o$ be the per-unit overage
+and underage costs.
+
+This is a well known problem in which the optimal procurement level is given by the critical fractile formula:
+\begin{equation}
+    p^* = F^{-1}\!\left(\frac{c_u}{c_u + c_o}\right)
+    \label{eq:optimal_threshold}
+\end{equation}
+
+\subsection{Limitations of the Linear Newsvendor Framework}%
+\label{sec:limitations_nv}
+
+While the newsvendor model provides a tractable and theoretically grounded
+formulation, it does not always capture the complexities of real-world electricity markets.  
+
+Our general formulation (Equation~\eqref{eq:cost}) addresses this limitation:
+it does not assume linear costs and it does not require knowledge of the demand
+distribution, relying instead on empirical samples via the training loss.
+
+\subsection{Synthetic Cost Functions for Evaluation}
+
+Since we do not have access to actual cost data from the electricity market
+operator, we evaluate our models against \emph{synthetic} cost functions that
+satisfy the qualitative properties stated in the problem formulation.  
+A natural family that captures real-world characteristics is a piecewise linear function.
+

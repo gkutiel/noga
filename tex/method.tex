@@ -1,0 +1,137 @@
+This section describes the forecasting models and training procedures used in
+our study.
+
+At a high level, all models share the same architecture: the predicted demand
+for tomorrow is expressed as \emph{yesterday's demand plus a correction term}
+that depends on weather and temporal features.
+The model is small and mostly linear, making it both interpretable and
+data-efficient.
+It learns a \emph{balancing temperature} for each city---the threshold at which
+temperature transitions from driving heating demand to driving cooling demand.
+Temporal patterns (day of week, month of year) are captured via learned
+embeddings.
+Currently we use daily mean temperature as the sole meteorological input, but
+the framework extends naturally to additional weather signals such as humidity
+or wind speed.
+Despite its simplicity, this architecture matches the predictive accuracy of
+more complex baselines, making it a suitable testbed for isolating the effect
+of the training objective.
+
+\subsection{Data Splitting}
+
+The dataset is partitioned chronologically at 1~January~2025:
+
+\begin{itemize}
+    \item \textbf{Training set:} March~2023 -- December~2024
+          ($\approx\!672$~days).
+    \item \textbf{Test set:} January~2025 -- February~2026
+          ($\approx\!424$~days), held out for final evaluation.
+\end{itemize}
+
+The chronological split ensures no future information leaks into training.
+
+\subsection{Neural Network Architecture}
+
+The forecast is the sum of three interpretable components:
+
+\begin{itemize}
+    \item \textbf{Scaled previous demand.}  The previous day's demand $h$ is
+          multiplied by a learned day-of-week scalar $\alpha_d$, allowing the
+          model to account for day-specific autocorrelation strength.
+
+    \item \textbf{Temperature correction.}  For each city $k$, the temperature
+          $T_k$ is compared to a learned \emph{balancing temperature} $b_k$.
+          Deviations above $b_k$ (cooling) and below $b_k$ (heating) enter
+          separate linear functions, capturing the asymmetric demand response
+          to heat and cold.
+
+    \item \textbf{Calendar bias.}  A learned embedding bias for each day of
+          week and month of year captures systematic seasonal and weekly
+          patterns.
+\end{itemize}
+
+The forecast is:
+\begin{equation}
+    \hat{y} = \alpha_d\, h
+            + {\mathbf{w}^+}^\top (\mathbf{T}-\mathbf{b})^+
+            + {\mathbf{w}^-}^\top (\mathbf{T}-\mathbf{b})^-
+            + \beta_d + \beta_m,
+\end{equation}
+where $(\cdot)^{\pm}$ denotes element-wise positive/negative part and all
+parameters $\alpha_d, \mathbf{b}, \mathbf{w}^\pm, \beta_d, \beta_m$ are
+learned from data.
+
+\subsection{Training with L1 Loss}
+
+The symmetric neural network baseline is trained by minimising the mean absolute
+error (L1 loss):
+
+\begin{equation}
+    \mathcal{L}_{\mathrm{L1}}(\hat{y},y)
+    = \frac{1}{N}\sum_{i=1}^{N}|\hat{y}_i - y_i|
+\end{equation}
+
+L1 loss treats over- and under-prediction symmetrically, and yields predictions
+that converge to the conditional median.  As discussed in
+Section~\ref{sec:modeling}, this is suboptimal when costs are asymmetric.
+
+\subsection{Post-Hoc Cost-Optimised Baseline}
+\label{sec:posthoc}
+
+To further isolate the benefit of end-to-end cost-aware training, we include an
+additional baseline in which predictions from the L1-trained neural network are
+adjusted \emph{after} training by a learned affine transformation that minimises
+the expected operational cost on the training set.  Concretely, we train a
+linear calibration model $g(z) = \alpha z + \beta$ by minimising:
+
+\begin{equation}
+    (\alpha^*, \beta^*) = \arg\min_{\alpha,\beta}\;
+    \frac{1}{N_{\mathrm{train}}}\sum_{i=1}^{N_{\mathrm{train}}}
+    \mathcal{L}_{\mathrm{asym}}\!\left(\alpha\hat{y}_i + \beta,\, y_i\right)
+\end{equation}
+
+where $\hat{y}_i$ are the L1-trained predictions and
+$\mathcal{L}_{\mathrm{asym}}$ is the asymmetric loss (Section~\ref{sec:modeling}).
+The calibration is then applied uniformly to all test-set predictions.
+
+This baseline tests whether a practitioner could recover most of the cost
+reduction by post-hoc rescaling a symmetric model, without modifying the training
+objective.  Its key limitation is that it can only apply a global affine
+correction: it cannot adapt the \emph{shape} of the predictive response to local
+input features, nor exploit the asymmetric cost structure during back-propagation.
+Cost-aware training, by contrast, reshapes the model's response to every input
+pattern throughout optimisation, enabling feature-adaptive upward adjustments that
+are largest precisely when under-prediction risk is highest.
+
+\subsection{Training with Asymmetric Loss}
+
+The cost-aware neural network is trained by minimising the asymmetric cost
+function (Section~\ref{sec:modeling}) directly as the training objective.
+Because the loss is differentiable, it is incorporated into the standard
+gradient-based training loop with no additional computational overhead compared
+to L1 training.
+
+% \subsection{Optimisation}
+
+% Both neural network variants (L1 and asymmetric loss) are trained with the Adam
+% optimiser~\parencite{kingma2014adam} at a fixed learning rate $\eta=2\times10^{-3}$
+% for a maximum of 1\,000~epochs with batch size~64.  No dropout, weight decay,
+% gradient clipping, or learning-rate scheduling is applied.
+
+% Table~\ref{tab:hyperparams} summarises all hyperparameters.
+
+% \begin{table}[ht]
+%     \centering
+%     \begin{tabular}{lll}
+%         \toprule
+%         \textbf{Hyperparameter} & \textbf{Value} & \textbf{Notes} \\
+%         \midrule
+%         Optimizer                    & Adam      & \\
+%         Initial LR $\eta$            & $2\times10^{-3}$ & \\
+%         Maximum epochs               & 1\,000    & \\
+%         Batch size                   & 64        & \\
+%         \bottomrule
+%     \end{tabular}
+%     \caption{Hyperparameters for both neural network variants.}
+%     \label{tab:hyperparams}
+% \end{table}

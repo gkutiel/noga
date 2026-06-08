@@ -1,0 +1,134 @@
+\subsection{Summary of Findings}
+
+This paper addressed day-ahead electricity demand forecasting under asymmetric
+operational costs.  Our main findings are:
+
+\begin{enumerate}
+    \item \textbf{Asymmetric costs are pervasive and substantial.}  In
+          electricity markets the costs of under-predicting demand substantially
+          exceed those of over-prediction.  Empirically plausible cost ratios
+          $c_u/c_o\in[5,20]$ have a large impact on the optimal forecasting
+          strategy.
+
+    \item \textbf{The newsvendor framework provides a principled optimality
+          condition.}  The cost-minimising procurement level corresponds to a
+          specific quantile $\tau^*=c_u/(c_u+c_o)$ of the conditional demand
+          distribution.  For a cost ratio of~5 this yields $\tau^*\approx 0.833$,
+          i.e.\ the 83.3rd percentile of demand --- a systematic upward shift
+          that is normatively \emph{desirable} under asymmetric costs.
+
+    \item \textbf{Asymmetric loss training effectively targets the cost-minimising
+          quantile.}  A feedforward neural network trained with a cost-sensitive asymmetric loss
+          function (specifically, a non-linear variant of the pinball loss) at
+          the appropriate quantile achieves lower expected operational cost than
+          an L1-trained neural network baseline.  The cost
+          reduction is consistent across a wide range of synthetic cost function
+          parameters.
+
+    \item \textbf{Symmetric loss is a misleading evaluation metric under asymmetric costs.}
+          The L1-trained neural network achieves lower MAE than the asymmetric-loss model
+          yet incurs higher expected operational cost.  Practitioners should adopt
+          cost-sensitive metrics such as asymmetric loss or expected operational
+          cost for model selection and evaluation.
+
+    \item \textbf{Meteorological features and the operator forecast are the most
+          informative inputs.}  Removing weather data or the operator's
+          day-ahead forecast led to the largest performance degradation in the
+          ablation study.
+\end{enumerate}
+
+\subsection{Implications for Market Participants and Policymakers}
+
+\textbf{For market participants} (electricity retailers, large consumers,
+aggregators), the key takeaway is that standard forecasting tools optimised for
+MSE are likely to systematically under-procure electricity, exposing them to
+avoidable real-time market risk.  Incorporating asymmetric cost modelling ---
+through direct asymmetric-loss training or post-hoc quantile adjustment --- can
+yield meaningful reductions in procurement costs with negligible additional
+computational overhead.
+
+\textbf{For grid operators} (transmission system operators, independent system
+operators), the implication is that incentivising cost-sensitive forecasting
+among market participants could improve overall system reliability.  If all
+participants systematically under-forecast demand, the system operator faces
+persistent shortfalls in committed reserves.  Regulatory frameworks that reward
+forecast accuracy measured by cost-sensitive metrics, rather than MSE, would
+align private incentives with system reliability objectives.
+
+\textbf{For policymakers}, our results support the inclusion of cost-sensitive
+forecasting requirements in market design rules.  For example, mandatory reporting of asymmetric (pinball) loss at relevant
+quantiles, alongside MSE, would provide a richer picture of forecast quality
+that better reflects operational costs.
+
+\subsection{Limitations}
+
+\begin{itemize}
+    \item \textbf{Synthetic cost functions.}  Since we do not have access to
+          actual cost data from the Israeli electricity market, all cost
+          evaluations rely on synthetic functions that satisfy qualitative
+          constraints.  The results may not precisely reflect actual market costs.
+
+    \item \textbf{Daily granularity.}  Our dataset and models operate at daily
+          resolution.  In practice, markets clear at sub-hourly intervals and the
+          asymmetry of costs may vary significantly across hours of the day.
+
+    \item \textbf{Point forecasts only.}  Our neural network produces a single scalar
+          forecast at the target quantile.  A richer approach would estimate the
+          full predictive distribution, enabling uncertainty quantification and
+          adaptive quantile selection.
+
+    \item \textbf{Fixed cost ratio.}  We assume that $c_u/c_o$ is constant over
+          time.  In practice the relative costs may vary with fuel prices, demand
+          levels, and seasonal reserve availability.
+\end{itemize}
+
+\subsection{Directions for Future Research}
+
+\begin{enumerate}
+    \item \textbf{Distributional forecasting.}  Training models to output full
+          predictive distributions (via normalising flows, conformal prediction,
+          or Bayesian deep learning) would enable the optimal quantile to be
+          selected adaptively as a function of current cost parameters.
+
+    \item \textbf{Nonlinear and non-smooth cost functions.}  Step-function or
+          tiered cost structures require optimisation approaches beyond the
+          pinball loss, such as distributionally robust optimisation or stochastic
+          programming.
+
+    \item \textbf{Online and adaptive learning.}  Adaptive algorithms that update
+          the forecasting model in real time as market conditions change would be
+          valuable for practical deployment.
+
+    \item \textbf{Higher temporal resolution.}  Extending the methodology to
+          hourly or sub-hourly resolution would require modelling intra-day
+          demand patterns, potentially using Transformer
+          architectures~\parencite{vaswani2017attention} or temporal
+          convolutional networks.
+
+    \item \textbf{Multi-product forecasting.}  In practice, electricity retailers
+          must manage procurement across multiple products (day-ahead energy,
+          reserves, ancillary services) with correlated costs and demands.  A
+          joint cost-sensitive forecasting framework would be a substantial
+          extension.
+
+    \item \textbf{Real cost data.}  Collaboration with market participants or
+          operators to obtain actual cost data would enable precise calibration
+          and remove the need for synthetic cost functions.
+\end{enumerate}
+
+\subsection{Concluding Remarks}
+
+Electricity demand forecasting sits at the intersection of time series analysis,
+optimisation under uncertainty, and energy economics.  As markets become more
+complex --- driven by variable renewable energy, demand response, and distributed
+storage --- the costs of forecast errors are likely to increase, making
+cost-sensitive forecasting ever more important.
+
+This work demonstrates that a conceptually simple modification --- replacing the
+MSE training objective with a cost-sensitive asymmetric loss function
+(specifically, a non-linear variant of the pinball loss at the cost-minimising
+quantile) --- leads to meaningful improvements in operational performance without
+sacrificing computational tractability.  We hope these findings contribute to a broader shift
+towards cost-aware forecasting practices in the electricity industry and stimulate
+further research at the intersection of machine learning and energy systems
+optimisation.

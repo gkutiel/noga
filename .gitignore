@@ -16,3 +16,22 @@ pred
 
 *.pt
 *.ckpt
+
+
+
+# LaTeX intermediate files
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.pdf
+*.run.xml
+*-SAVE-ERROR
+*.gz
+*.toc
+
+.vscode/

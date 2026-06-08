@@ -1,0 +1,96 @@
+Introduction:
+  - Describe the modern electricity grid:
+      - >
+        Describe the mechanism of electricity markets, 
+        where producers submit bids to sell electricity at certain prices, 
+        and consumers submit bids to buy electricity at certain prices. 
+        The market clears at a price where supply meets demand.
+      - >
+        Emphasize the importance of accurate demand forecasting for market participants, 
+        as it affects their bidding strategies and profitability.
+
+  - Introduce the concept of asymmetric costs in electricity markets:
+      - >
+        Explain that overestimating demand can lead to excess supply, 
+        which may result in financial losses for producers due to unsold electricity. 
+        Conversely, underestimating demand can lead to shortages, 
+        which may also result in financial losses due to the need to purchase electricity at higher prices to meet demand.
+
+      - Emphasize the asymmetric nature of these costs, where the cost of underestimation is much higher than the cost of overestimation.
+
+Related Work:
+  - Review existing literature on electricity demand forecasting:
+      - >
+        Summarize various approaches to demand forecasting, 
+        including statistical methods, machine learning techniques, and deep learning models. 
+        Highlight the strengths and weaknesses of each approach.
+
+  - Discuss previous work on cost-sensitive forecasting in electricity markets:
+      - >
+        Review studies that have addressed the issue of asymmetric costs in demand forecasting, 
+        and how they have incorporated these costs into their models. 
+        Highlight any gaps in the literature that your work aims to address.
+
+Problem Formulation:
+  - Mention the Newsvendor framework as a tool for modeling asymmetric costs in demand forecasting:
+      - >
+        Introduce the Newsvendor problem, which is a classic model in operations research that deals with inventory management under uncertainty. 
+        Explain how this framework can be adapted to model the asymmetric costs of overestimation and underestimation in electricity demand forecasting.
+      - >
+        Emphasize the limitations of the Newsvendor framework:
+        - It assumes linearity in costs, which may not always hold in real-world scenarios.
+        - It assumes a known probability distribution of demand, which may not be accurate in practice.
+  - Formulate the problem:
+      - >
+        Given an arbitrary demand distribution, and arbitrary cost functions for overestimation and underestimation,
+        how can we determine the optimal forecasting strategy that minimizes expected costs?
+
+      - Mention that, in this paper, we do not have an access to actual costs
+      - We will generate synthetic cost functions to evaluate the performance of our forecasting models under different cost scenarios.
+      - Qualitatively the cost functions behave:
+          - overestimation:
+              - The cost is monotonically increasing with the degree of overestimation,
+              - The cost is convex, meaning that the marginal cost of overestimation increases as the degree of overestimation increases.
+          - underestimation:
+              - The cost is monotonically increasing with the degree of underestimation,
+              - The cost is convex, meaning that the marginal cost of underestimation increases as the degree of underestimation increases.
+
+Dataset:
+  - Describe the dataset used for demand forecasting:
+      - >
+        Provide details about the dataset, including the source, time period covered, and the granularity of the data (e.g., hourly, daily). 
+        Mention any preprocessing steps taken to clean and prepare the data for analysis.
+
+  - Highlight any relevant features in the dataset that may be useful for forecasting demand, such as weather conditions, time of day, and historical demand patterns.
+
+Method:
+  - Describe the forecasting models used in the study:
+      - Our solution is based on a deep learning model, specifically a Long Short-Term Memory (LSTM) network, which is well-suited for time series forecasting tasks.
+      - We directly optimize the forecasting model for the asymmetric cost function, by incorporating the cost function into the loss function used for training the model.
+
+Evaluation:
+  - Describe the baseline models:
+      - A random forest model
+
+  - Evaluation metrics:
+      - Compare the performance of the models with respect to MSE loss
+      - Compare the same LSTM when trained with MSE loss and when trained with the asymmetric cost function
+      - >
+        Show that MSE loss is not a good metric for evaluating the performance of forecasting models in the presence of asymmetric costs, 
+        as it does not capture the true cost implications of overestimation and underestimation.
+
+Conclusion and Future Work:
+  - Summarize the main findings of the study:
+      - >
+        Our results demonstrate that incorporating asymmetric cost modeling into the forecasting process can lead to improved performance in terms of cost savings, 
+        compared to traditional forecasting methods that do not account for asymmetric costs.
+
+  - Discuss the implications of the findings for market participants and policymakers:
+      - >
+        The findings suggest that market participants should consider incorporating asymmetric cost modeling into their forecasting strategies to better manage risks associated with demand uncertainty. 
+        Policymakers may also want to consider implementing regulations that encourage the use of cost-sensitive forecasting methods in electricity markets.
+
+  - Suggest directions for future research:
+      - >
+        Future research could explore the use of more complex cost functions that better capture the real-world costs associated with overestimation and underestimation. 
+        Additionally, future studies could investigate the impact of different types of demand uncertainty on the performance of forecasting models with asymmetric cost modeling.

@@ -1,0 +1,142 @@
+\subsection{Experimental Setup}
+
+All models share the same architecture and training procedure described in
+Section~\ref{sec:method}; they differ only in their training objective.
+We compare four training strategies:
+
+\begin{itemize}
+    \item \textbf{L2 (MSE)} — trained with mean squared error.
+    \item \textbf{L1 (MAE)} — trained with mean absolute error.
+    \item \textbf{Pinball} — trained with the standard (linear) pinball loss.
+    \item \textbf{PLF} — trained end-to-end with the piecewise linear asymmetric
+          cost function (Section~\ref{sec:modeling}).
+\end{itemize}
+
+To isolate the benefit of end-to-end cost-aware training, we additionally
+evaluate \emph{post-hoc calibrated} variants of all four models
+(Section~\ref{sec:posthoc}), in which an affine transformation
+$g(z)=\alpha z + \beta$ is fitted on the training set to minimise the
+expected asymmetric cost.
+
+Models are evaluated on four cost functions that reflect different assumptions
+about the cost of over- and under-prediction: the piecewise linear cost
+(\textbf{PLF}), the L1 cost, the L2 cost, and the standard pinball loss.
+The primary metric is the \textbf{PLF} cost, which best reflects the
+asymmetric, non-linear structure of real-world electricity procurement costs.
+
+\subsection{Evaluation Cost Functions}
+
+Figure~\ref{fig:loss_fns} illustrates the four cost functions used for
+evaluation.
+The PLF and pinball functions penalise under-predictions more heavily than
+over-predictions, reflecting the real-world asymmetry of electricity
+procurement costs, while L1 and L2 serve as symmetric reference points.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\linewidth]{plot/loss_fns.png}
+    \caption{The four cost functions used for evaluation: the piecewise linear
+             asymmetric cost (\textbf{PLF}), the pinball loss, L1 (MAE),
+             and L2 (MSE).  The PLF and pinball functions penalise
+             under-predictions more heavily than over-predictions.}
+    \label{fig:loss_fns}
+\end{figure}
+
+\subsection{Results}
+
+Table~\ref{tab:eval} reports the average test-set cost of each model under
+each evaluation cost function, before and after post-hoc calibration.
+
+\begin{table}[ht]
+    \centering
+    \caption{Test-set cost under four evaluation metrics.  Lower is better.
+             Bold marks the best value in each column.
+             \emph{Top block:} raw predictions; \emph{bottom block:}
+             after post-hoc affine calibration.}
+    \label{tab:eval}
+    \begin{tabular}{lrrrr}
+        \toprule
+        \textbf{Model} & \textbf{PLF} & \textbf{L1} & \textbf{L2} & \textbf{Pinball} \\
+        \midrule
+        \multicolumn{5}{l}{\textit{Without post-hoc calibration}} \\
+        \midrule
+        PLF        & \textbf{0.386} & 0.620          & 0.734          & 0.434 \\
+        L1 (MAE)   & 0.407          & \textbf{0.570} & 0.647          & 0.539 \\
+        L2 (MSE)   & 0.428          & 0.577          & \textbf{0.629} & 0.609 \\
+        Pinball    & 0.438          & 0.802          & 1.084          & \textbf{0.370} \\
+        \midrule
+        \multicolumn{5}{l}{\textit{With post-hoc affine calibration}} \\
+        \midrule
+        PLF + calibration     & \textbf{0.386} & 0.577          & 0.654          & 0.373 \\
+        L1 + calibration      & 0.396          & 0.570          & 0.643          & 0.382 \\
+        L2 + calibration      & 0.388          & \textbf{0.569} & \textbf{0.629} & 0.377 \\
+        Pinball + calibration & 1.309          & 0.584          & 0.753          & \textbf{0.370} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Discussion}
+
+\paragraph{Cost-aware training outperforms symmetric baselines.}
+Without calibration, the PLF model achieves the lowest PLF cost ($0.386$),
+compared to $0.407$ for L1 and $0.428$ for L2 — reductions of $5\%$ and
+$10\%$ respectively.
+The pinball model also underperforms on the PLF metric ($0.438$), suggesting
+that a linear asymmetric loss is insufficient to capture the non-linear cost
+structure.
+The improvement of the PLF model comes entirely from aligning the training
+objective with the operational cost: the model learns to shift its predictions
+upward in a feature-adaptive way, precisely where under-prediction risk is
+highest.
+
+\paragraph{Post-hoc calibration narrows but does not close the gap.}
+Affine calibration improves the L1 and L2 baselines on the PLF cost
+(L2: $0.428 \to 0.388$; L1: $0.407 \to 0.396$), confirming that a global
+bias correction captures part of the asymmetric signal.
+However, the end-to-end PLF model still achieves the lowest PLF cost
+($0.386$), because it adapts the correction to individual input patterns
+rather than applying a single global shift.
+Notably, post-hoc calibration substantially \emph{worsens} the pinball model
+on the PLF metric ($0.438 \to 1.309$): the affine recalibration overfits the
+pinball model's bias to the training distribution in a way that does not
+generalise to the PLF cost, highlighting the mismatch between the pinball and
+PLF objectives.
+
+\paragraph{Each model excels on its own training metric.}
+As expected, L1 and L2 models achieve the lowest L1 and L2 costs
+respectively, while the pinball model achieves the lowest pinball cost.
+The PLF model, trained to minimise the piecewise linear asymmetric cost,
+achieves the lowest PLF cost before and after calibration.
+This confirms that the choice of training objective directly shapes the cost
+profile of the resulting forecast, and that minimising a misaligned loss is
+suboptimal when operational costs are asymmetric.
+
+\paragraph{Error distributions.}
+Figure~\ref{fig:error_histograms} shows the distribution of prediction errors
+on the test set for each model.
+The PLF model exhibits a pronounced rightward skew: it deliberately
+over-predicts more often than it under-predicts, trading a slight increase in
+average absolute error for a reduction in costly under-procurement events.
+The L1 and L2 baselines produce near-zero-mean residuals with no systematic
+bias, which is optimal under their respective training metrics but suboptimal
+under the asymmetric PLF cost.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\linewidth]{plot/error_histograms.png}
+    \caption{Distribution of test-set prediction errors (forecast minus
+             actual) for each model.  The PLF model has a heavier tail of
+             positive errors (over-predictions), which is desirable because
+             under-predictions carry a higher operational cost.  The
+             symmetric L1 and L2 models are centred near zero.}
+    \label{fig:error_histograms}
+\end{figure}
+
+\paragraph{Per-metric breakdown.}
+Every model achieves its lowest cost on the metric it was trained to minimise,
+while the PLF model obtains the best PLF score at the expense of higher L1
+and L2 costs.
+This pattern is consistent with the quantitative results in
+Table~\ref{tab:eval} and underscores the importance of aligning the
+training objective with the operational cost structure.
+

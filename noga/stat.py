@@ -66,10 +66,31 @@ def mae():
 
 
 def noga_vs_model():
-    # TODO see the def plot_noga_vs_model_error_2025(): function for reference
-    # identify the 10 dates where the model improve the most compared to noga and save them to a csv file
-    # remove these dates from the evaluation and compare the MAE of noga and the model on the remaining dates
-    pass
+    OFFSET = 297  # DAY_IN_5_MIN + HISTORY_LEN - 1
+
+    df = pd.read_csv('data/data.csv')
+    df = df[df['year'] == 2025].reset_index(drop=True)
+    df['noga_error'] = (df['forecast'] - df['actual']).abs()
+
+    day_idx = (df['time'] == 0).cumsum() - 1
+    df['date'] = pd.Timestamp('2025-01-01') + pd.to_timedelta(day_idx, unit='D')
+
+    pred = pd.read_csv('pred/pred_l1.csv')
+    aligned = df.iloc[OFFSET:].reset_index(drop=True)
+    aligned['model_error'] = (pred['pred'] - pred['actual']).abs()
+
+    daily = aligned.groupby('date')[['noga_error', 'model_error']].mean()
+    daily['improvement'] = daily['noga_error'] - daily['model_error']
+
+    top10 = daily.nlargest(10, 'improvement')[['noga_error', 'model_error', 'improvement']]
+    top10.to_csv('res/noga_vs_model_top10.csv')
+    print("Top 10 dates where model improves most over NOGA:")
+    print(top10.to_string())
+
+    rest = daily.drop(index=top10.index)
+    print(f"\nMAE on remaining {len(rest)} dates:")
+    print(f"  NOGA:  {rest['noga_error'].mean():.2f} MW")
+    print(f"  Model: {rest['model_error'].mean():.2f} MW")
 
 
 if __name__ == "__main__":

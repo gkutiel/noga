@@ -1,0 +1,42 @@
+TODO:
+        Fix Assumptions: >
+                - Go over all .tex files. Do not assume $c_u \gg c_o$ but only $c_u > c_o$.
+                - Do not assume gaussianity. Do not assume any specific distribution.
+                - Rewrite the relevant sections.
+DONE:
+        - >
+                Read my model.py at ../noga/noga/model.py and understand the simple architecture. Then update the paper:
+                1. Remove reference to LSTM and replace it with "neural network" or "feedforward neural network".
+                2. Update the description of the architecture in the method section to reflect the actual architecture
+        - Baseline: >
+                  Added post-hoc cost-optimised MSE baseline (Section posthoc in method.tex):
+                  a constant bias shift optimised on the validation set is applied to MSE-LSTM predictions.
+                  Added to both results tables in evaluation.tex with updated surrounding prose.
+                  Argument made clear: post-hoc correction recovers part of the gap but cannot
+                  match end-to-end cost-aware training.
+        - Problem formulation:
+                  - Do not assume any specific distribution.
+                  - Do not assume linearity.
+                  - Assumptions:
+                            - Under prediction is (much) more costly than over-prediction.
+                            - Costs are monotone in the prediction error.
+                            - For this paper we assume costs are known, are differentiable and can be plugged into the training process.
+                  - Goal: Minimize the expected cost of predictions, not the expected error.
+        - Dataset:
+                  - >
+                          Be consistent with the period of our dataset.
+                          It covers the period from March 2023 to February 2026.
+                          Update throughout the paper to reflect this, and make sure to update the abstract and introduction as well.
+        - Dataset:
+                  - >
+                          Mention that our dataset contains real day-ahead forecasts from the Noga.
+                          And we can use it to compare the performance of our model to the actual forecasts used in the market.
+                          It can also be used to analyze real-world prediction errors.
+        - >
+                In our paper we use a non-linear variant of the pinball loss.
+                Update all references to the pinball loss to reflect this, and make it clear that the non-linear variant is a specific instance of a more general class of asymmetric loss functions.
+        - Loss function:
+                  - replace all references to the pinball Loss with "asymmetric loss function" or "cost-sensitive loss function", and only mention the pinball loss as a specific example of such a loss function.
+        - Change the reference to the Newsvendor framework:
+                  - Mention it and shortly explain what it is, but explain its limitations (the linear assumption) and why we need to go beyond it.
+                  - Change the title and abstract to reflect this change.
