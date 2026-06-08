@@ -1,21 +1,17 @@
 This section describes the forecasting models and training procedures used in
 our study.
 
-At a high level, all models share the same architecture: the predicted demand
-for tomorrow is expressed as \emph{yesterday's demand plus a correction term}
-that depends on weather and temporal features.
-The model is small and mostly linear, making it both interpretable and
-data-efficient.
-It learns a \emph{balancing temperature} for each city---the threshold at which
-temperature transitions from driving heating demand to driving cooling demand.
-Temporal patterns (day of week, month of year) are captured via learned
-embeddings.
-Currently we use daily mean temperature as the sole meteorological input, but
-the framework extends naturally to additional weather signals such as humidity
-or wind speed.
-Despite its simplicity, this architecture matches the predictive accuracy of
-more complex baselines, making it a suitable testbed for isolating the effect
-of the training objective.
+All model variants share the same architecture: the prediction is expressed as
+a \emph{soft attention} over a short window of recent historical demand values
+plus a learned additive correction.  Weather conditions (temperature, wet-bulb
+temperature, and relative humidity at three meteorological stations) and
+temporal patterns (time of day, day of week, month of year) jointly determine
+both the attention weights and the correction term.  Temporal features are
+encoded via learned embeddings; weather features enter as continuous inputs.
+The model operates at 5-minute granularity and produces a day-ahead forecast:
+given conditions at a target time $t$, it predicts demand exactly 24~hours
+earlier in the input window---making it a suitable testbed for isolating the
+effect of the training objective on cost-aware forecasting.
 
 \subsection{Data Splitting}
 
@@ -32,34 +28,44 @@ The chronological split ensures no future information leaks into training.
 
 \subsection{Neural Network Architecture}
 
-The forecast is the sum of three interpretable components:
+For each target 5-minute slot $t$, the model receives three types of input:
 
 \begin{itemize}
-    \item \textbf{Scaled previous demand.}  The previous day's demand $h$ is
-          multiplied by a learned day-of-week scalar $\alpha_d$, allowing the
-          model to account for day-specific autocorrelation strength.
+    \item \textbf{Historical demand.}  A window of $H = 10$ consecutive
+          5-minute demand readings $\mathbf{h} = (h_1,\ldots,h_H)$ ending
+          exactly 24~hours before $t$ (i.e.\ the same time-of-day window
+          from the previous day).
 
-    \item \textbf{Temperature correction.}  For each city $k$, the temperature
-          $T_k$ is compared to a learned \emph{balancing temperature} $b_k$.
-          Deviations above $b_k$ (cooling) and below $b_k$ (heating) enter
-          separate linear functions, capturing the asymmetric demand response
-          to heat and cold.
+    \item \textbf{Weather features.}  Nine continuous variables measured at
+          time $t$: temperature, wet-bulb temperature, and relative humidity
+          for three stations (Haifa, Jerusalem, Tel~Aviv).
 
-    \item \textbf{Calendar bias.}  A learned embedding bias for each day of
-          week and month of year captures systematic seasonal and weekly
-          patterns.
+    \item \textbf{Temporal embeddings.}  Learned embeddings for time of day
+          (288 positions, dimension~16), day of week (7~positions,
+          dimension~3), and month of year (12~positions, dimension~2).
 \end{itemize}
 
-The forecast is:
+These are concatenated into a vector of dimension $H + 9 + 16 + 3 + 2 = 40$
+and passed through a small MLP with two hidden layers of width~32 and
+LeakyReLU activations, producing an output vector
+$\mathbf{o} \in \mathbb{R}^{H+1}$.
+The first $H$ outputs are treated as attention logits over the history window;
+the last output is an additive correction scalar~$\delta$.  The forecast is:
+
 \begin{equation}
-    \hat{y} = \alpha_d\, h
-            + {\mathbf{w}^+}^\top (\mathbf{T}-\mathbf{b})^+
-            + {\mathbf{w}^-}^\top (\mathbf{T}-\mathbf{b})^-
-            + \beta_d + \beta_m,
+    \hat{y} \;=\; \sum_{k=1}^{H} \mathrm{softmax}(\mathbf{o}_{1:H})_k\,h_k
+             \;+\; \delta,
+    \label{eq:forecast}
 \end{equation}
-where $(\cdot)^{\pm}$ denotes element-wise positive/negative part and all
-parameters $\alpha_d, \mathbf{b}, \mathbf{w}^\pm, \beta_d, \beta_m$ are
-learned from data.
+
+where all demand values are normalised by a constant scale factor $s=100$
+during training and rescaled at inference time.  The model thus learns to
+select which historical reading is most informative given the current
+conditions, and applies a weather- and calendar-conditioned correction.
+Both models (L1 and asymmetric) are trained with the Adam
+optimiser~\parencite{kingma2014adam} at learning rate $2\times10^{-4}$, batch
+size~10\,000, and up to 500 epochs with early stopping (patience 20,
+evaluated every 10~epochs).
 
 \subsection{Training with L1 Loss}
 

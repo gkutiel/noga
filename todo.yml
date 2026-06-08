@@ -4,8 +4,8 @@ TODO:
     - Dataset:
       Fix: Electricity consumption data includes hourly readings of power usage - hourly should be 5 minute intervals
     - Method:
-        - Read noga/model.py to understand the model and describe it, replace the old description.
 DONE:
+  - Rewrote method.tex intro paragraph and Neural Network Architecture subsection to match the actual model in noga/model.py: 5-minute granularity, soft attention over H=10 history readings, 9 weather features (temp/wet-bulb/humidity×3 cities), temporal embeddings (time-of-day/day/month), 2-layer MLP of width 32, Adam lr=2e-4.
   - Updated "Synthetic Cost Functions for Evaluation" subsection: stated two pinball ratios (1:5, 1:20), cited prior work justification, and noted appendix with non-linear cost function results.
   - Replaced the boilerplate "In this section..." sentence with a flowing continuation of the Israel intro paragraph.
   - Updated tex/plot/error_histograms.png and tex/plot/loss_fns.png with the current versions from plots/.
