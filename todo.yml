@@ -1,6 +1,9 @@
 TODO:
   PyTorch:
   TeX:
+    - Data Analysis:
+        - Include the plots/error_heatmap_percent.png and explain what it shows (A heatmap of percentage mean errors of noga day ahead forecasts over the year. Each cell in the heatmap  represents an hour of the week. )
+          Later on, in the evaluation explain that this figure can explain why a simple post-hoc calibration is not optimal, as correction is not uniform across hours of the week.
     - Dataset:
       Fix: Electricity consumption data includes hourly readings of power usage - hourly should be 5 minute intervals
     - Method:
