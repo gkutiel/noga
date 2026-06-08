@@ -1,6 +1,7 @@
 TODO:
   PyTorch:
   TeX:
-    - Use the up to date results from our model (./plots) to replace the existing (out dated) results.
+    - Replace "In this section we describe the dataset we used for our experiments" with a natural continuation of the previous paragraph.
 DONE:
+  - Updated tex/plot/error_histograms.png and tex/plot/loss_fns.png with the current versions from plots/.
   - Dataset Section intro: Added Israel geography/demographics paragraph (area ~22,145 km², pop ~9.8M, coastal strip ~150 km) and Israel_population_density_2018.png figure with caption justifying weather station choices.
