@@ -67,11 +67,12 @@ This paper makes the following contributions:
           framework, namely its linearity assumption, and extend it to generalised
           asymmetric cost functions more representative of real electricity markets.
 
-    \item We implement and evaluate a feedforward neural network trained with a
-          cost-sensitive asymmetric loss function that directly targets the
-          cost-minimising quantile.  We use a non-linear variant of the pinball
-          loss as a concrete instance of this general family, and compare the
-          model against a symmetric L1-trained neural network baseline.
+    \item We implement and evaluate feedforward neural networks trained with
+          cost-sensitive pinball loss functions at two cost ratios ($5\!:\!1$
+          and $20\!:\!1$), directly targeting the cost-minimising quantile.
+          We compare these models against a symmetric L1-trained baseline and
+          against post-hoc affine-calibrated variants of all models, isolating
+          the benefit of end-to-end cost-aware training.
 
 %     \item We demonstrate empirically that MSE is a misleading evaluation metric
 %           under asymmetric costs, and propose cost-weighted evaluation metrics as
