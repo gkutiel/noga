@@ -96,75 +96,61 @@ on each metric and how calibration shifts the ranking.
 
 \subsection{Discussion}
 
-\paragraph{Cost-aware training outperforms symmetric baselines.}
-Without calibration, the PLF model achieves the lowest PLF cost ($0.386$),
-compared to $0.407$ for L1 and $0.428$ for L2 — reductions of $5\%$ and
-$10\%$ respectively.
-The pinball model also underperforms on the PLF metric ($0.438$), suggesting
-that a linear asymmetric loss is insufficient to capture the non-linear cost
-structure.
-The improvement of the PLF model comes entirely from aligning the training
-objective with the operational cost: the model learns to shift its predictions
-upward in a feature-adaptive way, precisely where under-prediction risk is
-highest.
+\paragraph{Each model excels on its own training metric.}
+Without calibration, a clear diagonal dominance is visible in
+Figure~\ref{fig:confusion-matrix}: each model achieves its lowest cost on
+the metric it was trained to minimise.
+The L1 model produces the lowest L1 cost ($2.704$), the Pinball~5:1 model
+the lowest Pinball~5:1 cost ($1.820$), and the Pinball~20:1 model the lowest
+Pinball~20:1 cost ($0.841$).
+This confirms that the training objective directly shapes the cost profile
+of the resulting forecast.
+
+\paragraph{Asymmetric training substantially outperforms the symmetric baseline.}
+The advantage of cost-aware training grows with the asymmetry ratio.
+Under the Pinball~5:1 metric, the Pinball~5:1 model ($1.820$) outperforms
+the L1 baseline ($3.045$) by $40\%$.
+Under the more demanding Pinball~20:1 metric, the Pinball~20:1 model
+($0.841$) outperforms L1 ($3.167$) by $73\%$.
+Figure~\ref{fig:error_histograms} shows the mechanism: the Pinball~20:1
+model produces a heavily right-skewed error distribution, deliberately
+over-predicting to avoid costly under-procurement events, while the L1
+model is symmetric and centred near zero.
 
 \paragraph{Post-hoc calibration narrows but does not close the gap.}
-Affine calibration improves the L1 and L2 baselines on the PLF cost
-(L2: $0.428 \to 0.388$; L1: $0.407 \to 0.396$), confirming that a global
-bias correction captures part of the asymmetric signal.
-However, the end-to-end PLF model still achieves the lowest PLF cost
-($0.386$), because it adapts the correction to individual input patterns
-rather than applying a single global shift.
+Affine calibration substantially improves the L1 model on asymmetric metrics
+(Pinball~20:1: $3.167 \to 1.022$; Pinball~5:1: $3.045 \to 1.979$),
+confirming that a global bias correction captures much of the asymmetric
+signal.
+However, calibrated L1 still falls short of the dedicated pinball models
+(Pinball~5:1: $0.851$; Pinball~20:1: $0.841$), because a single affine
+shift cannot replicate the input-conditional upward bias that end-to-end
+cost-aware training achieves.
 Figure~\ref{fig:error-heatmap} (Section~\ref{sec:forecast-error-dist})
-illustrates exactly why: forecast error magnitude is far from uniform across
-hours of the week, exhibiting a structured, hour- and day-dependent pattern.
-A single affine correction applies the same rescaling to every prediction
-regardless of when it falls; it cannot reduce errors selectively in the
-high-error slots while leaving low-error slots unchanged.
-Only a model that conditions its output on time of day and day of week ---
-as our neural network does --- can adapt its correction to each slot
-individually.
-Notably, post-hoc calibration substantially \emph{worsens} the pinball model
-on the PLF metric ($0.438 \to 1.309$): the affine recalibration overfits the
-pinball model's bias to the training distribution in a way that does not
-generalise to the PLF cost, highlighting the mismatch between the pinball and
-PLF objectives.
+illustrates exactly why: forecast error magnitude varies substantially by
+hour of the day and day of the week.
+A uniform global correction applies the same rescaling to every prediction
+regardless of context; only a model that conditions its output on time
+features can adapt its bias to each slot individually.
 
-\paragraph{Each model excels on its own training metric.}
-As expected, L1 and L2 models achieve the lowest L1 and L2 costs
-respectively, while the pinball model achieves the lowest pinball cost.
-The PLF model, trained to minimise the piecewise linear asymmetric cost,
-achieves the lowest PLF cost before and after calibration.
-This confirms that the choice of training objective directly shapes the cost
-profile of the resulting forecast, and that minimising a misaligned loss is
-suboptimal when operational costs are asymmetric.
-
-\paragraph{Error distributions.}
-Figure~\ref{fig:error_histograms} shows the distribution of prediction errors
+\paragraph{Error distributions reflect the targeted quantile.}
+Figure~\ref{fig:error_histograms} shows the prediction error distributions
 on the test set for each model.
-The PLF model exhibits a pronounced rightward skew: it deliberately
-over-predicts more often than it under-predicts, trading a slight increase in
-average absolute error for a reduction in costly under-procurement events.
-The L1 and L2 baselines produce near-zero-mean residuals with no systematic
-bias, which is optimal under their respective training metrics but suboptimal
-under the asymmetric PLF cost.
+The L1 model is symmetric and centred near zero, as expected for a
+mean-unbiased estimator.
+The Pinball~5:1 model is modestly right-shifted, and the Pinball~20:1 model
+exhibits a pronounced positive tail --- each distribution directly reflecting
+the quantile targeted by its respective asymmetric loss.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\linewidth]{plot/error_histograms.png}
     \caption{Distribution of test-set prediction errors (forecast minus
-             actual) for each model.  The PLF model has a heavier tail of
-             positive errors (over-predictions), which is desirable because
-             under-predictions carry a higher operational cost.  The
-             symmetric L1 and L2 models are centred near zero.}
+             actual, MW) for each model.  The L1 model is symmetric and
+             centred near zero.  The Pinball~5:1 model shows a modest
+             rightward shift, and the Pinball~20:1 model a pronounced
+             positive tail, reflecting the increasingly aggressive upward
+             bias required to minimise the cost under higher asymmetry ratios.}
     \label{fig:error_histograms}
 \end{figure}
-
-\paragraph{Per-metric breakdown.}
-Every model achieves its lowest cost on the metric it was trained to minimise,
-while the PLF model obtains the best PLF score at the expense of higher L1
-and L2 costs.
-This pattern is consistent with the quantitative results in
-Table~\ref{tab:eval} and underscores the importance of aligning the
-training objective with the operational cost structure.
 
