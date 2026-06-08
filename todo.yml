@@ -1,0 +1,8 @@
+TODO:
+  PyTorch:
+  TeX:
+    - Dataset Section:
+        - Start by saying that the dataset is for the Israeli electricity market.
+          Describe the geography, demographics and area of Israel, mention that most of the population lives on the coastal plain, in a strip that is X KM long.
+        - Add the Israel_population_density_2018.png figure to illustrate the population density and justify our choice for the model and features.
+DONE:

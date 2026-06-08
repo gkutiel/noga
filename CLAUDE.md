@@ -7,6 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # Data pipeline (run in order, or use task)
 task data_csv          # runs noga_csv + ims_csv + data_csv in dependency order
+# Note: tasks are idempotent — they skip if the output file already exists.
+# Delete data/noga.csv, data/ims.csv, or data/data.csv to force a rerun.
 uv run -m noga.data    # runs daily_demand() by default (__main__)
 
 # Train the neural network model
@@ -39,7 +41,6 @@ data/ims.he.csv ──► data/ims.csv   ──┘
 **Model (`noga/model.py`):**
 - PyTorch Lightning `Model` with learned embeddings for month (1–12), day-of-week (0–6), and hour (0–23), each of size `EMBED_SIZE=5`.
 - Input: 3 embeddings + 15 normalized numeric features (temperature×9, humidity×3, wind_speed×3).
-- Architecture: `Linear → Tanh → 6× (Linear → LeakyReLU) → Linear(1)`.
 - **Custom asymmetric loss**: under-prediction penalized 5× more than over-prediction (`UNDER=5`). This reflects the real cost asymmetry in electricity reserves.
 - Outputs predictions to `data/pred.csv` or `data/pred-new.csv`.
 
@@ -47,5 +48,9 @@ data/ims.he.csv ──► data/ims.csv   ──┘
 - `noga/stat.py`: `noga-stat` entry point. Produces MAE bar charts and error distribution plots broken down by day, month, hour.
 - `noga/error.py`: `cost()` function computes total cost under varying reserve multipliers (0.98–1.2) and plots cost-vs-reserve curves for both the NOGA baseline and the model.
 - `noga/plot.py`: Exploratory scatter/line plots (demand vs temperature, forecast vs actual, KDE of forecast errors).
+
+**Utilities:**
+- `noga/cost.py`: Loss function registry (pinball `5:1`, `20:1`, L1) and Adam optimizer config. The `Name` type controls which loss variant the model uses.
+- `noga/date.py`: Single `DT_FRMT` constant (`'%Y-%m-%d'`) shared across the pipeline.
 
 All plots are saved to `plots/`.
