@@ -164,19 +164,6 @@ week runs Sunday through Thursday; Friday is a short workday and Saturday
 (Shabbat) is the day of rest.  Consequently the lowest-demand day of the week is
 Saturday, followed by Friday, rather than Sunday.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{plot/demand_by_day_of_week.png}
-    \caption{Mean daily electricity demand by day of the week (box plots over
-    the full dataset period).  Saturday (Shabbat) is the lowest-demand day,
-    followed by Friday; Sunday is the first working day and shows a marked
-    demand increase.  This shift relative to the European weekend structure
-    means that standard day-of-week features must be recoded to reflect the
-    Israeli calendar, and motivates the inclusion of a dedicated
-    weekend/holiday indicator in our feature representation.}
-    \label{fig:demand-by-dow}
-\end{figure}
-
 \textbf{Temperature sensitivity.}  Figure~\ref{fig:daily-demand-vs-temp} shows
 the characteristic U-shaped demand--temperature relationship, with high demand
 at both high temperatures (cooling) and low temperatures (heating).  The

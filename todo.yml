@@ -5,6 +5,8 @@ TODO:
     - Dataset:
       Fix: Electricity consumption data includes hourly readings of power usage - hourly should be 5 minute intervals
     - Method:
+    - Results:
+        - Add the plots/confusion_matrix.png plot for simple presentation of the results.
 DONE:
   - Added \usepackage{float} to main.tex and changed all figure placements from [ht] to [H] across dataset.tex, evaluation.tex, method.tex, and modeling.tex so figures are pinned exactly where they appear in the source.
   - Added error_heatmap_percent.png figure to the Forecast Error Distribution subsection of dataset.tex with explanation of the hour-of-week structured bias pattern; added cross-reference in evaluation.tex Discussion explaining why the non-uniform pattern limits post-hoc affine calibration.
