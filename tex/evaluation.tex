@@ -82,13 +82,15 @@ on each metric and how calibration shifts the ranking.
 \begin{figure}[H]
     \centering
     \includegraphics[width=\linewidth]{plot/confusion_matrix.png}
-    \caption{Model~$\times$~loss matrix.  Each cell shows the test-set cost of
-             a given model (row) under a given evaluation metric (column),
-             before calibration (left) and after post-hoc affine calibration
-             (right).  Green shading marks the best value in each column; red
-             marks the worst.  The diagonal tendency --- each model performing
-             best on its own training metric --- is clearly visible, as is the
-             PLF model's consistent advantage on the PLF column.}
+    \caption{Train-loss~$\times$~evaluation-metric matrix for the three models
+             (L1, Pinball~5:1, Pinball~20:1), before calibration (left) and
+             after post-hoc affine calibration (right).  Each cell shows the
+             test-set cost; green marks the best value in each column and red
+             the worst.  The diagonal tendency --- each model achieving its
+             lowest cost on the metric it was trained with --- is clearly
+             visible.  Calibration reduces off-diagonal costs substantially
+             (e.g.\ L1 model under Pinball~20:1 drops from 3.167 to 1.022)
+             while leaving the diagonal unchanged.}
     \label{fig:confusion-matrix}
 \end{figure}
 
