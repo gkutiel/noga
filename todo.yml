@@ -12,6 +12,6 @@ TODO:
     - Data Analysis:
     - Dataset:
     - Method:
-    - Results:
 DONE:
   - Added confusion_matrix.png figure to evaluation.tex Results subsection (after Table 1) with caption explaining the model×loss matrix color coding and the diagonal-dominance pattern.
+  - Fixed evaluation.tex Results section: replaced stale 4-model table (PLF/L2/L1/Pinball) with correct 3-model table (L1/Pinball 5:1/Pinball 20:1) populated with actual numbers from res/eval.csv and res/eval_calibrated.csv; updated Experimental Setup and Evaluation Cost Functions to match.
