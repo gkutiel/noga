@@ -11,7 +11,7 @@ the three largest urban centres and together capture the climatic conditions
 experienced by the bulk of the population, whose electricity use drives the
 national demand signal.
 
-\begin{figure}[ht]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.6\textwidth]{plot/Israel_population_density_2018.png}
     \caption{Population density of Israel (2018).  The coastal plain, running
@@ -75,7 +75,7 @@ The weather data includes temperature, humidity, and wind speed measurements tak
 To better understand the dataset, we performed an exploratory data analysis (EDA) to identify patterns and relationships between the electricity consumption and weather data.
 Figure~\ref{fig:daily-demand} shows the daily electricity consumption over the course of the dataset alongside the daily average temperature in Tel Aviv.
 
-\begin{figure}[ht]
+\begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{plot/daily_demand_by_time.png}
     \caption{Daily electricity consumption (MWh) over the dataset period
@@ -87,7 +87,7 @@ Figure~\ref{fig:daily-demand} shows the daily electricity consumption over the c
 
 Figure~\ref{fig:daily-demand-vs-temp} shows the relationship between daily electricity consumption and the daily average temperature in Tel Aviv.
 
-\begin{figure}[ht]
+\begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{plot/daily_demand_vs_avg_temp_Tel_Aviv.png}
     \caption{Daily electricity consumption vs.\ daily mean temperature in
@@ -100,7 +100,7 @@ Figure~\ref{fig:daily-demand-vs-temp} shows the relationship between daily elect
 
 % Figure~\ref{fig:daily-demand-vs-forecast-time} depicts the relationship between daily electricity consumption and the operator's day-ahead forecast over time.
 
-% \begin{figure}[ht]
+% \begin{figure}[H]
 %     \centering
 %     \includegraphics[width=\textwidth]{plot/daily_demand_vs_forecast_time.png}
 %     \caption{Daily electricity consumption (solid blue) vs.\ operator day-ahead
@@ -111,7 +111,7 @@ Figure~\ref{fig:daily-demand-vs-temp} shows the relationship between daily elect
 
 Figure~\ref{fig:demand-vs-forecast-kde} shows the KDE histogram of the forecast error, i.e., the difference between the actual demand and the day-ahead forecast.
 
-\begin{figure}[ht]
+\begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{plot/demand_vs_forecast_kde_histogram.png}
     \caption{KDE histogram of the forecast error (actual demand minus
@@ -164,7 +164,7 @@ week runs Sunday through Thursday; Friday is a short workday and Saturday
 (Shabbat) is the day of rest.  Consequently the lowest-demand day of the week is
 Saturday, followed by Friday, rather than Sunday.
 
-\begin{figure}[ht]
+\begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{plot/demand_by_day_of_week.png}
     \caption{Mean daily electricity demand by day of the week (box plots over
@@ -217,7 +217,7 @@ important implication for post-hoc calibration: a global affine correction
 cannot account for the fact that errors are large in some slots and small in
 others.  We return to this point in Section~\ref{sec:evaluation}.
 
-\begin{figure}[ht]
+\begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{plot/error_heatmap_percent.png}
     \caption{Heatmap of mean percentage absolute error

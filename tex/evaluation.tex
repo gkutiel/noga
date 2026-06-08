@@ -32,7 +32,7 @@ The PLF and pinball functions penalise under-predictions more heavily than
 over-predictions, reflecting the real-world asymmetry of electricity
 procurement costs, while L1 and L2 serve as symmetric reference points.
 
-\begin{figure}[ht]
+\begin{figure}[H]
     \centering
     \includegraphics[width=\linewidth]{plot/loss_fns.png}
     \caption{The four cost functions used for evaluation: the piecewise linear
@@ -130,7 +130,7 @@ The L1 and L2 baselines produce near-zero-mean residuals with no systematic
 bias, which is optimal under their respective training metrics but suboptimal
 under the asymmetric PLF cost.
 
-\begin{figure}[ht]
+\begin{figure}[H]
     \centering
     \includegraphics[width=\linewidth]{plot/error_histograms.png}
     \caption{Distribution of test-set prediction errors (forecast minus

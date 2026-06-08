@@ -1,12 +1,12 @@
 TODO:
   PyTorch:
   TeX:
-    - Embed the figures closer to where they are mentioned when possible.
     - Data Analysis:
     - Dataset:
       Fix: Electricity consumption data includes hourly readings of power usage - hourly should be 5 minute intervals
     - Method:
 DONE:
+  - Added \usepackage{float} to main.tex and changed all figure placements from [ht] to [H] across dataset.tex, evaluation.tex, method.tex, and modeling.tex so figures are pinned exactly where they appear in the source.
   - Added error_heatmap_percent.png figure to the Forecast Error Distribution subsection of dataset.tex with explanation of the hour-of-week structured bias pattern; added cross-reference in evaluation.tex Discussion explaining why the non-uniform pattern limits post-hoc affine calibration.
   - Rewrote method.tex intro paragraph and Neural Network Architecture subsection to match the actual model in noga/model.py: 5-minute granularity, soft attention over H=10 history readings, 9 weather features (temp/wet-bulb/humidity×3 cities), temporal embeddings (time-of-day/day/month), 2-layer MLP of width 32, Adam lr=2e-4.
   - Updated "Synthetic Cost Functions for Evaluation" subsection: stated two pinball ratios (1:5, 1:20), cited prior work justification, and noted appendix with non-linear cost function results.
