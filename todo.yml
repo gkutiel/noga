@@ -1,17 +1,13 @@
 TODO:
-  General:
-    - Review the code and the text files and finalize the paper for submission:
-        - The main goal of the paper is to give a practical concrete model for day ahead electricity demand forecasting under asymmetric costs,
-          and to evaluate it on real world data.
-        - While not introducing novel methods, it suggest a practical approach for a problem in a huge market.
-        - If possible, try to estimate based on our findings how much money can be saved by using similar methods.
-        - Make sure all sections are coherent and well written, and that the paper is well structured and easy to follow.
-        - Make sure the paper is coherent with the model.
-  PyTorch:
-  TeX:
-    - Data Analysis:
-    - Dataset:
-    - Method:
+  Research Proposal:
+    - You need to write a research proposal for a new project based on the (preliminaries) results of the current project.
+    - The proposal is a LaTeX document and it is under the `research_proposal` directory.
+    - Steps:
+        - 1. read the `research_proposal/requirements.pdf` file to understand the requirements for the proposal.
+        - 2. read the `research_proposal/proposal.yml` file to understand the structure of the proposal.
+        - 3. read the current project paper under the `tex` folder to understand what we do, current results, and possible future directions.
+        - 4. read the `research_proposal/abstract.md` file to understand the ideas for the new project.
+        - 5. generate a full LaTeX document ready for submission.
 DONE:
   - Added confusion_matrix.png figure to evaluation.tex Results subsection (after Table 1) with caption explaining the model×loss matrix color coding and the diagonal-dominance pattern.
   - Fixed evaluation.tex Results section: replaced stale 4-model table (PLF/L2/L1/Pinball) with correct 3-model table (L1/Pinball 5:1/Pinball 20:1) populated with actual numbers from res/eval.csv and res/eval_calibrated.csv; updated Experimental Setup and Evaluation Cost Functions to match.

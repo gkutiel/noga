@@ -1,0 +1,33 @@
+# This is a YAML file that describes the structure of the research proposal. It is used to generate a LaTeX document for submission.
+Title:
+  - Project Title
+  - Name of the main researcher
+  - Name of the other researchers
+  - The institution (Technion - Israel Institute of Technology) where the research will be conducted
+
+Abstract:
+  - A brief summary of the research proposal, including the problem statement, objectives, methodology, and expected outcomes.
+
+Table of Contents:
+  - A list of the main sections and subsections of the proposal, with page numbers.
+
+Research Description:
+  - Introduction:
+      - Background and motivation for the research.
+      - Literature review of related work.
+      - Research gap and problem statement.
+  - Objectives:
+      - Specific aims and goals of the research.
+  - Methodology:
+      - Research design and approach.
+      - Data collection and analysis methods.
+  - Expected Outcomes:
+      - Anticipated results and contributions to the field.
+  - Timeline:
+      - Make a timeline placeholder + Gantt chart template for the research activities.
+
+Budget:
+  - Leave a placeholder for the budget details, including personnel, equipment, materials, and other expenses.
+
+Research Staff:
+  - Leave a placeholder for the research staff details, including names, roles, and affiliations, a short bio, contact information, and relevant experience and papers.

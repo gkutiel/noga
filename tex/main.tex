@@ -37,11 +37,13 @@ via Asymmetric Loss Optimisation}\\[0.6em]
 \begin{abstract}
 Accurate electricity demand forecasting is critical for market participants in
 deregulated power markets, where procurement decisions must be made before
-actual demand is observed.  Traditional forecasting approaches minimise symmetric
+actual demand is observed.  
+Traditional forecasting approaches minimise symmetric
 loss functions such as mean squared error (MSE), which implicitly treat over- and
 under-prediction as equally costly.  In practice the costs of under-predicting
 demand --- triggering emergency reserve activation, load shedding, or costly
-real-time purchases --- substantially exceed those of over-prediction.  We formalise this asymmetry through an explicit cost function and incorporate it
+real-time purchases --- substantially exceed those of over-prediction.  
+We formalise this asymmetry through an explicit cost function and incorporate it
 directly into the training objective, replacing symmetric loss functions with a
 cost-sensitive alternative.  Concretely, we train a feedforward neural network with an asymmetric loss function that directly targets
 the cost-minimising prediction under the prevailing cost structure.  Using a dataset of daily electricity demand in
