@@ -520,57 +520,19 @@ prototype for transfer to Noga.
 \label{sec:risks}
 
 \subsection{Criteria for Success}
-\begin{itemize}[leftmargin=1.4em]
-    \item \textbf{Calibration:} probabilistic forecasts pass reliability/coverage tests
-        (empirical coverage within tolerance of nominal at all evaluated quantiles).
-    \item \textbf{Probabilistic skill:} statistically significant improvement in proper
-        scoring rules over point-forecast-derived and operational baselines on held-out data.
-    \item \textbf{Operational improvement:} statistically significant reduction in expected
-        operational cost and in shortfall risk at matched reliability versus the current
-        Noga operational forecast.
-    \item \textbf{Integration value:} the integrated net-demand forecaster outperforms the
-        naive combination of independent demand and renewable forecasts.
-    \item \textbf{Reproducibility/transfer:} an open benchmark and a documented prototype
-        delivered to Noga.
-\end{itemize}
 
 \subsection{Risks and Mitigations}
-% TODO: replace the risk table with a single paragraph that addresses the risk of data availability and quality. 
-% Score this risk as low likelihood and mention that the team has experience working with Noga and IMS data, and that the preliminary work has already established a working data pipeline.
-% Data for PV is available and in case it is not sufficient or corrupt, we can still  work on the demand forecasting and other aspects of the project.
-
-\begin{table}[H]
-    \centering
-    \renewcommand{\arraystretch}{1.3}
-    \begin{tabular}{p{4.6cm}cp{6.4cm}}
-        \toprule
-        \textbf{Risk} & \textbf{Likelihood / Impact} & \textbf{Mitigation} \\
-        \midrule
-        Renewable / distributed-PV data incomplete or coarse &
-        Med / High &
-        Estimate behind-the-meter PV from irradiance and demand proxies; begin with
-        system-level aggregates; phase data integration in WP1 with Noga's support. \\
-        Real cost data unavailable &
-        Med / Med &
-        Methodology is cost-structure-agnostic; evaluate over a family of plausible and
-        sensitivity-tested cost functions, as already validated in preliminary work. \\
-        Probabilistic forecasts mis-calibrated &
-        Med / Med &
-        Distribution-free calibration provides finite-sample guarantees independent of
-        model fit; simpler, robust techniques as a fallback. \\
-        Joint demand--renewable modelling too complex &
-        Low / Med &
-        Modular design: the marginal-coupling route delivers a working integrated
-        forecaster even if direct joint modelling underperforms. \\
-        Distribution shift (new capacity, demand growth, EV/heat-pump uptake) &
-        Med / Med &
-        Chronological evaluation, rolling re-training, and adaptive/online calibration;
-        explicit reporting of degradation over time. \\
-        \bottomrule
-    \end{tabular}
-    \caption{Principal research risks and mitigations.}
-    \label{tab:risks}
-\end{table}
+The principal risk to the project is the \emph{availability and quality of data}, which we
+assess as \textbf{low likelihood}. The team has substantial prior experience working with
+both Noga operational data and Israel Meteorological Service (IMS) weather data, and our
+preliminary work has already established a working, validated data pipeline spanning three
+years of demand, day-ahead-forecast, and weather records (Section~\ref{sec:prelim}).
+Renewable (PV) generation data is likewise available and will be incorporated in WP1.
+Should the renewable data nonetheless prove insufficient or corrupt for the integrated
+net-demand objective, the modular design (Section~\ref{sec:methodology}) allows the project
+to proceed on demand forecasting and the remaining components---all of which build on the
+already-proven pipeline---so that the core contributions of the project are preserved
+regardless.
 
 % ===============================================================
 \section{Work Plan and Timeline}
