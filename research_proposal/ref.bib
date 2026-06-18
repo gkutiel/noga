@@ -1,0 +1,375 @@
+% ====================================================================
+%  Bibliography for the NOGA 2027 research proposal
+%  "Integrated Probabilistic Forecasting of Electricity Demand and
+%   Renewable Generation for Risk-Aware Grid Operation"
+% ====================================================================
+
+% ---------- Data sources ----------
+@online{noga,
+  title   = {Noga -- Israel Independent System Operator: Annual Hourly Consumption Data},
+  author  = {{Noga -- Israel Independent System Operator}},
+  url     = {https://www.noga-iso.co.il/statistics/annual-hourly-consumption-data/},
+  year    = {2025},
+  urldate = {2026-06-18},
+}
+
+@online{ims,
+  title   = {Israel Meteorological Service -- Open Data Portal},
+  author  = {{Israel Meteorological Service}},
+  url     = {https://ims.gov.il/he/data_gov},
+  year    = {2025},
+  urldate = {2026-06-18},
+}
+
+% ---------- Market & inventory foundations ----------
+@book{stoft2002power,
+  title     = {Power System Economics: Designing Markets for Electricity},
+  author    = {Stoft, Steven},
+  year      = {2002},
+  publisher = {Wiley-IEEE Press},
+  address   = {Hoboken, NJ},
+  isbn      = {978-0-471-15040-4},
+}
+
+@article{arrow1951optimal,
+  title     = {Optimal Inventory Policy},
+  author    = {Arrow, Kenneth J. and Harris, Theodore and Marschak, Jacob},
+  journal   = {Econometrica},
+  volume    = {19},
+  number    = {3},
+  pages     = {250--272},
+  year      = {1951},
+  publisher = {The Econometric Society},
+  doi       = {10.2307/1906813},
+}
+
+% ---------- Asymmetric loss / quantile regression ----------
+@article{koenker1978regression,
+  title     = {Regression Quantiles},
+  author    = {Koenker, Roger and Bassett, Gilbert},
+  journal   = {Econometrica},
+  volume    = {46},
+  number    = {1},
+  pages     = {33--50},
+  year      = {1978},
+  publisher = {The Econometric Society},
+  doi       = {10.2307/1913643},
+}
+
+@article{christoffersen1997optimal,
+  title     = {Optimal Prediction Under Asymmetric Loss},
+  author    = {Christoffersen, Peter F. and Diebold, Francis X.},
+  journal   = {Econometric Theory},
+  volume    = {13},
+  number    = {6},
+  pages     = {808--817},
+  year      = {1997},
+  publisher = {Cambridge University Press},
+  doi       = {10.1017/S0266466600006277},
+}
+
+@article{taylor2000quantile,
+  title     = {A Quantile Regression Neural Network Approach to Estimating the
+               Conditional Density of Multiperiod Returns},
+  author    = {Taylor, James W.},
+  journal   = {Journal of Forecasting},
+  volume    = {19},
+  number    = {4},
+  pages     = {299--311},
+  year      = {2000},
+  publisher = {Wiley},
+  doi       = {10.1002/1099-131X(200007)19:4<299::AID-FOR775>3.0.CO;2-V},
+}
+
+% ---------- Cost-oriented / asymmetric load forecasting ----------
+@article{wang2019pinball,
+  title     = {Probabilistic individual load forecasting using pinball loss guided {LSTM}},
+  author    = {Wang, Yi and Gan, Dahua and Sun, Mingyang and Zhang, Ning
+               and Lu, Zongxiang and Kang, Chongqing},
+  journal   = {Applied Energy},
+  volume    = {235},
+  pages     = {10--20},
+  year      = {2019},
+  publisher = {Elsevier},
+  doi       = {10.1016/j.apenergy.2018.10.085},
+}
+
+@article{lin2020asymmetric,
+  title     = {Asymmetric Loss Functions for Contract Capacity Optimization},
+  author    = {Lin, Kuan-Chieh and others},
+  journal   = {Energies},
+  volume    = {13},
+  number    = {12},
+  pages     = {3123},
+  year      = {2020},
+  publisher = {MDPI},
+  doi       = {10.3390/en13123123},
+}
+
+@article{wu2021svr,
+  title     = {Support vector regression with asymmetric loss for optimal
+               electric load forecasting},
+  author    = {Wu, Jinran and Wang, You-Gan and Tian, Yu-Chu and
+               Burrage, Kevin and Cao, Taoyun},
+  journal   = {Energy},
+  volume    = {223},
+  pages     = {119969},
+  year      = {2021},
+  publisher = {Elsevier},
+  doi       = {10.1016/j.energy.2021.119969},
+}
+
+@article{zhang2022costoriented,
+  title     = {Cost-oriented load forecasting},
+  author    = {Zhang, Jialun and Wang, Yi and Hug, Gabriela},
+  journal   = {Electric Power Systems Research},
+  volume    = {204},
+  pages     = {107705},
+  year      = {2022},
+  publisher = {Elsevier},
+  doi       = {10.1016/j.epsr.2021.107705},
+}
+
+% ---------- Electricity forecasting reviews / competitions ----------
+@article{weron2014electricity,
+  title     = {Electricity price forecasting: {A} review of the
+               state-of-the-art with a look into the future},
+  author    = {Weron, Rafa{\l}},
+  journal   = {International Journal of Forecasting},
+  volume    = {30},
+  number    = {4},
+  pages     = {1030--1081},
+  year      = {2014},
+  publisher = {Elsevier},
+  doi       = {10.1016/j.ijforecast.2014.08.008},
+}
+
+@article{hong2016probabilistic,
+  title     = {Probabilistic electric load forecasting: {A} tutorial review},
+  author    = {Hong, Tao and Fan, Shu},
+  journal   = {International Journal of Forecasting},
+  volume    = {32},
+  number    = {3},
+  pages     = {914--938},
+  year      = {2016},
+  publisher = {Elsevier},
+  doi       = {10.1016/j.ijforecast.2015.11.011},
+}
+
+@article{hong2016gefcom2014,
+  title     = {{GEFCom2014}: Probabilistic energy forecasting},
+  author    = {Hong, Tao and Pinson, Pierre and Fan, Shu and Zareipour,
+               Hamidreza and Troccoli, Alberto and Hyndman, Rob J.},
+  journal   = {International Journal of Forecasting},
+  volume    = {32},
+  number    = {3},
+  pages     = {896--913},
+  year      = {2016},
+  publisher = {Elsevier},
+  doi       = {10.1016/j.ijforecast.2016.02.001},
+}
+
+@article{hong2020energy,
+  title     = {Energy Forecasting: A Review and Outlook},
+  author    = {Hong, Tao and Pinson, Pierre and Wang, Yi and Weron, Rafa{\l}
+               and Yang, Dazhi and Zareipour, Hamidreza},
+  journal   = {IEEE Open Access Journal of Power and Energy},
+  volume    = {7},
+  pages     = {376--388},
+  year      = {2020},
+  publisher = {IEEE},
+  doi       = {10.1109/OAJPE.2020.3029979},
+}
+
+% ---------- Scoring rules & probabilistic forecasting theory ----------
+@article{gneiting2007strictly,
+  title     = {Strictly Proper Scoring Rules, Prediction, and Estimation},
+  author    = {Gneiting, Tilmann and Raftery, Adrian E.},
+  journal   = {Journal of the American Statistical Association},
+  volume    = {102},
+  number    = {477},
+  pages     = {359--378},
+  year      = {2007},
+  publisher = {Taylor \& Francis},
+  doi       = {10.1198/016214506000001437},
+}
+
+@article{gneiting2014probabilistic,
+  title     = {Probabilistic Forecasting},
+  author    = {Gneiting, Tilmann and Katzfuss, Matthias},
+  journal   = {Annual Review of Statistics and Its Application},
+  volume    = {1},
+  pages     = {125--151},
+  year      = {2014},
+  publisher = {Annual Reviews},
+  doi       = {10.1146/annurev-statistics-062713-085831},
+}
+
+% ---------- Deep probabilistic / distributional models ----------
+@article{salinas2020deepar,
+  title     = {{DeepAR}: Probabilistic forecasting with autoregressive recurrent networks},
+  author    = {Salinas, David and Flunkert, Valentin and Gasthaus, Jan and
+               Januschowski, Tim},
+  journal   = {International Journal of Forecasting},
+  volume    = {36},
+  number    = {3},
+  pages     = {1181--1191},
+  year      = {2020},
+  publisher = {Elsevier},
+  doi       = {10.1016/j.ijforecast.2019.07.001},
+}
+
+@article{papamakarios2021normalizing,
+  title     = {Normalizing Flows for Probabilistic Modeling and Inference},
+  author    = {Papamakarios, George and Nalisnick, Eric and Rezende, Danilo J.
+               and Mohamed, Shakir and Lakshminarayanan, Balaji},
+  journal   = {Journal of Machine Learning Research},
+  volume    = {22},
+  number    = {57},
+  pages     = {1--64},
+  year      = {2021},
+}
+
+@inproceedings{rezende2015variational,
+  title     = {Variational Inference with Normalizing Flows},
+  author    = {Rezende, Danilo Jimenez and Mohamed, Shakir},
+  booktitle = {Proceedings of the 32nd International Conference on Machine Learning (ICML)},
+  volume    = {37},
+  pages     = {1530--1538},
+  year      = {2015},
+}
+
+@inproceedings{lakshminarayanan2017simple,
+  title     = {Simple and Scalable Predictive Uncertainty Estimation using Deep Ensembles},
+  author    = {Lakshminarayanan, Balaji and Pritzel, Alexander and Blundell, Charles},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {30},
+  pages     = {6402--6413},
+  year      = {2017},
+}
+
+% ---------- Conformal prediction ----------
+@book{vovk2005algorithmic,
+  title     = {Algorithmic Learning in a Random World},
+  author    = {Vovk, Vladimir and Gammerman, Alexander and Shafer, Glenn},
+  year      = {2005},
+  publisher = {Springer},
+  address   = {New York},
+  doi       = {10.1007/b106715},
+}
+
+@inproceedings{romano2019conformalized,
+  title     = {Conformalized Quantile Regression},
+  author    = {Romano, Yaniv and Patterson, Evan and Cand{\`e}s, Emmanuel J.},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {32},
+  pages     = {3543--3553},
+  year      = {2019},
+}
+
+% ---------- Renewable (solar / wind) forecasting ----------
+@article{antonanzas2016review,
+  title     = {Review of photovoltaic power forecasting},
+  author    = {Antonanzas, Javier and Osorio, Natalia and Escobar, Rodrigo
+               and Urraca, Ruben and Martinez-de-Pison, Francisco J. and
+               Antonanzas-Torres, Fernando},
+  journal   = {Solar Energy},
+  volume    = {136},
+  pages     = {78--111},
+  year      = {2016},
+  publisher = {Elsevier},
+  doi       = {10.1016/j.solener.2016.06.069},
+}
+
+@article{pinson2009scenarios,
+  title     = {From probabilistic forecasts to statistical scenarios of
+               short-term wind power production},
+  author    = {Pinson, Pierre and Madsen, Henrik and Nielsen, Henrik Aalborg
+               and Papaefthymiou, George and Kl{\"o}ckl, Bernhard},
+  journal   = {Wind Energy},
+  volume    = {12},
+  number    = {1},
+  pages     = {51--62},
+  year      = {2009},
+  publisher = {Wiley},
+  doi       = {10.1002/we.284},
+}
+
+% ---------- Operating reserve from probabilistic forecasts ----------
+@article{matos2011reserve,
+  title     = {Setting the Operating Reserve Using Probabilistic Wind Power Forecasts},
+  author    = {Matos, Manuel A. and Bessa, Ricardo J.},
+  journal   = {IEEE Transactions on Power Systems},
+  volume    = {26},
+  number    = {2},
+  pages     = {594--603},
+  year      = {2011},
+  publisher = {IEEE},
+  doi       = {10.1109/TPWRS.2010.2065818},
+}
+
+@article{morales2014integrating,
+  title     = {Integrating Renewables in Electricity Markets: Operational Problems},
+  author    = {Morales, Juan M. and Conejo, Antonio J. and Madsen, Henrik
+               and Pinson, Pierre and Zugno, Marco},
+  journal   = {International Series in Operations Research \& Management Science},
+  volume    = {205},
+  year      = {2014},
+  publisher = {Springer},
+  doi       = {10.1007/978-1-4614-9411-9},
+}
+
+% ---------- Dependence modelling ----------
+@book{nelsen2006copulas,
+  title     = {An Introduction to Copulas},
+  author    = {Nelsen, Roger B.},
+  edition   = {2},
+  year      = {2006},
+  publisher = {Springer},
+  address   = {New York},
+  doi       = {10.1007/0-387-28678-0},
+}
+
+% ---------- Net load / variable renewables system impact ----------
+@techreport{denholm2015overgeneration,
+  title       = {Overgeneration from Solar Energy in California:
+                 A Field Guide to the Duck Chart},
+  author      = {Denholm, Paul and O'Connell, Matthew and Brinkman, Gregory
+                 and Jorgenson, Jennie},
+  institution = {National Renewable Energy Laboratory (NREL)},
+  number      = {NREL/TP-6A20-65023},
+  year        = {2015},
+  address     = {Golden, CO},
+}
+
+% ---------- Deep learning building blocks ----------
+@article{hochreiter1997lstm,
+  title     = {Long Short-Term Memory},
+  author    = {Hochreiter, Sepp and Schmidhuber, J{\"u}rgen},
+  journal   = {Neural Computation},
+  volume    = {9},
+  number    = {8},
+  pages     = {1735--1780},
+  year      = {1997},
+  publisher = {MIT Press},
+  doi       = {10.1162/neco.1997.9.8.1735},
+}
+
+@inproceedings{vaswani2017attention,
+  title     = {Attention is All You Need},
+  author    = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and
+               Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N. and
+               Kaiser, {\L}ukasz and Polosukhin, Illia},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {30},
+  pages     = {5998--6008},
+  year      = {2017},
+}
+
+@article{kingma2014adam,
+  title     = {Adam: {A} Method for Stochastic Optimization},
+  author    = {Kingma, Diederik P. and Ba, Jimmy},
+  journal   = {arXiv preprint arXiv:1412.6980},
+  year      = {2014},
+  doi       = {10.48550/arXiv.1412.6980},
+}
