@@ -592,21 +592,20 @@ regardless.
 \section{Work Plan and Timeline}
 \label{sec:workplan}
 
-The project is planned as a focused \textbf{12-month} effort, organised into six work
-packages (WP1--WP6) that map directly onto the five research tasks
-(Section~\ref{sec:objectives}) plus a cross-cutting management and dissemination package.
-The work packages are partially overlapping: data preparation (WP1) feeds the demand and
-renewable models (WP2--WP3), which are then integrated (WP4) and converted into a validated
-decision layer (WP5), while management, publications, and reporting (WP6) run throughout.
-The schedule and milestones are summarised in Figure~\ref{fig:gantt}.
+The project is a focused \textbf{12-month} effort in six work packages (WP1--WP6) that map
+onto the five research tasks (T1--T5; Section~\ref{sec:objectives}) plus a cross-cutting
+management package (WP6). The schedule is shown in Figure~\ref{fig:gantt} and detailed
+task-by-task below.
 
 \begin{figure}[H]
     \centering
-    \resizebox{\textwidth}{!}{%
     \begin{ganttchart}[
         hgrid, vgrid,
+        x unit=0.92cm,
+        y unit chart=0.62cm,
+        y unit title=0.55cm,
         bar/.append style={fill=nogablue!65},
-        bar height=0.55,
+        bar height=0.6,
         group/.append style={fill=nogablue},
         group right shift=0, group left shift=0, group peaks height=0,
         milestone/.append style={fill=nogablue!50!red},
@@ -617,40 +616,105 @@ The schedule and milestones are summarised in Figure~\ref{fig:gantt}.
         ]{1}{12}
         \gantttitle{Project month}{12} \\
         \gantttitlelist{1,...,12}{1} \\
-        \ganttgroup{WP1 --- Data Collection \& Open Benchmark (T1)}{1}{4} \\
-        \ganttbar{Kick-off, data agreements \& access}{1}{1} \\
-        \ganttbar{Augment dataset: renewable, reserve/balancing}{1}{3} \\
-        \ganttbar{Exogenous drivers: weather, calendar, special days}{2}{3} \\
-        \ganttbar{Release reproducible benchmark (fixed splits)}{3}{4} \\
-        \ganttgroup{WP2 --- Probabilistic Demand Forecasting (T2)}{3}{7} \\
-        \ganttbar{Develop demand models (quantile/density/non-param.)}{3}{6} \\
-        \ganttbar{Distribution-free calibration layer}{5}{7} \\
-        \ganttbar{Benchmark vs NOGA operational baseline}{6}{7} \\
-        \ganttgroup{WP3 --- Renewable-Generation Forecasting (T3)}{4}{8} \\
-        \ganttbar{Adapt models to bounded, diurnal PV \& wind}{4}{7} \\
-        \ganttbar{Calibration \& proper-scoring evaluation}{6}{8} \\
-        \ganttgroup{WP4 --- Integration into Net-Demand (T4)}{7}{10} \\
-        \ganttbar{Marginal coupling with estimated dependence}{7}{9} \\
-        \ganttbar{Joint demand--renewable modelling}{8}{10} \\
-        \ganttbar{Compare strategies: skill, scenarios, cost}{9}{10} \\
-        \ganttgroup{WP5 --- Decision Layer \& Validation (T5)}{9}{12} \\
-        \ganttbar{Cost-optimal decision layer}{9}{11} \\
-        \ganttbar{Operational validation vs NOGA forecast}{10}{11} \\
-        \ganttbar{Deployable prototype \& transfer to NOGA}{11}{12} \\
-        \ganttgroup{WP6 --- Management \& Dissemination}{1}{12} \\
-        \ganttbar{Project management \& periodic reporting}{1}{12} \\
-        \ganttbar{Publications \& dissemination}{6}{12} \\
-        \ganttmilestone{Milestones}{1}
-        \ganttmilestone{}{4}\ganttmilestone{}{7}\ganttmilestone{}{10}\ganttmilestone{}{12}
-    \end{ganttchart}%
-    }
-    \caption{Twelve-month work plan. Bars show active months; diamonds ($\blacklozenge$)
-             mark milestones: \textbf{M1}~kick-off and data access; \textbf{M4}~public
-             benchmark released; \textbf{M7}~calibrated demand \& renewable models;
-             \textbf{M10}~integrated net-demand distribution; \textbf{M12}~deployable
-             prototype and final report.}
+        \ganttgroup{WP1 (T1)}{1}{4} \\
+        \ganttbar{T1.1}{1}{1} \\
+        \ganttbar{T1.2}{1}{3} \\
+        \ganttbar{T1.3}{2}{3} \\
+        \ganttbar{T1.4}{3}{4} \\
+        \ganttgroup{WP2 (T2)}{3}{7} \\
+        \ganttbar{T2.1}{3}{6} \\
+        \ganttbar{T2.2}{5}{7} \\
+        \ganttbar{T2.3}{6}{7} \\
+        \ganttgroup{WP3 (T3)}{4}{8} \\
+        \ganttbar{T3.1}{4}{7} \\
+        \ganttbar{T3.2}{6}{8} \\
+        \ganttgroup{WP4 (T4)}{7}{10} \\
+        \ganttbar{T4.1}{7}{9} \\
+        \ganttbar{T4.2}{8}{10} \\
+        \ganttbar{T4.3}{9}{10} \\
+        \ganttgroup{WP5 (T5)}{9}{12} \\
+        \ganttbar{T5.1}{9}{11} \\
+        \ganttbar{T5.2}{10}{11} \\
+        \ganttbar{T5.3}{11}{12} \\
+        \ganttgroup{WP6}{1}{12} \\
+        \ganttbar{6.1}{1}{12} \\
+        \ganttbar{6.2}{6}{12} \\
+        \ganttmilestone{Milestones}{1}\ganttmilestone{}{4}\ganttmilestone{}{7}%
+        \ganttmilestone{}{10}\ganttmilestone{}{12}
+    \end{ganttchart}
+    \caption{Twelve-month work plan (Gantt). Bars show active months; diamonds
+             ($\blacklozenge$) mark milestones M1, M4, M7, M10, M12. Task codes and
+             milestones are described below.}
     \label{fig:gantt}
 \end{figure}
+
+\noindent The work packages are partially overlapping: data preparation (WP1) feeds the
+demand and renewable models (WP2--WP3), which are then integrated (WP4) and converted into a
+validated decision layer (WP5), while management, publications, and reporting (WP6) run
+throughout.
+
+\paragraph{WP1 --- Data Collection \& Open Benchmark (Task~T1, months 1--4).}
+\begin{itemize}[leftmargin=2.6em,labelsep=0.6em]
+    \item[\textbf{T1.1}] \emph{(M1)} Kick-off, data-sharing agreements with NOGA, and access
+          to operational and renewable data.
+    \item[\textbf{T1.2}] \emph{(M1--M3)} Augment the existing demand--weather dataset with
+          system-level renewable (PV/wind) generation and reserve/balancing indicators.
+    \item[\textbf{T1.3}] \emph{(M2--M3)} Add exogenous drivers: richer weather, calendar, and
+          special-day features.
+    \item[\textbf{T1.4}] \emph{(M3--M4)} Release a reproducible benchmark with fixed
+          chronological splits and baseline scripts.
+\end{itemize}
+
+\paragraph{WP2 --- Calibrated Probabilistic Demand Forecasting (Task~T2, months 3--7).}
+\begin{itemize}[leftmargin=2.6em,labelsep=0.6em]
+    \item[\textbf{T2.1}] \emph{(M3--M6)} Develop probabilistic demand models (conditional
+          quantiles, parametric densities, and non-parametric techniques).
+    \item[\textbf{T2.2}] \emph{(M5--M7)} Add a distribution-free calibration layer with
+          finite-sample coverage guarantees.
+    \item[\textbf{T2.3}] \emph{(M6--M7)} Benchmark against the NOGA operational baseline using
+          proper scoring rules and operational cost.
+\end{itemize}
+
+\paragraph{WP3 --- Probabilistic Renewable-Generation Forecasting (Task~T3, months 4--8).}
+\begin{itemize}[leftmargin=2.6em,labelsep=0.6em]
+    \item[\textbf{T3.1}] \emph{(M4--M7)} Adapt the models to the bounded, diurnal, and
+          weather-driven PV and wind regimes.
+    \item[\textbf{T3.2}] \emph{(M6--M8)} Calibrate and evaluate with proper scoring rules,
+          mirroring the demand-model protocol.
+\end{itemize}
+
+\paragraph{WP4 --- Integration into a Net-Demand Distribution (Task~T4, months 7--10).}
+\begin{itemize}[leftmargin=2.6em,labelsep=0.6em]
+    \item[\textbf{T4.1}] \emph{(M7--M9)} Marginal coupling of the demand and renewable
+          distributions through their estimated statistical dependence.
+    \item[\textbf{T4.2}] \emph{(M8--M10)} Joint demand--renewable modelling that captures the
+          dependence directly.
+    \item[\textbf{T4.3}] \emph{(M9--M10)} Compare the two strategies on probabilistic skill,
+          scenario quality, and operational cost.
+\end{itemize}
+
+\paragraph{WP5 --- Risk-Aware Decision Layer \& Validation (Task~T5, months 9--12).}
+\begin{itemize}[leftmargin=2.6em,labelsep=0.6em]
+    \item[\textbf{T5.1}] \emph{(M9--M11)} Build the cost-optimal decision layer (newsvendor
+          quantile and numerical optimisation for general asymmetric costs).
+    \item[\textbf{T5.2}] \emph{(M10--M11)} Validate the full pipeline against the current NOGA
+          forecast on skill, cost, and reserve adequacy.
+    \item[\textbf{T5.3}] \emph{(M11--M12)} Package a deployable prototype and transfer
+          knowledge to NOGA.
+\end{itemize}
+
+\paragraph{WP6 --- Management \& Dissemination (months 1--12).}
+\begin{itemize}[leftmargin=2.6em,labelsep=0.6em]
+    \item[\textbf{6.1}] \emph{(M1--M12)} Project management, coordination, and periodic
+          reporting.
+    \item[\textbf{6.2}] \emph{(M6--M12)} Publications and dissemination of results and the
+          open benchmark.
+\end{itemize}
+
+\paragraph{Milestones.} \textbf{M1}~kick-off and data access (month~1); \textbf{M4}~public
+benchmark released (month~4); \textbf{M7}~calibrated demand \& renewable models (month~7);
+\textbf{M10}~integrated net-demand distribution (month~10); \textbf{M12}~deployable prototype
+and final report (month~12).
 
 % ===============================================================
 \section{Required Resources and Budget}
