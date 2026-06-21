@@ -108,45 +108,40 @@
 \section*{Abstract}
 \addcontentsline{toc}{section}{Abstract}
 
-Accurate demand forecasting is critical for the safe and economic operation of the
-power system: procurement and reserve decisions must be committed before demand and
-renewable generation are observed. Operational forecasts today are predominantly
-\emph{point} forecasts trained on symmetric losses (e.g.\ MSE), which implicitly treat
-over- and under-supply as equally costly. In reality the costs are strongly asymmetric
-and state-dependent, governed by reserve availability, the volatile output of solar and
-wind, the price of real-time energy, and penalties for unserved load.
+Accurate demand forecasting underpins the safe and economic operation of the power
+system: procurement and reserve decisions are committed before demand and renewable
+generation are observed. Operational forecasts today are predominantly \emph{point}
+forecasts trained on symmetric losses (e.g.\ MSE), implicitly treating over- and
+under-supply as equally costly. In reality these costs are strongly asymmetric and
+state-dependent---governed by reserve availability, volatile solar and wind output,
+real-time energy prices, and penalties for unserved load.
 
-\paragraph{The goal} of this research is to move from point forecasts to \emph{calibrated
-predictive distributions}: to develop advanced probabilistic forecasting techniques that
-output the full conditional distribution of (i)~national electricity demand and
-(ii)~renewable generation, and to \emph{integrate} the two into a coherent probabilistic
-forecast of \emph{net demand} (residual load) together with a decision layer that converts
-these distributions into cost- and risk-optimal reserve and procurement quantities.
+\paragraph{The goal} is to move from point forecasts to \emph{calibrated predictive
+distributions}: advanced probabilistic techniques that output the full conditional
+distribution of (i)~national demand and (ii)~renewable generation, \emph{integrated} into
+a coherent forecast of \emph{net demand} (residual load), with a decision layer that
+converts these distributions into cost- and risk-optimal reserve and procurement quantities.
 
-\paragraph{Methodologically}, we develop and compare advanced probabilistic forecasting
-techniques that produce calibrated predictive distributions with finite-sample reliability
-guarantees, integrate the demand and renewable distributions while respecting their
-statistical dependence, and evaluate them with proper scoring rules and---crucially---
-\emph{operational cost}. The work builds directly on our preliminary
-results, in which cost-aware training on three years of real NOGA and Israel
-Meteorological Service data reduced operational cost by 40--73\% over symmetric baselines.
+\paragraph{Methodologically}, we develop and compare techniques that produce calibrated
+distributions with finite-sample reliability guarantees, integrate the demand and renewable
+distributions while respecting their statistical dependence, and evaluate them with proper
+scoring rules and---crucially---\emph{operational cost}. The work builds on our preliminary
+results, in which cost-aware training on three years of real NOGA and Israel Meteorological
+Service data cut operational cost by 40--73\% over symmetric baselines.
 
 \paragraph{Expected outcomes} are an open, reproducible probabilistic forecasting framework
-tailored to the Israeli grid, quantified reliability and cost improvements over the
-current operational forecast, and a deployable decision tool for risk-aware reserve
-sizing. The proposal directly addresses NOGA R\&D domain~\textbf{2.5} (forming the
-demand forecast of the electricity system) and supports reserve, stability and
-renewable-integration objectives (\S2.1.5, \S2.2.2, \S2.1.6).
+for the Israeli grid, quantified reliability and cost improvements over the current
+operational forecast, and a deployable decision tool for risk-aware reserve sizing. The
+proposal directly addresses NOGA R\&D domain~\textbf{2.5} and supports reserve, stability,
+and renewable-integration objectives (\S2.1.5, \S2.2.2, \S2.1.6).
 
-\paragraph{Beneficiaries.} The outcomes serve four constituencies. \textbf{NOGA}
-gains sharper, risk-aware day-ahead and intraday decisions---reserve sizing and procurement
-driven by a calibrated net-demand distribution rather than a cost-blind point forecast.
-\textbf{Electricity suppliers and traders} obtain better-quantified uncertainty for smarter
-procurement and bidding, reducing exposure to costly real-time imbalances. \textbf{Consumers}
-benefit from the lower system costs and higher reliability that follow from leaner, better-targeted
-reserves and fewer shortfalls. \textbf{The research community} gains an open, reproducible
-benchmark for probabilistic net-demand forecasting on a real national grid, together with
-peer-reviewed publications.
+\paragraph{Beneficiaries.} \textbf{NOGA} gains sharper, risk-aware day-ahead and intraday
+decisions driven by a calibrated net-demand distribution rather than a cost-blind point
+forecast; \textbf{electricity suppliers and traders} obtain better-quantified uncertainty
+for smarter procurement and bidding; \textbf{consumers} benefit from the lower system costs
+and higher reliability of leaner, better-targeted reserves; and \textbf{the research
+community} gains an open benchmark for probabilistic net-demand forecasting on a real
+national grid, with peer-reviewed publications.
 
 \newpage
 
