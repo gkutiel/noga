@@ -362,32 +362,31 @@ scientifically substantial step from a single cost-tuned quantile to a calibrate
 explicit decision layer.
 
 % ===============================================================
-% TODO: change "Research Objectives" to "Tasks" or something similar and update related text.
-\section{Research Objectives}
+\section{Research Tasks}
 \label{sec:objectives}
 
 The overarching aim is to develop and validate, on the Israeli grid, an integrated
 probabilistic forecasting and decision framework for net demand. This decomposes into five
-specific objectives:
+specific tasks:
 
 \begin{description}[leftmargin=2.2em,style=nextline]
-    \item[\textbf{O1. Extended dataset \& open benchmark.}] Augment the existing
+    \item[\textbf{T1. Extended dataset \& open benchmark.}] Augment the existing
         demand--weather dataset with renewable-generation data (system-level solar PV and
         wind, with distributed-PV estimation), reserve/balancing indicators, and calendar
         and special-day features, and release a reproducible benchmark for probabilistic
         net-demand forecasting on the Israeli grid.
-    \item[\textbf{O2. Calibrated probabilistic demand forecasting.}] Develop and compare
+    \item[\textbf{T2. Calibrated probabilistic demand forecasting.}] Develop and compare
         advanced probabilistic forecasting techniques that output the full conditional
         distribution of demand, calibrated to finite-sample coverage guarantees, across
         day-ahead and intraday horizons.
-    \item[\textbf{O3. Probabilistic renewable-generation forecasting.}] Develop analogous
+    \item[\textbf{T3. Probabilistic renewable-generation forecasting.}] Develop analogous
         predictive distributions for renewable generation, capturing the non-Gaussian,
         bounded, weather-driven and strongly diurnal/seasonal behaviour of PV and wind.
-    \item[\textbf{O4. Integration into a net-demand distribution.}] Couple the demand and
+    \item[\textbf{T4. Integration into a net-demand distribution.}] Couple the demand and
         renewable predictive distributions---explicitly modelling their statistical
         dependence---to obtain a calibrated predictive distribution of net demand and
         temporally coherent scenarios.
-    \item[\textbf{O5. Risk-aware decision layer and operational validation.}] Convert the
+    \item[\textbf{T5. Risk-aware decision layer and operational validation.}] Convert the
         net-demand distribution into cost-optimal reserve and procurement decisions under
         general (possibly state-dependent) asymmetric costs, quantify reliability and cost
         improvements over the current NOGA operational forecast, and deliver a deployable
@@ -409,7 +408,7 @@ operational baseline before integration, so that scientific risk is contained at
 step (Section~\ref{sec:risks}). All models are trained and evaluated with strictly
 chronological splits to prevent information leakage, mirroring true operational deployment.
 
-\subsection{Data Collection and Preparation (O1)}
+\subsection{Data Collection and Preparation (T1)}
 \label{sec:data}
 
 The foundation is the existing three-year dataset of NOGA demand, the real NOGA day-ahead
@@ -421,7 +420,7 @@ forecast, and IMS weather for the three principal load centres
         observable, we will estimate it from irradiance/temperature proxies and the
         demand signal, an established practice in net-load studies.
     \item \textbf{Operational/market context:} reserve margins, balancing actions and any
-        available cost/price proxies, to ground the cost model of Objective~O5 in
+        available cost/price proxies, to ground the cost model of Task~T5 in
         operational reality rather than purely synthetic costs.
     \item \textbf{Exogenous drivers:} richer weather (irradiance, cloud cover, additional
         stations), calendar effects, holidays and special days, which are known to drive
@@ -431,7 +430,7 @@ The result will be released, to the extent permitted by data agreements, as an o
 benchmark with fixed splits and baseline scripts---a contribution in its own right and a
 prerequisite for reproducible evaluation.
 
-\subsection{Calibrated Probabilistic Demand Forecasting (O2)}
+\subsection{Calibrated Probabilistic Demand Forecasting (T2)}
 \label{sec:demand}
 
 Let $x_t$ denote the feature vector available at decision time for target time $t$
@@ -452,7 +451,7 @@ target reliability level. Models will be scored by proper scoring rules, by empi
 coverage/reliability, and---decisively---by downstream operational cost, reusing the
 evaluation machinery validated in our preliminary work.
 
-\subsection{Probabilistic Renewable-Generation Forecasting (O3)}
+\subsection{Probabilistic Renewable-Generation Forecasting (T3)}
 \label{sec:renewable}
 
 Renewable generation is bounded (non-negative, capacity-capped), strongly diurnal and
@@ -464,7 +463,7 @@ on irradiance, cloud cover, wind speed, and clear-sky physical baselines. The sa
 calibration and proper-scoring evaluation methodology applies, enabling an apples-to-apples
 comparison with the demand models.
 
-\subsection{Integration into a Net-Demand Distribution (O4)}
+\subsection{Integration into a Net-Demand Distribution (T4)}
 \label{sec:integration}
 
 The operationally decisive quantity is net demand $N_t = D_t - R_t$, where $R_t$ is
@@ -484,7 +483,7 @@ We will compare the two on net-demand probabilistic skill, scenario quality, and
 operational cost, and characterise when the extra complexity of joint modelling is
 warranted.
 
-\subsection{Risk-Aware Decision Layer and Validation (O5)}
+\subsection{Risk-Aware Decision Layer and Validation (T5)}
 \label{sec:decision}
 
 Given a net-demand distribution $F_{N}(\cdot\mid x_t)$ and a cost structure $C(p,N)$ for
@@ -555,9 +554,9 @@ assess as \textbf{low likelihood}. The team has substantial prior experience wor
 both NOGA operational data and Israel Meteorological Service (IMS) weather data, and our
 preliminary work has already established a working, validated data pipeline spanning three
 years of demand, day-ahead-forecast, and weather records (Section~\ref{sec:prelim}).
-Renewable (PV) generation data is likewise available and will be incorporated in WP1.
+Renewable (PV) generation data is likewise available and will be incorporated in Task~T1.
 Should the renewable data nonetheless prove insufficient or corrupt for the integrated
-net-demand objective, the modular design (Section~\ref{sec:methodology}) allows the project
+net-demand task, the modular design (Section~\ref{sec:methodology}) allows the project
 to proceed on demand forecasting and the remaining components---all of which build on the
 already-proven pipeline---so that the core contributions of the project are preserved
 regardless.
