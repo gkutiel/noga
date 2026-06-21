@@ -49,7 +49,7 @@
 \fancyhf{}
 \renewcommand{\headrulewidth}{0.4pt}
 \lhead{\small Probabilistic Net-Demand Forecasting}
-\rhead{\small Noga R\&D 2027}
+\rhead{\small NOGA R\&D 2027}
 \cfoot{\thepage}
 
 \newcommand{\domain}[1]{\textcolor{nogablue}{\textbf{#1}}}
@@ -65,7 +65,7 @@
 \begin{center}
     \vspace*{0.2cm}
     {\large\bfseries Research Proposal submitted to}\\[0.2em]
-    {\large Noga -- Israel Independent System Operator}\\[0.3em]
+    {\large NOGA -- Israel Independent System Operator}\\[0.3em]
     {\normalsize Call for Research Proposals for 2027 in the Fields of the Electricity System}\\[0.9cm]
 
     \rule{\textwidth}{1.2pt}\\[0.5cm]
@@ -83,7 +83,7 @@
         \textbf{Co-Researchers:}       & [Names of co-Researchers --- placeholder] \\[0.35em]
         \textbf{Institution:}            & Technion --- Israel Institute of Technology \\[0.35em]
         \textbf{Faculty / Department:}   & [Faculty --- placeholder] \\[0.35em]
-        \textbf{Partner bodies:}         & Noga --- Israel ISO (data \& domain collaboration) \\[0.35em]
+        \textbf{Partner bodies:}         & NOGA --- Israel ISO (data \& domain collaboration) \\[0.35em]
         \textbf{Contact:}                & gilad.kutiel@gmail.com \\[0.35em]
     \end{tabular}
 
@@ -115,25 +115,30 @@ renewable generation are observed. Operational forecasts today are predominantly
 over- and under-supply as equally costly. In reality the costs are strongly asymmetric
 and state-dependent, governed by reserve availability, the volatile output of solar and
 wind, the price of real-time energy, and penalties for unserved load.
-\textbf{The goal} of this research is to move from point forecasts to \emph{calibrated
+
+\paragraph{The goal} of this research is to move from point forecasts to \emph{calibrated
 predictive distributions}: to develop advanced probabilistic forecasting techniques that
 output the full conditional distribution of (i)~national electricity demand and
 (ii)~renewable generation, and to \emph{integrate} the two into a coherent probabilistic
 forecast of \emph{net demand} (residual load) together with a decision layer that converts
 these distributions into cost- and risk-optimal reserve and procurement quantities.
-\textbf{Methodologically}, we develop and compare advanced probabilistic forecasting
+
+\paragraph{Methodologically}, we develop and compare advanced probabilistic forecasting
 techniques that produce calibrated predictive distributions with finite-sample reliability
 guarantees, integrate the demand and renewable distributions while respecting their
 statistical dependence, and evaluate them with proper scoring rules and---crucially---
 \emph{operational cost}. The work builds directly on our preliminary
-results, in which cost-aware training on three years of real Noga and Israel
+results, in which cost-aware training on three years of real NOGA and Israel
 Meteorological Service data reduced operational cost by 40--73\% over symmetric baselines.
-\textbf{Expected outcomes} are an open, reproducible probabilistic forecasting framework
+
+\paragraph{Expected outcomes} are an open, reproducible probabilistic forecasting framework
 tailored to the Israeli grid, quantified reliability and cost improvements over the
 current operational forecast, and a deployable decision tool for risk-aware reserve
-sizing. The proposal directly addresses Noga R\&D domain~\textbf{2.5} (forming the
+sizing. The proposal directly addresses NOGA R\&D domain~\textbf{2.5} (forming the
 demand forecast of the electricity system) and supports reserve, stability and
 renewable-integration objectives (\S2.1.5, \S2.2.2, \S2.1.6).
+
+% TODO: describe who will benefit from the outcomes and how: 1. NOGA (better decision-making), 2. Electricity suppliers (smarter procurement), 3. Consumers (lower cost, higher reliability), 4. Academia (open benchmark, publications).
 
 \newpage
 
@@ -151,7 +156,7 @@ renewable-integration objectives (\S2.1.5, \S2.2.2, \S2.1.6).
 
 \subsection{Background and Motivation}
 
-The Israeli power system, operated by Noga, must continuously balance supply and demand
+The Israeli power system, operated by NOGA, must continuously balance supply and demand
 under tight reliability constraints and a rapidly changing generation mix. Day-ahead and
 intraday scheduling, reserve allocation, and unit commitment all depend on a forecast of
 how much electricity will be consumed---and, increasingly, on how much will be supplied
@@ -182,7 +187,7 @@ derived from the \emph{full predictive distribution} of net demand.
 \label{sec:limits}
 
 Despite this, the forecasts used operationally---including, as our preliminary analysis
-shows, the current Noga day-ahead forecast---behave as accurate but essentially
+shows, the current NOGA day-ahead forecast---behave as accurate but essentially
 \emph{cost-blind} conditional-mean estimators (Section~\ref{sec:prelim}). A single point
 forecast, however accurate in MSE terms, discards exactly the information an operator
 needs to make a risk-aware decision: how uncertain is the forecast \emph{right now}, how
@@ -269,13 +274,13 @@ shortfall---demonstrably improving on the current operational point forecast.}
 
 This proposal is a direct, evidence-backed extension of work the PI has already carried
 out. We assembled a dataset spanning \textbf{March~2023--February~2026} (1{,}096 days)
-combining real Noga demand readings \emph{and the actual day-ahead operational forecasts}
+combining real NOGA demand readings \emph{and the actual day-ahead operational forecasts}
 with Israel Meteorological Service weather data (temperature, humidity, wind) from
 Tel~Aviv, Jerusalem, and Haifa \parencite{noga,ims}. On this dataset we established two
 findings that motivate the present proposal.
 
 \paragraph{(1) The operational forecast is accurate but cost-blind.}
-The Noga day-ahead forecast achieves $R^2\approx 0.98$ and is nearly unbiased: its error
+The NOGA day-ahead forecast achieves $R^2\approx 0.98$ and is nearly unbiased: its error
 distribution is approximately zero-mean and symmetric (mean $+312$~MWh against a standard
 deviation of $3{,}241$~MWh; Figure~\ref{fig:kde}). This is excellent from an accuracy
 standpoint but, under asymmetric costs, it is precisely the wrong target---a symmetric,
@@ -300,7 +305,7 @@ carries operational value: exactly the object this proposal sets out to model in
     \begin{subfigure}[t]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plot/demand_vs_forecast_kde_histogram.png}
-        \caption{Noga day-ahead forecast error (actual minus forecast). Nearly
+        \caption{NOGA day-ahead forecast error (actual minus forecast). Nearly
                  zero-mean and symmetric: accurate, but blind to cost asymmetry.}
         \label{fig:kde}
     \end{subfigure}\hfill
@@ -362,8 +367,8 @@ specific objectives:
     \item[\textbf{O5. Risk-aware decision layer and operational validation.}] Convert the
         net-demand distribution into cost-optimal reserve and procurement decisions under
         general (possibly state-dependent) asymmetric costs, quantify reliability and cost
-        improvements over the current Noga operational forecast, and deliver a deployable
-        prototype with knowledge transfer to Noga.
+        improvements over the current NOGA operational forecast, and deliver a deployable
+        prototype with knowledge transfer to NOGA.
 \end{description}
 
 % ===============================================================
@@ -376,7 +381,7 @@ We adopt a modular pipeline---\emph{data $\rightarrow$ distributional demand mod
 $\rightarrow$ distributional renewable model $\rightarrow$ coupling $\rightarrow$ decision
 layer}---in which each stage is independently testable and reuses the validated
 infrastructure from our preliminary work. Development is incremental: each probabilistic
-component is first benchmarked against the corresponding point forecaster and the Noga
+component is first benchmarked against the corresponding point forecaster and the NOGA
 operational baseline before integration, so that scientific risk is contained at each
 step (Section~\ref{sec:risks}). All models are trained and evaluated with strictly
 chronological splits to prevent information leakage, mirroring true operational deployment.
@@ -384,7 +389,7 @@ chronological splits to prevent information leakage, mirroring true operational 
 \subsection{Data Collection and Preparation (O1)}
 \label{sec:data}
 
-The foundation is the existing three-year dataset of Noga demand, the real Noga day-ahead
+The foundation is the existing three-year dataset of NOGA demand, the real NOGA day-ahead
 forecast, and IMS weather for the three principal load centres
 \parencite{noga,ims}. We will extend it along three axes:
 \begin{itemize}[leftmargin=1.4em]
@@ -468,13 +473,13 @@ costs of a real system we will solve it numerically from the predictive distribu
 connect it to reserve sizing in the spirit of \textcite{matos2011reserve} and the
 stochastic-operation framework of \textcite{morales2014integrating}. We will quantify
 risk via shortfall probability and expected shortfall, and validate the full
-pipeline against the \emph{real} Noga operational forecast using:
+pipeline against the \emph{real} NOGA operational forecast using:
 (i)~probabilistic skill (proper scoring rules, reliability, sharpness);
 (ii)~operational cost under a range of---and, where data permit, estimated real---cost
 structures; and
 (iii)~reserve adequacy at target reliability levels.
 The decision layer and best models will be packaged as a documented, reproducible
-prototype for transfer to Noga.
+prototype for transfer to NOGA.
 
 % ===============================================================
 \section{Expected Outcomes and Contributions}
@@ -497,7 +502,7 @@ prototype for transfer to Noga.
         net-demand forecasting on the Israeli grid.
 \end{enumerate}
 
-\paragraph{Operational value for Noga (impact).}
+\paragraph{Operational value for NOGA (impact).}
 \begin{enumerate}[leftmargin=1.6em]
     \item A demonstrated, quantified reduction in expected operational cost and shortfall
         risk relative to the \emph{current} operational forecast---extending the
@@ -508,10 +513,10 @@ prototype for transfer to Noga.
         without eroding security of supply (domains \S2.1.5, \S2.2.2, \S2.4.3).
     \item A net-demand forecasting capability aligned with a high-renewables future, where
         the duck-curve dynamics that already challenge operators worldwide
-        \parencite{denholm2015overgeneration} become dominant---directly serving Noga
+        \parencite{denholm2015overgeneration} become dominant---directly serving NOGA
         domains \S2.5.1 (required forecasts) and \S2.5.2 (forecasting under future
         grid scenarios) and \S2.1.6 (sustainable integration).
-    \item A deployable prototype and knowledge transfer that raise Noga's in-house
+    \item A deployable prototype and knowledge transfer that raise NOGA's in-house
         probabilistic-forecasting capability.
 \end{enumerate}
 
@@ -524,7 +529,7 @@ prototype for transfer to Noga.
 \subsection{Risks and Mitigations}
 The principal risk to the project is the \emph{availability and quality of data}, which we
 assess as \textbf{low likelihood}. The team has substantial prior experience working with
-both Noga operational data and Israel Meteorological Service (IMS) weather data, and our
+both NOGA operational data and Israel Meteorological Service (IMS) weather data, and our
 preliminary work has already established a working, validated data pipeline spanning three
 years of demand, day-ahead-forecast, and weather records (Section~\ref{sec:prelim}).
 Renewable (PV) generation data is likewise available and will be incorporated in WP1.
@@ -556,7 +561,7 @@ researcher), per Appendix~A, \S A.4.}
           [Faculty/Department --- placeholder].
     \item \textbf{Contact:} [email --- placeholder].
     \item \textbf{Role:} overall scientific responsibility and the designated contact
-          person for Noga; leads modelling, integration, and the decision layer.
+          person for NOGA; leads modelling, integration, and the decision layer.
     \item \textbf{Background \& relevant experience:} [Short bio --- placeholder:
           machine learning, optimisation, and algorithms. PI of the preliminary
           cost-sensitive electricity-demand forecasting study underlying this proposal.]
@@ -581,7 +586,7 @@ researcher), per Appendix~A, \S A.4.}
 \addcontentsline{toc}{section}{Notes on Confidentiality and Intellectual Property}
 
 \paragraph{Confidential information.} This proposal contains no information the proposer
-deems confidential. Should the project require access to Noga's confidential operational
+deems confidential. Should the project require access to NOGA's confidential operational
 or cost data, such data will be handled under a separate data-sharing/confidentiality
 agreement, and any results derived from it will be marked and managed accordingly.
 
@@ -589,7 +594,7 @@ agreement, and any results derived from it will be marked and managed accordingl
 rights that restrict the proposed research. Background IP, methods, and software developed
 under the preliminary study are available to the project. Ownership and licensing of
 foreground IP (including publications, code, and any patentable methods) will be governed
-by the contracting agreement with Noga and the Technion research authority.
+by the contracting agreement with NOGA and the Technion research authority.
 
 % ===============================================================
 \FloatBarrier
