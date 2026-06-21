@@ -422,9 +422,13 @@ forecast, and IMS weather for the three principal load centres
     \item \textbf{Operational/market context:} reserve margins, balancing actions and any
         available cost/price proxies, to ground the cost model of Task~T5 in
         operational reality rather than purely synthetic costs.
-    \item \textbf{Exogenous drivers:} richer weather (irradiance, cloud cover, additional
-        stations), calendar effects, holidays and special days, which are known to drive
-        the hardest-to-forecast slots in our preliminary error analysis.
+    \item \textbf{Exogenous drivers:} richer weather inputs---solar irradiance (measured
+        directly at only a handful of stations in Israel, so cloud cover must be inferred
+        from it rather than measured), air temperature (which lowers PV panel efficiency as
+        it rises), wind, and additional stations---together with calendar effects, holidays
+        and special days, which are known to drive the hardest-to-forecast slots in our
+        preliminary error analysis. Where possible we will also ingest real-time
+        observations through the IMS data API.
 \end{itemize}
 The result will be released, to the extent permitted by data agreements, as an open
 benchmark with fixed splits and baseline scripts---a contribution in its own right and a
@@ -459,18 +463,20 @@ seasonal, and highly weather-sensitive, so its predictive density is far from Ga
 \parencite{antonanzas2016review,hong2020energy}. We will adapt the same advanced
 probabilistic forecasting techniques (Section~\ref{sec:demand}) to respect these
 constraints---in particular the bounded, zero-inflated night-time PV regime---and condition
-on irradiance, cloud cover, wind speed, and clear-sky physical baselines. The same
-calibration and proper-scoring evaluation methodology applies, enabling an apples-to-apples
-comparison with the demand models.
+each technology on its physical drivers: PV on solar irradiance, air temperature (higher
+temperatures lower panel efficiency), and clear-sky baselines; and the comparatively small
+wind fleet on wind speed. The same calibration and proper-scoring evaluation methodology
+applies, enabling an apples-to-apples comparison with the demand models.
 
 \subsection{Integration into a Net-Demand Distribution (T4)}
 \label{sec:integration}
 
 The operationally decisive quantity is net demand $N_t = D_t - R_t$, where $R_t$ is
 renewable generation. Its distribution depends on the \emph{dependence} between $D_t$ and
-$R_t$: both are driven by common weather (heat raises cooling demand and PV output
-simultaneously), so they cannot be treated as independent. We will pursue two
-complementary integration strategies:
+$R_t$: both respond to shared weather and seasonal drivers---long, clear summer days raise
+cooling demand and, through extended daylight and few clouds, also raise PV output (even
+though higher air temperatures themselves slightly \emph{lower} panel efficiency)---so they
+cannot be treated as independent. We will pursue two complementary integration strategies:
 \begin{itemize}[leftmargin=1.4em]
     \item \textbf{Marginal coupling:} model the predictive distributions of $D_t$ and
         $R_t$ separately and combine them through their estimated statistical dependence,
@@ -524,7 +530,7 @@ prototype for transfer to NOGA.
         net-demand forecasting on the Israeli grid.
 \end{enumerate}
 
-\paragraph{Operational value for NOGA (impact).}
+\paragraph{Operational value for NOGA and the Israeli electricity market (impact).}
 \begin{enumerate}[leftmargin=1.6em]
     \item A demonstrated, quantified reduction in expected operational cost and shortfall
         risk relative to the \emph{current} operational forecast---extending the
@@ -547,14 +553,31 @@ prototype for transfer to NOGA.
 \label{sec:risks}
 
 \subsection{Criteria for Success}
+The overarching criterion is simple: \emph{more accurate and more useful prediction models
+than those in operational use today}. Concretely, the project will be judged successful if
+it delivers:
+\begin{itemize}[leftmargin=1.4em]
+    \item \textbf{Improved forecast skill:} calibrated probabilistic forecasts of demand,
+        renewable generation, and net demand that improve on the current NOGA day-ahead
+        forecast on proper scoring rules (e.g.\ CRPS) and that achieve reliable empirical
+        coverage at the targeted levels.
+    \item \textbf{Reduced operational cost:} a measurable reduction in expected operational
+        (reserve and balancing) cost relative to the current operational forecast under
+        realistic asymmetric cost structures, consistent with the gains already observed in
+        our preliminary study.
+    \item \textbf{Operational usability:} a documented, reproducible decision tool and open
+        benchmark that NOGA can run on its own data, together with at least one
+        peer-reviewed publication.
+\end{itemize}
 
 \subsection{Risks and Mitigations}
 The principal risk to the project is the \emph{availability and quality of data}, which we
-assess as \textbf{low likelihood}. The team has substantial prior experience working with
+assess as \textbf{low risk}. The team has substantial prior experience working with
 both NOGA operational data and Israel Meteorological Service (IMS) weather data, and our
 preliminary work has already established a working, validated data pipeline spanning three
 years of demand, day-ahead-forecast, and weather records (Section~\ref{sec:prelim}).
-Renewable (PV) generation data is likewise available and will be incorporated in Task~T1.
+Renewable (PV) generation data is likewise available as a public dataset provided by NOGA
+and will be incorporated in Task~T1.
 Should the renewable data nonetheless prove insufficient or corrupt for the integrated
 net-demand task, the modular design (Section~\ref{sec:methodology}) allows the project
 to proceed on demand forecasting and the remaining components---all of which build on the

@@ -45,7 +45,7 @@
 ## 5. Page 6 — §1.5 Preliminary Results (Highlight)
 - **Highlighted text:** "PI"
 - **Comment:** research team
-- **Suggested change:** Replace "the PI" with "the research team".
+- **Status:** Addressed ("the PI" → "the research team").
 
 ## 6. Page 7 — Figures / Preliminary Results (Sticky Note)
 - **Comment:** Please display the graphs to that they are readable. There is no restriction
@@ -69,6 +69,9 @@
 
   Additionally, we can start collecting real-time data using this API interface, which I
   never tried before: https://ims.gov.il/he/ObservationDataAPI
+- **Status:** Addressed (§3.2 "Exogenous drivers" rewritten: irradiance measured at few
+  stations, cloud cover inferred from it, air temperature lowers PV efficiency, real-time
+  IMS API). The station list, once received, can be cited.
 
 ## 9. Page 10 — §3.2 Data Collection / weather features (Highlight)
 - **Highlighted text:** "wind speed"
@@ -76,6 +79,8 @@
   generated power like the Ashalim Power Station). But air temperature should be part of
   predicting PV production since the higher the temperature, the lower the panels'
   efficiency
+- **Status:** Addressed (§3.3 now conditions PV on irradiance + air temperature, and only
+  the small wind fleet on wind speed).
 
 ## 10. Page 11 — §3.4 Integration into a Net-Demand Distribution (Highlight)
 - **Highlighted text:** "(heat raises cooling demand and PV output simultaneously"
@@ -90,20 +95,30 @@
   is not prevalent in Israel). This makes the precise prediction of solar production more
   complex, even without considering the decentralized nature of panel geographic
   distribution.
+- **Status:** Addressed (§3.4 corrected: PV output rises from long, clear days — extended
+  daylight and few clouds — not from heat, which slightly lowers panel efficiency; the
+  demand–PV dependence is now attributed to shared weather/seasonal drivers).
 
 ## 11. Page 12 — §4 "Operational value for Noga (impact)" (Highlight)
 - **Highlighted text:** "for Noga (impact)."
 - **Comment:** Maybe not just NOGA but rather the Israeli electricity market
+- **Status:** Addressed (heading → "Operational value for NOGA and the Israeli electricity
+  market").
 
 ## 12. Page 12 — §5.1 Criteria for Success heading (Highlight)
 - **Highlighted text:** "Criteria for Success"
 - **Comment:** I guess that this should be very simple: the development of more accurate
   prediction models
+- **Status:** Addressed (filled the empty §5.1 with success criteria led by "more accurate
+  and more useful prediction models", plus cost-reduction and usability criteria).
 
 ## 13. Page 13 — §5.2 Risks and Mitigations (Highlight)
 - **Highlighted text:** "low likelihood"
 - **Comment:** low risk [low likelihood may be read as a low likelihood to get the data]
+- **Status:** Addressed ("low likelihood" → "low risk").
 
 ## 14. Page 13 — §5.2 Risks and Mitigations (Highlight)
 - **Highlighted text:** "available"
 - **Comment:** as a public dataset provided by NOGA
+- **Status:** Addressed (§5.2 now states renewable PV data is "available as a public
+  dataset provided by NOGA").
