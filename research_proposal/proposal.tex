@@ -79,12 +79,16 @@
     \rule{\textwidth}{1.2pt}\\[0.9cm]
 
     \begin{tabular}{rl}
-        \textbf{Principal Researcher:} & [Name] \\[0.35em]
-        \textbf{Co-Researchers:}       & [Names of co-Researchers --- placeholder] \\[0.35em]
+        \textbf{Principal Researcher 1:} & Assoc.\ Prof.\ Or Aleksandrowicz \\
+                                          & \phantom{}Faculty of Architecture and Town Planning \\
+                                          & \phantom{}oraleks@technion.ac.il \\[0.35em]
+        \textbf{Principal Researcher 2:} & Prof.\ Avigdor Gal \\
+                                          & \phantom{}Faculty of Data \& Decision Sciences \\
+                                          & \phantom{}avigal@technion.ac.il \\[0.35em]
+        \textbf{Co-Researcher:}          & Dr.\ Gilad Kutiel \\
+                                          & \phantom{}gilad.kutiel@gmail.com \\[0.35em]
         \textbf{Institution:}            & Technion --- Israel Institute of Technology \\[0.35em]
-        \textbf{Faculty / Department:}   & [Faculty --- placeholder] \\[0.35em]
         \textbf{Partner bodies:}         & NOGA --- Israel ISO (data \& domain collaboration) \\[0.35em]
-        \textbf{Contact:}                & gilad.kutiel@gmail.com \\[0.35em]
     \end{tabular}
 
     \vspace{0.9cm}
@@ -95,7 +99,7 @@
                                           & 2.1.5 (stability \& ancillary services / reserve),\\
                                           & 2.1.6 (sustainable / renewable integration),\\
                                           & 2.4.3 (operation under limited reserves) \\[0.35em]
-        \textbf{Proposed duration:}       & 36 months (submitted annually) \\[0.35em]
+        \textbf{Proposed duration:}       & 12 months \\[0.35em]
         \textbf{Date of submission:}      & June 2026 \\
     \end{tabular}
 \end{center}
@@ -588,42 +592,212 @@ regardless.
 \section{Work Plan and Timeline}
 \label{sec:workplan}
 
+The project is planned as a focused \textbf{12-month} effort, organised into six work
+packages (WP1--WP6) that map directly onto the five research tasks
+(Section~\ref{sec:objectives}) plus a cross-cutting management and dissemination package.
+The work packages are partially overlapping: data preparation (WP1) feeds the demand and
+renewable models (WP2--WP3), which are then integrated (WP4) and converted into a validated
+decision layer (WP5), while management, publications, and reporting (WP6) run throughout.
+The schedule and milestones are summarised in Figure~\ref{fig:gantt}.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{ganttchart}[
+        hgrid, vgrid,
+        bar/.append style={fill=nogablue!65},
+        bar height=0.55,
+        group/.append style={fill=nogablue},
+        group right shift=0, group left shift=0, group peaks height=0,
+        milestone/.append style={fill=nogablue!50!red},
+        progress label text={}, link/.style={->},
+        title/.append style={fill=nogablue!15},
+        bar label font=\normalsize, group label font=\bfseries\normalsize,
+        title label font=\bfseries\normalsize, milestone label font=\normalsize,
+        ]{1}{12}
+        \gantttitle{Project month}{12} \\
+        \gantttitlelist{1,...,12}{1} \\
+        \ganttgroup{WP1 --- Data Collection \& Open Benchmark (T1)}{1}{4} \\
+        \ganttbar{Kick-off, data agreements \& access}{1}{1} \\
+        \ganttbar{Augment dataset: renewable, reserve/balancing}{1}{3} \\
+        \ganttbar{Exogenous drivers: weather, calendar, special days}{2}{3} \\
+        \ganttbar{Release reproducible benchmark (fixed splits)}{3}{4} \\
+        \ganttgroup{WP2 --- Probabilistic Demand Forecasting (T2)}{3}{7} \\
+        \ganttbar{Develop demand models (quantile/density/non-param.)}{3}{6} \\
+        \ganttbar{Distribution-free calibration layer}{5}{7} \\
+        \ganttbar{Benchmark vs NOGA operational baseline}{6}{7} \\
+        \ganttgroup{WP3 --- Renewable-Generation Forecasting (T3)}{4}{8} \\
+        \ganttbar{Adapt models to bounded, diurnal PV \& wind}{4}{7} \\
+        \ganttbar{Calibration \& proper-scoring evaluation}{6}{8} \\
+        \ganttgroup{WP4 --- Integration into Net-Demand (T4)}{7}{10} \\
+        \ganttbar{Marginal coupling with estimated dependence}{7}{9} \\
+        \ganttbar{Joint demand--renewable modelling}{8}{10} \\
+        \ganttbar{Compare strategies: skill, scenarios, cost}{9}{10} \\
+        \ganttgroup{WP5 --- Decision Layer \& Validation (T5)}{9}{12} \\
+        \ganttbar{Cost-optimal decision layer}{9}{11} \\
+        \ganttbar{Operational validation vs NOGA forecast}{10}{11} \\
+        \ganttbar{Deployable prototype \& transfer to NOGA}{11}{12} \\
+        \ganttgroup{WP6 --- Management \& Dissemination}{1}{12} \\
+        \ganttbar{Project management \& periodic reporting}{1}{12} \\
+        \ganttbar{Publications \& dissemination}{6}{12} \\
+        \ganttmilestone{Milestones}{1}
+        \ganttmilestone{}{4}\ganttmilestone{}{7}\ganttmilestone{}{10}\ganttmilestone{}{12}
+    \end{ganttchart}%
+    }
+    \caption{Twelve-month work plan. Bars show active months; diamonds ($\blacklozenge$)
+             mark milestones: \textbf{M1}~kick-off and data access; \textbf{M4}~public
+             benchmark released; \textbf{M7}~calibrated demand \& renewable models;
+             \textbf{M10}~integrated net-demand distribution; \textbf{M12}~deployable
+             prototype and final report.}
+    \label{fig:gantt}
+\end{figure}
+
 % ===============================================================
 \section{Required Resources and Budget}
 \label{sec:budget}
 
+The total requested budget is \textbf{NIS~261{,}280} over the 12-month period. The
+overwhelming majority funds personnel; modest funds cover AI/cloud compute for model
+training and evaluation. The two Principal Researchers contribute their time in kind and
+are not charged to the grant. Overhead is applied at 15\%. No special equipment is
+required: the existing data pipeline and standard GPU/cloud resources suffice.
+
+\begin{table}[H]
+\centering
+\caption{Personnel plan (12 months).}
+\label{tab:personnel}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llrrrr@{}}
+\toprule
+\textbf{Person} & \textbf{Role} & \textbf{\% Pos.} & \textbf{Months} &
+\textbf{Monthly (NIS)} & \textbf{Budget (NIS)} \\
+\midrule
+Or Aleksandrowicz       & Principal Researcher 1 & 20\% & 12 & --- (in kind) & 0 \\
+Avigdor Gal             & Principal Researcher 2 & 5\%  & 12 & --- (in kind) & 0 \\
+Gilad Kutiel            & Co-Researcher / Project Manager & 66\% & 12 & 23{,}000 & 182{,}160 \\
+Research assistant (TBD)& Data processing        & 20\% & 12 & 14{,}600 & 35{,}040 \\
+\midrule
+\multicolumn{5}{r}{\textbf{Total personnel}} & \textbf{217{,}200} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Total budget.}
+\label{tab:budget}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Item} & \textbf{Amount (NIS)} \\
+\midrule
+Personnel                       & 217{,}200 \\
+AI and cloud processing         & 10{,}000 \\
+Overhead (15\%)                 & 34{,}080 \\
+\midrule
+\textbf{Total}                  & \textbf{261{,}280} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 % ===============================================================
 \section{Research Staff}
 \label{sec:staff}
 
-\emph{The following are placeholders to be completed with full CVs (up to one page per
-researcher), per Appendix~A, \S A.4.}
+The team combines complementary expertise: urban climatology and large-scale energy-data
+analysis (Aleksandrowicz), data science and management of uncertain data (Gal), and
+algorithms and machine learning for the cost-sensitive forecasting prototype that underlies
+this proposal (Kutiel). Aleksandrowicz and Gal already collaborate on electricity-demand
+modelling in Israel (see grants below). Full CVs are appended per Appendix~A, \S A.4.
 
-\subsection*{Principal Researcher --- (Placeholder)}
+\subsection*{Principal Researcher 1 --- Assoc.\ Prof.\ Or Aleksandrowicz}
 \begin{itemize}[leftmargin=1.4em]
-    \item \textbf{Affiliation:} Technion --- Israel Institute of Technology,
-          [Faculty/Department --- placeholder].
-    \item \textbf{Contact:} [email --- placeholder].
-    \item \textbf{Role:} overall scientific responsibility and the designated contact
-          person for NOGA; leads modelling, integration, and the decision layer.
-    \item \textbf{Background \& relevant experience:} [Short bio --- placeholder:
-          machine learning, optimisation, and algorithms. research team of the preliminary
-          cost-sensitive electricity-demand forecasting study underlying this proposal.]
-    \item \textbf{Selected publications (up to 5):} [Placeholder --- list up to five
-          publications most relevant to the proposal, with full citation details; note
-          any related patents or spin-off products.]
+    \item \textbf{Affiliation:} Faculty of Architecture and Town Planning, Technion ---
+          Israel Institute of Technology. \textbf{Contact:} oraleks@technion.ac.il.
+    \item \textbf{Role:} co-lead and designated contact for NOGA; leads the weather, urban
+          microclimate, and renewable/PV-physics aspects, and the local Israeli context of
+          the demand and net-demand modelling.
+    \item \textbf{Background:} experienced researcher in architectural and urban
+          climatology, building science, and large-scale data analysis. Runs the Big Data
+          in Architectural Research Lab and, with Prof.\ Gal, models the effects of user
+          behaviour and weather on building energy consumption from large smart-meter
+          datasets; expertise in GIS and urban microclimate monitoring.
+    \item \textbf{Selected publications:}
+    \begin{enumerate}[leftmargin=1.6em,nosep]
+        \item J.\ Natanian, O.\ Aleksandrowicz, T.\ Auer. A Parametric Approach to
+              Optimizing Urban Form, Energy Load Match and Environmental Quality.
+              \emph{Applied Energy} 254, 2019.
+        \item O.\ Aleksandrowicz, S.\ Zur, Y.\ Lebendiger, Y.\ Lerman. Shade maps for
+              prioritizing municipal microclimatic action in hot climates.
+              \emph{Sustainable Cities and Society} 53:101931, 2020.
+        \item O.\ Aleksandrowicz, D.\ Pearlmutter. The significance of shade provision in
+              reducing street-level summer heat stress. \emph{Landscape and Urban Planning}
+              229:104588, 2023.
+        \item O.\ Aleksandrowicz, T.\ Saroglou, D.\ Pearlmutter. Evaluation of summer mean
+              radiant temperature simulation in ENVI-met. \emph{Building and Environment}
+              245:110881, 2023.
+    \end{enumerate}
+    \item \textbf{Selected recent grants:} Israel Ministry of Energy and Infrastructure,
+          \emph{Development of a hi-res spatial and temporal electricity demand model in
+          Israel} (PI1, with Prof.\ A.\ Gal; 2024--2026, NIS~450{,}000); Israel Science
+          Foundation, \emph{The climates we have built} (PI; 2023--2027, NIS~640{,}000);
+          Israel Ministry of Science, \emph{High-resolution mapping of urban tree-planting
+          potential} (PI; 2023--2026, NIS~499{,}040).
 \end{itemize}
 
-\subsection*{Co-Researchers / Team (placeholders)}
+\subsection*{Principal Researcher 2 --- Prof.\ Avigdor Gal}
 \begin{itemize}[leftmargin=1.4em]
-    \item \textbf{Co-Researcher} --- [name, affiliation, role, short bio, contact, up to
-          5 relevant publications].
-    \item \textbf{Postdoctoral researcher} --- [to be recruited; probabilistic forecasting
-          / energy systems].
-    \item \textbf{Graduate research assistants ($\times2$)} --- [to be recruited; one
-          focused on probabilistic forecasting and calibration, one on renewable forecasting
-          and integration].
+    \item \textbf{Affiliation:} Benjamin and Florence Free Chaired Professor, Faculty of
+          Data \& Decision Sciences, Technion --- Israel Institute of Technology.
+          \textbf{Contact:} avigal@technion.ac.il.
+    \item \textbf{Role:} co-lead for the probabilistic-modelling methodology; leads
+          uncertainty modelling, calibration, and the integration of demand and renewable
+          predictive distributions.
+    \item \textbf{Background:} D.Sc.\ (Technion, 1995). Research interests include
+          management of uncertain data, semantic data integration, complex event
+          processing, and temporal databases. Vice-Dean for Industry Relations and
+          co-Director of the Data Science \& Engineering programs; recipient of the 2025
+          Shillman Prize and multiple best-paper awards.
+    \item \textbf{Selected publications:}
+    \begin{enumerate}[leftmargin=1.6em,nosep]
+        \item I.\ Nachmani, B.\ Genossar, C.\ Scharf, R.\ Shraga, A.\ Gal. SLACE: A
+              Monotone and Balance-Sensitive Loss Function for Ordinal Regression.
+              \emph{AAAI} 2025.
+        \item H.\ Stolte, I.\ Sadeh, E.\ Pueschel, A.\ Gal, M.\ Weidlich. SOUND: Sanity
+              Checking of Pipelines for Uncertain and Sparse Data Series. \emph{ICDE} 2025.
+        \item C.\ Scharf, A.\ Gal, H.\ Roitman, C.\ Domshlak. A Rank-Based Approach to
+              Recommender System's Top-K Queries with Uncertain Scores. \emph{SIGMOD} 2025.
+        \item M.\ Matyash, A.\ Gal, A.\ Senderovich. DDTR: Diffusion Denoising Trace
+              Recovery. \emph{ICPM} 2025 (best paper award).
+        \item A.\ Sagi, D.\ Broitman, D.\ Czamanski, A.\ Gal. An Unsupervised Machine
+              Learning Approach to the Spatial Analysis of Urban Systems. \emph{Land Use
+              Policy} 144, 2024.
+    \end{enumerate}
+    \item \textbf{Selected recent grants:} Technion Sustainability Frontier,
+          \emph{Explaining energy consumption in complex buildings} (with O.\ Aleksandrowicz;
+          2026--2027, NIS~100{,}000); Israel Science Foundation, \emph{Foundations of
+          Stochastically Known Event Logs} (with I.\ Cohen; 2024--2027, NIS~800{,}000);
+          BSF, \emph{FairPrep: Fair Data Preparation} (with R.\ Shraga; 2025--2027).
+\end{itemize}
+
+\subsection*{Co-Researcher --- Dr.\ Gilad Kutiel}
+\begin{itemize}[leftmargin=1.4em]
+    \item \textbf{Role:} Co-Researcher and Project Manager (66\% position); leads day-to-day
+          model development, the cost-evaluation pipeline, and engineering of the
+          probabilistic forecasting and decision-layer software.
+    \item \textbf{Contact:} gilad.kutiel@gmail.com.
+    \item \textbf{Background:} researcher in algorithms and machine learning, and developer
+          of the preliminary cost-sensitive electricity-demand forecasting study that
+          underlies this proposal (three years of NOGA and IMS data; 40--73\% operational-cost
+          reductions over symmetric baselines). Responsible for the validated data pipeline,
+          baseline comparison, and cost-evaluation methodology reused throughout the project.
+\end{itemize}
+
+\subsection*{To be recruited}
+\begin{itemize}[leftmargin=1.4em]
+    \item \textbf{Research assistant (data processing, 20\%)} --- supports dataset
+          augmentation (renewable, reserve/balancing, and weather features) and benchmark
+          maintenance under WP1.
 \end{itemize}
 
 % ===============================================================
