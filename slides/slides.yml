@@ -38,3 +38,7 @@ presentation:
         - Split the slide into two and show big numbers:
             - 40% - 73%
             - 8% - 17%
+
+    - title: Questions and Discussion
+      content:
+        - Show a big question mark in the center of the slide.
