@@ -1,0 +1,18 @@
+# This is the structure for a Beamer presentation based on our research_proposal
+# Read the research_proposal and create the presentation
+
+presentation:
+  title: Integrated Probabilistic Forecasting of Electricity Demand and Renewable Generation for Risk-Aware Grid Operation
+  authors:
+    - Assoc. Prof. Or Aleksandrowicz
+    - Prof. Avigdor Gal
+    - Dr. Gilad Kutiel
+
+  slides:
+    - title: Point Prediction vs. Probabilistic Forecasting
+      content:
+        - On top "Tomorrow Demand?" on bottom split the slide into two halves:
+            - On the left is point prediction and just write a big "7"
+            - On The right reveal one by one a grid of probabilistic distributions where the mean is 7:
+                - Normal distribution, Normal distribution with small variance, Normal distribution with large variance, A distribution with two peaks, etc... overall show 9 distributions in a 3x3 grid.
+                - Reveal the first 3 one by one, then the rest.
