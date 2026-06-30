@@ -16,3 +16,9 @@ presentation:
             - On The right reveal one by one a grid of probabilistic distributions where the mean is 7:
                 - Normal distribution, Normal distribution with small variance, Normal distribution with large variance, A distribution with two peaks, etc... overall show 9 distributions in a 3x3 grid.
                 - Reveal the first 3 one by one, then the rest.
+
+    - title: Net Demand and Renewable Generation Forecasting
+      content:
+        - On the left show a distribution of the Renewable Generation Forecast
+        - On the right show a distribution of the Total Demand Forecast
+        - Then draw arrow from them to the bottom center and show the combined Net Demand Forecast distribution.

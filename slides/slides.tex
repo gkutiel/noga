@@ -1,0 +1,93 @@
+% =====================================================================
+%  Minimal Beamer deck generated from slides/slides.yml
+%  Integrated Probabilistic Forecasting of Electricity Demand and
+%  Renewable Generation for Risk-Aware Grid Operation
+%  Compile:  latexmk -pdf slides.tex   (or pdflatex slides.tex)
+% =====================================================================
+\documentclass[aspectratio=169]{beamer}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{tikz}
+
+\usetheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize items}[circle]
+
+\definecolor{nogablue}{RGB}{0,76,140}
+\setbeamercolor{frametitle}{fg=nogablue}
+\setbeamercolor{title}{fg=nogablue}
+\setbeamercolor{structure}{fg=nogablue}
+
+% ---------------------------------------------------------------------
+%  \dcell{<overlay>}{<col 0-2>}{<row 0-2>}{<pgfmath expr in \x on [0,2]>}
+%  Draws one mini probability density inside the 3x3 grid.
+% ---------------------------------------------------------------------
+\newcommand{\dcell}[4]{%
+  \only<#1>{%
+    \begin{scope}[shift={({#2*2.7},{-#3*2.05})}]
+      \draw[gray!40,dashed] (1,0) -- (1,1.55);
+      \draw[->,gray!65] (-0.15,0) -- (2.2,0);
+      \draw[very thick,nogablue,line cap=round]
+            plot[domain=0:2,samples=80,smooth] (\x,{#4});
+    \end{scope}%
+  }%
+}
+
+\title{Integrated Probabilistic Forecasting of Electricity Demand and
+       Renewable Generation for Risk-Aware Grid Operation}
+\subtitle{From Cost-Sensitive Point Forecasts to Calibrated Predictive Distributions}
+\author{Assoc.\ Prof.\ Or Aleksandrowicz \and
+        Prof.\ Avigdor Gal \and
+        Dr.\ Gilad Kutiel}
+\institute{Technion --- Israel Institute of Technology}
+\date{June 2026}
+
+\begin{document}
+
+% ===================== Title ==========================================
+{\setbeamertemplate{navigation symbols}{}
+\begin{frame}[plain]
+  \titlepage
+\end{frame}}
+
+% ============ Point Prediction vs. Probabilistic Forecasting ==========
+\begin{frame}{Tomorrow's Demand?}
+  \begin{columns}[T,onlytextwidth]
+
+    % ---- Left: point prediction --------------------------------------
+    \begin{column}{0.30\textwidth}
+      \centering
+      {\large\textbf{Point prediction}}\\[0.3em]
+      \vfill
+      {\usebeamercolor[fg]{structure}\fontsize{120}{120}\selectfont\textbf{7}}
+      \vfill
+    \end{column}
+
+    \hfill\vrule\hfill
+
+    % ---- Right: probabilistic forecast (3x3 grid) --------------------
+    \begin{column}{0.66\textwidth}
+      \centering
+      {\large\textbf{Probabilistic forecast}}\\[0.4em]
+      \begin{tikzpicture}[scale=0.60]
+        % Row 0 -- revealed one by one
+        \dcell{2-}{0}{0}{1.20*exp(-((\x-1)*(\x-1))/0.30)}                                  % normal
+        \dcell{3-}{1}{0}{1.35*exp(-((\x-1)*(\x-1))/0.06)}                                  % small variance
+        \dcell{4-}{2}{0}{0.85*exp(-((\x-1)*(\x-1))/0.90)}                                  % large variance
+        % Rows 1 & 2 -- revealed together
+        \dcell{5-}{0}{1}{0.95*exp(-((\x-0.55)*(\x-0.55))/0.06)+0.95*exp(-((\x-1.45)*(\x-1.45))/0.06)} % bimodal
+        \dcell{5-}{1}{1}{15*(\x*\x)*exp(-2.6*\x)}                                          % right skew
+        \dcell{5-}{2}{1}{15*((2-\x)*(2-\x))*exp(-2.6*(2-\x))}                              % left skew
+        \dcell{5-}{0}{2}{1.05*exp(-((((\x-1)*(\x-1))/0.45)^2))}                            % plateau / uniform
+        \dcell{5-}{1}{2}{1.20*exp(-abs(\x-1)/0.22)}                                        % heavy peak (Laplace)
+        \dcell{5-}{2}{2}{0.80*exp(-((\x-0.5)*(\x-0.5))/0.04)+0.80*exp(-((\x-1)*(\x-1))/0.04)+0.80*exp(-((\x-1.5)*(\x-1.5))/0.04)} % trimodal
+      \end{tikzpicture}\\[0.2em]
+      \only<5->{\footnotesize all with mean $=7$}
+    \end{column}
+
+  \end{columns}
+\end{frame}
+
+\end{document}
