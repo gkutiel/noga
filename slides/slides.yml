@@ -22,3 +22,12 @@ presentation:
         - On the left show a distribution of the Renewable Generation Forecast
         - On the right show a distribution of the Total Demand Forecast
         - Then draw arrow from them to the bottom center and show the combined Net Demand Forecast distribution.
+
+    - title: Risk-Aware Prediction
+      content:
+        - Draw a 3 layer model:
+            - Layer 1 (bottom): Probabilistic Forecasting, inputs are weather data, historical demand
+            - Layer 2 (middle): Net Demand Forecasting, inputs are historical demand
+            - Layer 3 (top): Risk-Aware Decision Making, inputs bidding
+
+        - All inputs should be illustrated (no text at all) and shown as arrows going into the respective layers.

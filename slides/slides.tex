@@ -10,12 +10,15 @@
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
 \usepackage{tikz}
+\usetikzlibrary{arrows.meta}
 
 \usetheme{default}
 \setbeamertemplate{navigation symbols}{}
 \setbeamertemplate{itemize items}[circle]
 
 \definecolor{nogablue}{RGB}{0,76,140}
+\definecolor{renewgreen}{RGB}{34,139,34}
+\definecolor{netorange}{RGB}{200,90,20}
 \setbeamercolor{frametitle}{fg=nogablue}
 \setbeamercolor{title}{fg=nogablue}
 \setbeamercolor{structure}{fg=nogablue}
@@ -31,6 +34,21 @@
       \draw[->,gray!65] (-0.15,0) -- (2.2,0);
       \draw[very thick,nogablue,line cap=round]
             plot[domain=0:2,samples=80,smooth] (\x,{#4});
+    \end{scope}%
+  }%
+}
+
+% ---------------------------------------------------------------------
+%  \panel{<overlay>}{<shift coord>}{<color>}{<title>}{<pgfmath expr>}
+%  Draws a labelled predictive density (title above the curve).
+% ---------------------------------------------------------------------
+\newcommand{\panel}[5]{%
+  \only<#1->{%
+    \begin{scope}[shift={#2}]
+      \draw[->,gray!60] (-0.2,0) -- (2.35,0);
+      \draw[very thick,#3,line cap=round]
+            plot[domain=0:2,samples=80,smooth] (\x,{#5});
+      \node[#3,anchor=south,font=\small\bfseries] at (1,1.55) {#4};
     \end{scope}%
   }%
 }
@@ -88,6 +106,37 @@
     \end{column}
 
   \end{columns}
+\end{frame}
+
+% ===== Net Demand and Renewable Generation Forecasting ================
+\begin{frame}{Net Demand $=$ Total Demand $-$ Renewable Generation}
+  \centering
+  \vspace{0.3em}
+  \begin{tikzpicture}[scale=1.0]
+
+    % ---- Top-left: renewable generation forecast (skewed, bounded) ---
+    \panel{1}{(0,3)}{renewgreen}{Renewable Generation}{15*(\x*\x)*exp(-2.6*\x)}
+
+    % ---- Top-right: total demand forecast (near-normal) --------------
+    \panel{2}{(5,3)}{nogablue}{Total Demand}{1.20*exp(-((\x-1)*(\x-1))/0.30)}
+
+    % ---- Converging arrows + combined net-demand distribution --------
+    \only<3->{
+      \draw[-{Latex[length=2.6mm]},thick,gray!65]
+            (1.1,2.8) .. controls (1.7,2.1) and (2.3,1.9) .. (3.0,1.55);
+      \draw[-{Latex[length=2.6mm]},thick,gray!65]
+            (6.0,2.8) .. controls (5.4,2.1) and (4.7,1.9) .. (4.0,1.55);
+
+      % bottom-centre: net demand -- wider, more volatile, irregular
+      \begin{scope}[shift={(2.5,0)}]
+        \draw[->,gray!60] (-0.2,0) -- (2.35,0);
+        \draw[very thick,netorange,line cap=round]
+              plot[domain=0:2,samples=90,smooth]
+              (\x,{0.75*exp(-((\x-0.7)*(\x-0.7))/0.15)+0.62*exp(-((\x-1.4)*(\x-1.4))/0.22)});
+        \node[netorange,anchor=north,font=\small\bfseries] at (1,-0.15) {Net Demand};
+      \end{scope}
+    }
+  \end{tikzpicture}
 \end{frame}
 
 \end{document}
