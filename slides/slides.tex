@@ -127,6 +127,9 @@
       \centering
       {\large\textbf{Probabilistic forecast}}\\[0.4em]
       \begin{tikzpicture}[scale=0.60]
+        % Pin the bounding box to the full 3x3 grid so revealing cells
+        % one-by-one never re-centres the picture (no layout shift).
+        \useasboundingbox (-0.2,-4.2) rectangle (7.65,1.6);
         % Row 0 -- revealed one by one
         \dcell{2-}{0}{0}{1.20*exp(-((\x-1)*(\x-1))/0.30)}                                  % normal
         \dcell{3-}{1}{0}{1.35*exp(-((\x-1)*(\x-1))/0.06)}                                  % small variance
@@ -139,7 +142,7 @@
         \dcell{5-}{1}{2}{1.20*exp(-abs(\x-1)/0.22)}                                        % heavy peak (Laplace)
         \dcell{5-}{2}{2}{0.80*exp(-((\x-0.5)*(\x-0.5))/0.04)+0.80*exp(-((\x-1)*(\x-1))/0.04)+0.80*exp(-((\x-1.5)*(\x-1.5))/0.04)} % trimodal
       \end{tikzpicture}\\[0.2em]
-      \only<5->{\footnotesize all with mean $=7$}
+      \onslide<5->{\footnotesize all with mean $=7$}
     \end{column}
 
   \end{columns}
@@ -150,6 +153,9 @@
   \centering
   \vspace{0.3em}
   \begin{tikzpicture}[scale=1.0]
+    % Pin the bounding box so revealing the panels/net curve does not
+    % re-centre the picture (no layout shift across overlays).
+    \useasboundingbox (-0.5,-0.7) rectangle (7.5,5.0);
 
     % ---- Top-left: renewable generation forecast (skewed, bounded) ---
     \panel{1}{(0,3)}{renewgreen}{Renewable Generation}{15*(\x*\x)*exp(-2.6*\x)}
@@ -184,6 +190,9 @@
                     align=center,font=\bfseries,line width=1pt},
       feed/.style={-{Latex[length=2.4mm]},thick,gray!60},
       up/.style={-{Latex[length=3mm]},line width=1.3pt,gray!70}]
+    % Pin the bounding box to the full 3-layer stack so building it up
+    % bottom-to-top does not re-centre the picture (no layout shift).
+    \useasboundingbox (0.6,-0.25) rectangle (8.2,4.55);
 
     % ---- Layer 1 (bottom): Probabilistic Forecasting ----------------
     \only<1->{
