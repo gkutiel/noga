@@ -19,6 +19,7 @@
 \definecolor{nogablue}{RGB}{0,76,140}
 \definecolor{renewgreen}{RGB}{34,139,34}
 \definecolor{netorange}{RGB}{200,90,20}
+\definecolor{riskpurple}{RGB}{120,40,140}
 \setbeamercolor{frametitle}{fg=nogablue}
 \setbeamercolor{title}{fg=nogablue}
 \setbeamercolor{structure}{fg=nogablue}
@@ -52,6 +53,42 @@
     \end{scope}%
   }%
 }
+
+% ---------------------------------------------------------------------
+%  Text-free input icons for the Risk-Aware Prediction slide.
+%  Each takes a shift coordinate, e.g. \iconweather{(1,1)}.
+% ---------------------------------------------------------------------
+\newcommand{\iconweather}[1]{% sun + cloud  (weather data)
+  \begin{scope}[shift={#1},scale=0.5]
+    \fill[yellow!85!orange] (0,0.12) circle (0.25);
+    \foreach \a in {0,45,...,315}{%
+      \draw[yellow!85!orange,line width=0.7pt] (\a:0.32) -- (\a:0.46);}
+    \fill[gray!35] (0.46,-0.04) circle (0.20);
+    \fill[gray!35] (0.73,0.03) circle (0.25);
+    \fill[gray!35] (0.99,-0.04) circle (0.18);
+    \fill[gray!35] (0.44,-0.20) rectangle (1.00,-0.02);
+  \end{scope}}
+\newcommand{\iconbars}[1]{% bar chart  (historical demand)
+  \begin{scope}[shift={#1},scale=0.5]
+    \draw[gray!55,line width=0.7pt] (0,0) -- (1.05,0);
+    \draw[gray!55,line width=0.7pt] (0,0) -- (0,0.85);
+    \fill[nogablue!75] (0.12,0) rectangle (0.32,0.38);
+    \fill[nogablue!75] (0.42,0) rectangle (0.62,0.66);
+    \fill[nogablue!75] (0.72,0) rectangle (0.92,0.48);
+  \end{scope}}
+\newcommand{\iconline}[1]{% line chart  (historical demand series)
+  \begin{scope}[shift={#1},scale=0.5]
+    \draw[gray!55,line width=0.7pt] (0,0) -- (1.05,0);
+    \draw[gray!55,line width=0.7pt] (0,0) -- (0,0.85);
+    \draw[nogablue!85,line width=1pt]
+          (0.10,0.28) -- (0.35,0.58) -- (0.60,0.22) -- (0.85,0.66);
+  \end{scope}}
+\newcommand{\iconcoins}[1]{% stacked coins  (bidding)
+  \begin{scope}[shift={#1},scale=0.5]
+    \foreach \y in {0,0.16,0.32}{%
+      \fill[yellow!80!orange] (0,\y) ellipse (0.36 and 0.12);
+      \draw[orange!75!black,line width=0.5pt] (0,\y) ellipse (0.36 and 0.12);}
+  \end{scope}}
 
 \title{Integrated Probabilistic Forecasting of Electricity Demand and
        Renewable Generation for Risk-Aware Grid Operation}
@@ -135,6 +172,45 @@
               (\x,{0.75*exp(-((\x-0.7)*(\x-0.7))/0.15)+0.62*exp(-((\x-1.4)*(\x-1.4))/0.22)});
         \node[netorange,anchor=north,font=\small\bfseries] at (1,-0.15) {Net Demand};
       \end{scope}
+    }
+  \end{tikzpicture}
+\end{frame}
+
+% ===================== Risk-Aware Prediction ==========================
+\begin{frame}{Risk-Aware Prediction}
+  \centering
+  \begin{tikzpicture}[scale=0.95,
+      layer/.style={rounded corners=3pt,minimum width=5cm,minimum height=1.2cm,
+                    align=center,font=\bfseries,line width=1pt},
+      feed/.style={-{Latex[length=2.4mm]},thick,gray!60},
+      up/.style={-{Latex[length=3mm]},line width=1.3pt,gray!70}]
+
+    % ---- Layer 1 (bottom): Probabilistic Forecasting ----------------
+    \only<1->{
+      \node[layer,draw=nogablue,fill=nogablue!12,text=nogablue] (l1) at (5.5,0.6)
+            {Probabilistic Forecasting};
+      \iconweather{(1.05,1.0)}
+      \iconbars{(1.05,0.05)}
+      \draw[feed] (1.85,1.05) -- ([yshift=3mm]l1.west);
+      \draw[feed] (1.85,0.25) -- ([yshift=-3mm]l1.west);
+    }
+
+    % ---- Layer 2 (middle): Net Demand Forecasting -------------------
+    \only<2->{
+      \node[layer,draw=netorange,fill=netorange!12,text=netorange] (l2) at (5.5,2.2)
+            {Net Demand Forecasting};
+      \iconline{(1.05,1.95)}
+      \draw[feed] (1.85,2.2) -- (l2.west);
+      \draw[up] (l1.north) -- (l2.south);
+    }
+
+    % ---- Layer 3 (top): Risk-Aware Decision Making ------------------
+    \only<3->{
+      \node[layer,draw=riskpurple,fill=riskpurple!12,text=riskpurple] (l3) at (5.5,3.8)
+            {Risk-Aware Decision Making};
+      \iconcoins{(1.15,3.78)}
+      \draw[feed] (1.85,3.8) -- (l3.west);
+      \draw[up] (l2.north) -- (l3.south);
     }
   \end{tikzpicture}
 \end{frame}
