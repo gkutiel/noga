@@ -20,6 +20,14 @@ presentation:
         - 3 columns from left to right (or, avi, gilad)
         - add 2-3 highlights for each person
 
+    - title: End to End Cost optimized Decision Making
+      content:
+        - We propose a novel end-to-end framework for cost-optimized decision making in the electricity grid.
+        - Illustrate the framework with a 3 layer model:
+            - Layer 1 (bottom): Probabilistic Forecasting, inputs are weather data, historical demand
+            - Layer 2 (middle): Net Demand Forecasting, inputs are historical demand
+            - Layer 3 (top): Risk-Aware Decision Making, inputs bidding
+
     - title: Point Prediction vs. Probabilistic Forecasting
       content:
         - On top "Tomorrow Demand?" on bottom split the slide into two halves:
@@ -35,6 +43,12 @@ presentation:
         - Then draw arrow from them to the bottom center and show the combined Net Demand Forecast distribution.
 
     - title: Risk-Aware Prediction
+      content:
+        - Show a distribution of the Net Demand combined with:
+            - Day ahead Market Bidding data (illustrated as a monotone increasing step function)
+            - Real-time Market Bidding Forecast (illustrated as a probabilistic distribution)
+
+    - title: Recap
       content:
         - Draw a 3 layer model:
             - Layer 1 (bottom): Probabilistic Forecasting, inputs are weather data, historical demand

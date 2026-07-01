@@ -11,6 +11,8 @@
 \usepackage{lmodern}
 \usepackage{tikz}
 \usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{pgfgantt}
 \usetikzlibrary{arrows.meta}
 
 \usetheme{default}
@@ -24,6 +26,16 @@
 \setbeamercolor{frametitle}{fg=nogablue}
 \setbeamercolor{title}{fg=nogablue}
 \setbeamercolor{structure}{fg=nogablue}
+
+% ---------------------------------------------------------------------
+%  Footline progress indicator: "<slide #> / <total slides>"
+%  (the title page uses the [plain] frame option and stays unnumbered)
+% ---------------------------------------------------------------------
+\setbeamertemplate{footline}{%
+  \begin{beamercolorbox}[wd=\paperwidth,ht=2.5ex,dp=1.2ex,right]{}%
+    \color{nogablue!70}\scriptsize\insertframenumber\,/\,\inserttotalframenumber\kern1.2em%
+  \end{beamercolorbox}%
+}
 
 % ---------------------------------------------------------------------
 %  \dcell{<overlay>}{<col 0-2>}{<row 0-2>}{<pgfmath expr in \x on [0,2]>}
@@ -168,6 +180,39 @@
   \end{columns}
 \end{frame}
 
+% ========= End-to-End Cost-Optimized Decision Making ===================
+\begin{frame}{End-to-End Cost-Optimized Decision Making}
+  \centering
+  \begin{tikzpicture}[scale=0.85,
+      layer/.style={rounded corners=3pt,minimum width=5cm,minimum height=1.2cm,
+                    align=center,font=\bfseries,line width=1pt},
+      feed/.style={-{Latex[length=2.4mm]},thick,gray!60},
+      up/.style={-{Latex[length=3mm]},line width=1.3pt,gray!70}]
+
+    % ---- Layer 1 (bottom): Probabilistic Forecasting ------------------
+    \node[layer,draw=nogablue,fill=nogablue!12,text=nogablue] (l1) at (5.5,0.6)
+          {Probabilistic Forecasting};
+    \iconweather{(1.05,1.0)}
+    \iconbars{(1.05,0.05)}
+    \draw[feed] (1.85,1.05) -- ([yshift=3mm]l1.west);
+    \draw[feed] (1.85,0.25) -- ([yshift=-3mm]l1.west);
+
+    % ---- Layer 2 (middle): Net Demand Forecasting ----------------------
+    \node[layer,draw=netorange,fill=netorange!12,text=netorange] (l2) at (5.5,2.2)
+          {Net Demand Forecasting};
+    \iconline{(1.05,1.95)}
+    \draw[feed] (1.85,2.2) -- (l2.west);
+    \draw[up] (l1.north) -- (l2.south);
+
+    % ---- Layer 3 (top): Risk-Aware Decision Making ---------------------
+    \node[layer,draw=riskpurple,fill=riskpurple!12,text=riskpurple] (l3) at (5.5,3.8)
+          {Risk-Aware Decision Making};
+    \iconcoins{(1.15,3.78)}
+    \draw[feed] (1.85,3.8) -- (l3.west);
+    \draw[up] (l2.north) -- (l3.south);
+  \end{tikzpicture}
+\end{frame}
+
 % ============ Point Prediction vs. Probabilistic Forecasting ==========
 \begin{frame}{Tomorrow's Demand?}
   \begin{columns}[T,onlytextwidth]
@@ -247,6 +292,46 @@
 % ===================== Risk-Aware Prediction ==========================
 \begin{frame}{Risk-Aware Prediction}
   \centering
+  \vspace{0.3em}
+  \begin{tikzpicture}[scale=1.0]
+    % Pin the bounding box so revealing the panels/decision does not
+    % re-centre the picture (no layout shift across overlays).
+    \useasboundingbox (-0.5,-0.7) rectangle (7.5,5.0);
+
+    % ---- Top-left: net demand forecast distribution -------------------
+    \panel{1}{(0,3)}{netorange}{Net Demand}%
+          {0.75*exp(-((\x-0.7)*(\x-0.7))/0.15)+0.62*exp(-((\x-1.4)*(\x-1.4))/0.22)}
+
+    % ---- Top-right: market bidding / asymmetric cost structure --------
+    \panel{2}{(5,3)}{riskpurple}{Market Bidding}%
+          {0.26*ifthenelse(\x<1,5*(1-\x),(\x-1))}
+
+    % ---- Converging arrows + risk-aware cost-optimal decision ---------
+    \only<3->{
+      \draw[-{Latex[length=2.6mm]},thick,gray!65]
+            (1.1,2.8) .. controls (1.7,2.1) and (2.3,1.9) .. (3.0,1.55);
+      \draw[-{Latex[length=2.6mm]},thick,gray!65]
+            (6.0,2.8) .. controls (5.4,2.1) and (4.7,1.9) .. (4.0,1.55);
+
+      % bottom-centre: net demand distribution with the biased,
+      % cost-optimal decision quantile marked
+      \begin{scope}[shift={(2.5,0)}]
+        \draw[->,gray!60] (-0.2,0) -- (2.35,0);
+        \draw[very thick,netorange,line cap=round]
+              plot[domain=0:2,samples=90,smooth]
+              (\x,{0.75*exp(-((\x-0.7)*(\x-0.7))/0.15)+0.62*exp(-((\x-1.4)*(\x-1.4))/0.22)});
+        \draw[riskpurple,thick,dashed] (1.5,0) -- (1.5,0.65);
+        \fill[riskpurple] (1.5,0.65) circle (2.2pt);
+        \node[netorange,anchor=north,font=\small\bfseries] at (1,-0.15) {Net Demand};
+        \node[riskpurple,anchor=north,font=\small\bfseries] at (1.5,-0.55) {Risk-Aware Decision};
+      \end{scope}
+    }
+  \end{tikzpicture}
+\end{frame}
+
+% ===================== Recap ===========================================
+\begin{frame}{Recap}
+  \centering
   \begin{tikzpicture}[scale=0.95,
       layer/.style={rounded corners=3pt,minimum width=5cm,minimum height=1.2cm,
                     align=center,font=\bfseries,line width=1pt},
@@ -305,6 +390,133 @@
     \end{column}
   \end{columns}
   \vfill
+\end{frame}
+
+% ===================== Operational Value ===============================
+\begin{frame}{Operational Value, Innovation \& Alignment}
+  \centering
+  \begin{columns}[T,onlytextwidth]
+
+    % ---- Operational value ---------------------------------------------
+    \begin{column}{0.33\textwidth}
+      \centering
+      {\bfseries\color{nogablue} Operational Value}\\[0.6em]
+      \begin{itemize}[leftmargin=1.2em,itemsep=0.5em]
+        \footnotesize
+        \item 40--73\% cost reduction, extended from point forecasts to full distributions
+        % \item Reserve-sizing tool with finite-sample coverage guarantees
+        \item Net-demand capability for a high-renewables grid
+        \item Deployable prototype \& knowledge transfer to NOGA
+      \end{itemize}
+    \end{column}
+
+    % ---- Innovation ------------------------------------------------------
+    \begin{column}{0.33\textwidth}
+      \centering
+      {\bfseries\color{riskpurple} Innovation}\\[0.6em]
+      \begin{itemize}[leftmargin=1.2em,itemsep=0.5em]
+        \footnotesize
+        \item First \emph{calibrated, integrated} demand \& renewable distributions under a cost objective
+        \item Techniques compared by proper scores \emph{and} operational cost
+        \item Characterises when joint vs.\ marginal dependence modelling pays off
+        \item De-risked: builds on a validated 3-year data pipeline
+      \end{itemize}
+    \end{column}
+
+    % ---- Alignment with the call ------------------------------------------
+    \begin{column}{0.33\textwidth}
+      \centering
+      {\bfseries\color{netorange} Alignment with the Call}\\[0.6em]
+      \begin{itemize}[leftmargin=1.2em,itemsep=0.5em]
+        \footnotesize
+        \item Primary domain \textbf{2.5} --- demand forecasting
+        \item \S2.1.5 reserve \& stability
+        \item \S2.2.2 monitoring \& state forecasting
+        \item \S2.1.6 renewable integration
+        \item \S2.4.3 operation under limited reserves
+      \end{itemize}
+    \end{column}
+
+  \end{columns}
+\end{frame}
+
+% ===================== Work Plan =======================================
+\begin{frame}{Work Plan}
+  \centering
+  \resizebox{\textwidth}{!}{%
+  \begin{ganttchart}[
+      hgrid, vgrid,
+      x unit=0.92cm,
+      y unit chart=0.7cm,
+      y unit title=0.6cm,
+      bar/.append style={fill=nogablue!65},
+      bar height=0.6,
+      group/.append style={fill=nogablue},
+      group right shift=0, group left shift=0, group peaks height=0,
+      milestone/.append style={fill=nogablue!50!red},
+      progress label text={}, link/.style={->},
+      title/.append style={fill=nogablue!15},
+      bar label font=\normalsize, group label font=\bfseries\normalsize,
+      title label font=\bfseries\normalsize, milestone label font=\normalsize,
+      ]{1}{12}
+      \gantttitle{Project month}{12} \\
+      \gantttitlelist{1,...,12}{1} \\
+      \ganttgroup{WP1 --- Data \& Benchmark (T1)}{1}{4} \\
+      \ganttgroup{WP2 --- Demand Forecasting (T2)}{3}{7} \\
+      \ganttgroup{WP3 --- Renewable Forecasting (T3)}{4}{8} \\
+      \ganttgroup{WP4 --- Net-Demand Integration (T4)}{7}{10} \\
+      \ganttgroup{WP5 --- Decision Layer \& Validation (T5)}{9}{12} \\
+      \ganttgroup{WP6 --- Management \& Dissemination}{1}{12} \\
+      \ganttmilestone{}{1}\ganttmilestone{}{4}\ganttmilestone{}{7}%
+      \ganttmilestone{}{10}\ganttmilestone{}{12}
+  \end{ganttchart}%
+  }\\[1em]
+  {\footnotesize\bfseries\color{nogablue} 12-month project, six work packages}\\[0.6em]
+  {\footnotesize \textbf{M1} kick-off \quad \textbf{M4} benchmark released \quad
+   \textbf{M7} calibrated demand \& renewable models \quad
+   \textbf{M10} integrated net-demand distribution \quad
+   \textbf{M12} deployable prototype}
+\end{frame}
+
+% ===================== Budget ==========================================
+\begin{frame}{Budget}
+  \centering
+  \vspace{0.2em}
+  {\footnotesize
+  \begin{tabular}{@{}llrrr@{}}
+    \toprule
+    \textbf{Person} & \textbf{Role} & \textbf{\% Pos.} & \textbf{Months} & \textbf{Budget (NIS)} \\
+    \midrule
+    Or Aleksandrowicz        & Principal Researcher 1          & 20\% & 12 & --- (in kind) \\
+    Avigdor Gal              & Principal Researcher 2          & 5\%  & 12 & --- (in kind) \\
+    Gilad Kutiel             & Co-Researcher / Project Manager & 66\% & 12 & 182{,}160 \\
+    Research assistant (TBD) & Data processing                 & 20\% & 12 & 35{,}040 \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{1.4em}
+  \begin{columns}[c,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      \centering
+      {\footnotesize
+      \begin{tabular}{@{}lr@{}}
+        \toprule
+        \textbf{Item} & \textbf{Amount (NIS)} \\
+        \midrule
+        Personnel               & 217{,}200 \\
+        AI \& cloud processing  & 10{,}000 \\
+        Overhead (15\%)         & 34{,}080 \\
+        \midrule
+        \textbf{Total}          & \textbf{261{,}280} \\
+        \bottomrule
+      \end{tabular}}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \centering
+      \resizebox{0.95\linewidth}{!}{\color{nogablue}\textbf{NIS 261{,}280}}\\[0.3em]
+      {\scriptsize 12-month total \textbullet\ overhead 15\% \textbullet\ PIs in kind}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 % ===================== Questions and Discussion =======================
