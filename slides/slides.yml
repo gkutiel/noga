@@ -1,6 +1,12 @@
 # This is the structure for a Beamer presentation based on our research_proposal
 # Read the research_proposal and create the presentation
 
+# The presentation should focus on the research proposal and also briefly cover:
+# Relevant background and experience in the field.
+# The research's contribution, level of innovation, and alignment with the call for proposals.
+# The work plan.
+# The proposed budget breakdown.
+
 presentation:
   title: Integrated Probabilistic Forecasting of Electricity Demand and Renewable Generation for Risk-Aware Grid Operation
   authors:
@@ -9,6 +15,11 @@ presentation:
     - Dr. Gilad Kutiel
 
   slides:
+    - title: Research Staff
+      content:
+        - 3 columns from left to right (or, avi, gilad)
+        - add 2-3 highlights for each person
+
     - title: Point Prediction vs. Probabilistic Forecasting
       content:
         - On top "Tomorrow Demand?" on bottom split the slide into two halves:
@@ -17,10 +28,6 @@ presentation:
                 - Normal distribution, Normal distribution with small variance, Normal distribution with large variance, A distribution with two peaks, etc... overall show 9 distributions in a 3x3 grid.
                 - Reveal the first 3 one by one, then the rest.
 
-    - title: Research Staff
-      content:
-        - 3 columns from left to right (or, avi, gilad)
-        - add 2-3 highlights for each person
     - title: Net Demand and Renewable Generation Forecasting
       content:
         - On the left show a distribution of the Renewable Generation Forecast
@@ -42,6 +49,22 @@ presentation:
         - Split the slide into two and show big numbers:
             - 40% - 73%
             - 8% - 17%
+
+    - title: Operational Value
+      content:
+        - TODO:
+          read the @research_proposal.tex and highlight the following:
+            - Operational value
+            - Innovation
+            - Alignment with the call for proposals
+
+    - title: Work plan
+      content:
+        - TODO: copy the Gantt chart from the @research_proposal.tex
+
+    - title: Budget
+      content:
+        - TODO: copy the budget breakdown from the @research_proposal.tex
 
     - title: Questions and Discussion
       content:

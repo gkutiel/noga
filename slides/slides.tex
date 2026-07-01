@@ -10,6 +10,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
 \usepackage{tikz}
+\usepackage{enumitem}
 \usetikzlibrary{arrows.meta}
 
 \usetheme{default}
@@ -90,6 +91,16 @@
       \draw[orange!75!black,line width=0.5pt] (0,\y) ellipse (0.36 and 0.12);}
   \end{scope}}
 
+% ---------------------------------------------------------------------
+%  \circimg{<file>}{<diameter>}
+%  Crops an image to a circle of the given diameter (no stretching).
+% ---------------------------------------------------------------------
+\newcommand{\circimg}[2]{%
+  \begin{tikzpicture}
+    \clip (0,0) circle (#2/2);
+    \node at (0,0) {\includegraphics[height=#2]{#1}};
+  \end{tikzpicture}}
+
 \title{Integrated Probabilistic Forecasting of Electricity Demand and
        Renewable Generation for Risk-Aware Grid Operation}
 \subtitle{From Cost-Sensitive Point Forecasts to Calibrated Predictive Distributions}
@@ -106,6 +117,56 @@
 \begin{frame}[plain]
   \titlepage
 \end{frame}}
+
+% ===================== Research Staff ==================================
+\begin{frame}{Research Staff}
+  \centering
+  \begin{columns}[T,onlytextwidth]
+
+    % ---- Or Aleksandrowicz --------------------------------------------
+    \begin{column}{0.32\textwidth}
+      \centering
+      \circimg{or.jpg}{2.6cm}\\[0.5em]
+      {\bfseries \scriptsize Assoc. Prof. Or Aleksandrowicz}\\
+      {\footnotesize\itshape Architecture \& Town Planning}\\[0.6em]
+      \begin{itemize}[leftmargin=1.2em,itemsep=0.35em]
+        \footnotesize
+        \item Urban climatology \& building energy science
+        \item Runs the Big Data in Architectural Research Lab
+        \item PI on multiple national energy-demand grants
+      \end{itemize}
+    \end{column}
+
+    % ---- Avigdor Gal ---------------------------------------------------
+    \begin{column}{0.32\textwidth}
+      \centering
+      \circimg{avi.jpg}{2.6cm}\\[0.5em]
+      {\bfseries \scriptsize Prof. Avigdor Gal}\\
+      {\footnotesize\itshape Data \& Decision Sciences}\\[0.6em]
+      \begin{itemize}[leftmargin=1.2em,itemsep=0.35em]
+        \footnotesize
+        \item Uncertain data \& probabilistic modelling
+        \item Vice-Dean for Industry Relations, Technion
+        \item 2025 Shillman Prize; multiple best-paper awards
+      \end{itemize}
+    \end{column}
+
+    % ---- Gilad Kutiel ---------------------------------------------------
+    \begin{column}{0.32\textwidth}
+      \centering
+      \circimg{gilad.jpeg}{2.6cm}\\[0.5em]
+      {\bfseries \scriptsize Dr. Gilad Kutiel}\\
+      {\footnotesize\itshape Co-Researcher}\\[0.6em]
+      \begin{itemize}[leftmargin=1.2em,itemsep=0.35em]
+        \footnotesize
+        \item Algorithms \& machine learning
+        \item Built the cost-sensitive forecasting prototype
+        \item 40--73\% operational cost reduction (prelim.\ results)
+      \end{itemize}
+    \end{column}
+
+  \end{columns}
+\end{frame}
 
 % ============ Point Prediction vs. Probabilistic Forecasting ==========
 \begin{frame}{Tomorrow's Demand?}
@@ -147,6 +208,7 @@
 
   \end{columns}
 \end{frame}
+
 
 % ===== Net Demand and Renewable Generation Forecasting ================
 \begin{frame}{Net Demand $=$ Total Demand $-$ Renewable Generation}

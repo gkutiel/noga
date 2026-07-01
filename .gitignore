@@ -33,5 +33,7 @@ pred
 *-SAVE-ERROR
 *.gz
 *.toc
+*.nav
+*.snm
 
 .vscode/
