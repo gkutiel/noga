@@ -23,6 +23,7 @@
 \definecolor{renewgreen}{RGB}{34,139,34}
 \definecolor{netorange}{RGB}{200,90,20}
 \definecolor{riskpurple}{RGB}{120,40,140}
+\definecolor{bidteal}{RGB}{0,121,107}
 \setbeamercolor{frametitle}{fg=nogablue}
 \setbeamercolor{title}{fg=nogablue}
 \setbeamercolor{structure}{fg=nogablue}
@@ -62,7 +63,25 @@
       \draw[->,gray!60] (-0.2,0) -- (2.35,0);
       \draw[very thick,#3,line cap=round]
             plot[domain=0:2,samples=80,smooth] (\x,{#5});
-      \node[#3,anchor=south,font=\small\bfseries] at (1,1.55) {#4};
+      \node[#3,anchor=south,align=center,font=\small\bfseries] at (1,1.55) {#4};
+    \end{scope}%
+  }%
+}
+
+% ---------------------------------------------------------------------
+%  \steppanel{<overlay>}{<shift coord>}{<color>}{<title>}
+%  Draws a labelled monotone-increasing step function (e.g.\ a day-ahead
+%  bidding curve), mirroring \panel's layout for a probability density.
+% ---------------------------------------------------------------------
+\newcommand{\steppanel}[4]{%
+  \only<#1->{%
+    \begin{scope}[shift={#2}]
+      \draw[->,gray!60] (-0.2,0) -- (2.35,0);
+      \draw[very thick,#3,line cap=round]
+            (0,0.05)   -- (0.5,0.05) -- (0.5,0.35) -- (1.0,0.35)
+         -- (1.0,0.75) -- (1.5,0.75) -- (1.5,1.15) -- (2.0,1.15)
+         -- (2.0,1.45);
+      \node[#3,anchor=south,align=center,font=\small\bfseries] at (1,1.55) {#4};
     \end{scope}%
   }%
 }
@@ -292,38 +311,43 @@
 % ===================== Risk-Aware Prediction ==========================
 \begin{frame}{Risk-Aware Prediction}
   \centering
-  \vspace{0.3em}
-  \begin{tikzpicture}[scale=1.0]
+  \vspace{0.1em}
+  \begin{tikzpicture}[scale=0.92]
     % Pin the bounding box so revealing the panels/decision does not
     % re-centre the picture (no layout shift across overlays).
-    \useasboundingbox (-0.5,-0.7) rectangle (7.5,5.0);
+    \useasboundingbox (-0.5,-0.7) rectangle (8.0,5.0);
 
     % ---- Top-left: net demand forecast distribution -------------------
     \panel{1}{(0,3)}{netorange}{Net Demand}%
           {0.75*exp(-((\x-0.7)*(\x-0.7))/0.15)+0.62*exp(-((\x-1.4)*(\x-1.4))/0.22)}
 
-    % ---- Top-right: market bidding / asymmetric cost structure --------
-    \panel{2}{(5,3)}{riskpurple}{Market Bidding}%
-          {0.26*ifthenelse(\x<1,5*(1-\x),(\x-1))}
+    % ---- Top-centre: day-ahead market bidding (monotone step function) -
+    \steppanel{2}{(2.8,3)}{bidteal}{Day-Ahead\\Bidding}
+
+    % ---- Top-right: real-time market bidding forecast (distribution) ---
+    \panel{3}{(5.6,3)}{riskpurple}{Real-Time\\Bidding Forecast}%
+          {1.10*exp(-((\x-1.1)*(\x-1.1))/0.30)}
 
     % ---- Converging arrows + risk-aware cost-optimal decision ---------
-    \only<3->{
+    \only<4->{
       \draw[-{Latex[length=2.6mm]},thick,gray!65]
-            (1.1,2.8) .. controls (1.7,2.1) and (2.3,1.9) .. (3.0,1.55);
+            (1.1,2.8) .. controls (1.8,2.1) and (2.4,1.9) .. (3.1,1.55);
       \draw[-{Latex[length=2.6mm]},thick,gray!65]
-            (6.0,2.8) .. controls (5.4,2.1) and (4.7,1.9) .. (4.0,1.55);
+            (3.9,2.8) .. controls (3.9,2.2) and (3.85,1.9) .. (3.8,1.55);
+      \draw[-{Latex[length=2.6mm]},thick,gray!65]
+            (6.7,2.8) .. controls (6.0,2.1) and (5.2,1.9) .. (4.5,1.55);
 
       % bottom-centre: net demand distribution with the biased,
       % cost-optimal decision quantile marked
-      \begin{scope}[shift={(2.5,0)}]
+      \begin{scope}[shift={(2.8,0)}]
         \draw[->,gray!60] (-0.2,0) -- (2.35,0);
         \draw[very thick,netorange,line cap=round]
               plot[domain=0:2,samples=90,smooth]
               (\x,{0.75*exp(-((\x-0.7)*(\x-0.7))/0.15)+0.62*exp(-((\x-1.4)*(\x-1.4))/0.22)});
-        \draw[riskpurple,thick,dashed] (1.5,0) -- (1.5,0.65);
-        \fill[riskpurple] (1.5,0.65) circle (2.2pt);
+        \draw[nogablue,thick,dashed] (1.5,0) -- (1.5,0.65);
+        \fill[nogablue] (1.5,0.65) circle (2.2pt);
         \node[netorange,anchor=north,font=\small\bfseries] at (1,-0.15) {Net Demand};
-        \node[riskpurple,anchor=north,font=\small\bfseries] at (1.5,-0.55) {Risk-Aware Decision};
+        \node[nogablue,anchor=north,font=\small\bfseries] at (1.5,-0.55) {Risk-Aware Decision};
       \end{scope}
     }
   \end{tikzpicture}
