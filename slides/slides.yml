@@ -17,6 +17,10 @@ presentation:
                 - Normal distribution, Normal distribution with small variance, Normal distribution with large variance, A distribution with two peaks, etc... overall show 9 distributions in a 3x3 grid.
                 - Reveal the first 3 one by one, then the rest.
 
+    - title: Research Staff
+      content:
+        - 3 columns from left to right (or, avi, gilad)
+        - add 2-3 highlights for each person
     - title: Net Demand and Renewable Generation Forecasting
       content:
         - On the left show a distribution of the Renewable Generation Forecast
