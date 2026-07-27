@@ -87,6 +87,53 @@
 }
 
 % ---------------------------------------------------------------------
+%  \cipanel{<overlay>}{<shift coord>}{<color>}{<title>}{<pgfmath expr>}
+%  A predictive density behind a shaded central interval (neutral grey:
+%  the band is shared, it belongs to neither forecast).
+%
+%  The two densities on the slide are gamma-shaped, k=3, rate 4, located
+%  at s=0.17624.  That location is not arbitrary: it is the unique shift
+%  making q05+q95 = 2, i.e. the central 90% interval [0.3786,1.6214] is
+%  symmetric about x=1.  Reflecting a density about x=1 therefore leaves
+%  its 90% interval *exactly* invariant -- which is the whole point of
+%  the slide.  Both curves carry exactly 90% of their mass in the band.
+% ---------------------------------------------------------------------
+\newcommand{\cipanel}[5]{%
+  \only<#1->{%
+    \begin{scope}[shift={#2}]
+      \fill[gray!12] (0.3786,0) rectangle (1.6214,1.5);
+      \draw[gray!55,thick] (0.3786,0) -- (0.3786,1.5);
+      \draw[gray!55,thick] (1.6214,0) -- (1.6214,1.5);
+      \draw[|<->|,gray!65,thick] (0.3786,-0.32) -- (1.6214,-0.32);
+      \draw[->,gray!60] (-0.2,0) -- (2.35,0);
+      \draw[very thick,#3,line cap=round]
+            plot[domain=0:2,samples=120,smooth] (\x,{#5});
+      \node[#3,anchor=south,align=center,font=\small\bfseries] at (1,1.78) {#4};
+    \end{scope}%
+  }%
+}
+
+% ---------------------------------------------------------------------
+%  \decision{<shift coord>}{<x>}{<curve height at x>}
+%  Marks the cost-optimal reserve d* on a \cipanel density.  Under the
+%  project's 5:1 under-prediction penalty d* is the 5/6 quantile.  Note
+%  q(5/6) does NOT reflect to q(5/6): for Y = 2-X the identity is
+%  q_Y(5/6) = 2 - q_X(1/6), so the mirror's d* must be computed, not
+%  mirrored.  Both d* end up above the centre -- the penalty always
+%  hedges upward -- but at visibly different reserves.
+%  The label is pinned above the tallest curve (1.35) so it can never
+%  collide with the density.
+% ---------------------------------------------------------------------
+\newcommand{\decision}[3]{%
+  \begin{scope}[shift={#1}]
+    \draw[riskpurple,thick,dashed] ({#2},0) -- ({#2},1.52);
+    \fill[riskpurple] ({#2},{#3}) circle (2.0pt);
+    \node[riskpurple,anchor=south,font=\scriptsize\bfseries]
+         at ({#2},1.53) {$d^\star$};
+  \end{scope}%
+}
+
+% ---------------------------------------------------------------------
 %  Text-free input icons for the Risk-Aware Prediction slide.
 %  Each takes a shift coordinate, e.g. \iconweather{(1,1)}.
 % ---------------------------------------------------------------------
@@ -120,6 +167,26 @@
     \foreach \y in {0,0.16,0.32}{%
       \fill[yellow!80!orange] (0,\y) ellipse (0.36 and 0.12);
       \draw[orange!75!black,line width=0.5pt] (0,\y) ellipse (0.36 and 0.12);}
+  \end{scope}}
+
+% ---------------------------------------------------------------------
+%  \iconnet{<shift coord>}{<colour>}
+%  A 3-4-2 feed-forward net glyph, used on the Solution slide.  Every
+%  layer is centred on local y = 0.45, so after the 0.6 scaling the
+%  glyph spans {shift} + (0..0.96, -0.135..0.675).
+% ---------------------------------------------------------------------
+\newcommand{\iconnet}[2]{%
+  \begin{scope}[shift={#1},scale=0.6]
+    \foreach \i in {0,1,2}   {\coordinate (a\i) at (0,{\i*0.45});}
+    \foreach \j in {0,1,2,3} {\coordinate (b\j) at (0.8,{\j*0.45-0.225});}
+    \foreach \k in {0,1}     {\coordinate (c\k) at (1.6,{\k*0.45+0.225});}
+    \foreach \i in {0,1,2}{\foreach \j in {0,1,2,3}{
+      \draw[gray!40,line width=0.3pt] (a\i) -- (b\j);}}
+    \foreach \j in {0,1,2,3}{\foreach \k in {0,1}{
+      \draw[gray!40,line width=0.3pt] (b\j) -- (c\k);}}
+    \foreach \i in {0,1,2}   {\fill[gray!55] (a\i) circle (0.10);}
+    \foreach \j in {0,1,2,3} {\fill[#2!45]   (b\j) circle (0.10);}
+    \foreach \k in {0,1}     {\fill[#2]      (c\k) circle (0.10);}
   \end{scope}}
 
 % ---------------------------------------------------------------------
@@ -305,7 +372,16 @@
         \node[netorange,anchor=north,font=\small\bfseries] at (1,-0.15) {Net Demand};
       \end{scope}
     }
-  \end{tikzpicture}
+  \end{tikzpicture}\\[0.4em]
+  % The title states the identity for the *quantities*; this caveat states
+  % that it does not carry over to their *distributions*.  The minipage
+  % keeps the two sentences on two balanced lines instead of spilling.
+  {\footnotesize\bfseries\color{netorange}
+   \onslide<4->{%
+     \begin{minipage}{0.88\textwidth}\centering
+       Demand and renewable generation are strongly dependent.\\
+       The marginals do not determine the difference --- model the joint law.
+     \end{minipage}}}
 \end{frame}
 
 % ===================== Risk-Aware Prediction ==========================
@@ -351,6 +427,108 @@
       \end{scope}
     }
   \end{tikzpicture}
+\end{frame}
+
+% ========== Full Distribution vs. Confidence Interval =================
+\begin{frame}{Full Distribution vs.\ Confidence Interval}
+  \centering
+  \vspace{0.2em}
+  \begin{tikzpicture}[scale=1.15]
+    % Pin the bounding box to both panels so revealing them one by one
+    % never re-centres the picture (no layout shift).
+    \useasboundingbox (-0.4,-0.75) rectangle (6.45,2.62);
+
+    % Forecast A: gamma(k=3, rate 4) shifted to s=0.17624, peak scaled to 1.35
+    \cipanel{1}{(0,0)}{nogablue}{Forecast A\\\scriptsize\mdseries long right tail}%
+          {39.9009*((\x-0.17624)^2)*exp(-4*(\x-0.17624))*(\x>0.17624)}
+    % Forecast B: exactly A reflected about x=1  (substitute \x -> 2-\x)
+    \cipanel{2}{(3.9,0)}{netorange}{Forecast B\\\scriptsize\mdseries mirror image}%
+          {39.9009*((1.82376-\x)^2)*exp(-4*(1.82376-\x))*(\x<1.82376)}
+
+    % Cost-optimal reserve: the 5/6 quantile of each density (5:1 penalty).
+    % Computed separately per curve -- see the note on \decision.
+    \only<4->{
+      \decision{(0,0)}{1.2736}{0.5962}
+      \decision{(3.9,0)}{1.4777}{1.1971}
+    }
+  \end{tikzpicture}\\[0.2em]
+  {\footnotesize\bfseries\color{nogablue}
+   \onslide<3->{Identical 90\% interval --- mirrored tail risk}}
+
+  \vspace{0.7em}
+  \begin{itemize}[leftmargin=1.4em,itemsep=0.35em]
+    \footnotesize
+    \item<5-> Same endpoints, mirrored shape: the interval cannot tell a
+              shortfall risk from a surplus risk.
+    \item<6-> A cost-optimal decision integrates the density,
+              $\int c(d,y)\,p(y)\,\mathrm{d}y$ --- two endpoints cannot supply it.
+              Under a 5:1 under-prediction penalty the two forecasts call for
+              visibly different reserves $d^\star$.
+    \item<7-> One density serves every risk level: any quantile, any reserve
+              margin, no refitting.
+  \end{itemize}
+\end{frame}
+
+% ===================== Solution ========================================
+\begin{frame}{Solution: Two Routes to a Full Distribution}
+  \centering
+  \vspace{0.2em}
+  \begin{columns}[T,onlytextwidth]
+
+    % ---- Left: Gaussian head -----------------------------------------
+    \begin{column}{0.48\textwidth}
+      \centering
+      {\bfseries\color{nogablue} Deep network, Gaussian head}\\[0.15em]
+      {\scriptsize the network outputs $(\mu,\sigma)$}\\[0.35em]
+      \begin{tikzpicture}[scale=0.8]
+        \useasboundingbox (-0.3,-0.3) rectangle (2.35,3.25);
+        \iconnet{(0.52,2.45)}{nogablue}
+        \draw[-{Latex[length=2mm]},thick,gray!65] (1.0,2.28) -- (1.0,2.10);
+        \node[draw=nogablue,fill=nogablue!10,text=nogablue,rounded corners=2pt,
+              inner sep=3pt,font=\scriptsize] at (1.0,1.88) {$(\mu,\sigma)$};
+        \draw[-{Latex[length=2mm]},thick,gray!65] (1.0,1.66) -- (1.0,1.36);
+        \draw[->,gray!60] (-0.2,0) -- (2.30,0);
+        % amplitude set so both panels enclose the same area (1.05)
+        \draw[very thick,nogablue,line cap=round]
+              plot[domain=0:2,samples=90,smooth] (\x,{1.1280*exp(-((\x-1)*(\x-1))/0.28)});
+      \end{tikzpicture}\\[0.35em]
+      {\scriptsize closed form, cheap, calibrated spread\\
+       \color{gray!45!black} but always unimodal and symmetric}
+    \end{column}
+
+    % ---- Right: normalizing flow --------------------------------------
+    \begin{column}{0.48\textwidth}
+      \centering
+      \onslide<2->{%
+      {\bfseries\color{riskpurple} Normalizing flow}\\[0.15em]
+      {\scriptsize the network conditions an invertible map $f_\theta$}\\[0.35em]
+      \begin{tikzpicture}[scale=0.8]
+        \useasboundingbox (-0.3,-0.3) rectangle (2.35,3.25);
+        \iconnet{(0.52,2.45)}{riskpurple}
+        \draw[-{Latex[length=2mm]},thick,gray!65] (1.0,2.28) -- (1.0,2.10);
+        \node[draw=riskpurple,fill=riskpurple!10,text=riskpurple,rounded corners=2pt,
+              inner sep=3pt,font=\scriptsize] at (1.0,1.88) {$f_\theta$};
+        \draw[-{Latex[length=2mm]},thick,gray!65] (1.0,1.66) -- (1.0,1.36);
+        \draw[->,gray!60] (-0.2,0) -- (2.30,0);
+        % Deliberately skewed *and* bimodal: a shape no Gaussian head can reach.
+        % Amplitudes scaled so this encloses the same area as the Gaussian (1.05).
+        \draw[very thick,riskpurple,line cap=round]
+              plot[domain=0:2,samples=120,smooth]
+              (\x,{0.9262*exp(-((\x-0.62)*(\x-0.62))/0.045)
+                  +1.2531*exp(-((\x-1.30)*(\x-1.30))/0.10)});
+      \end{tikzpicture}\\[0.35em]
+      {\scriptsize exact likelihood, $p(y)=\varphi(f_\theta(y))\,|f_\theta'(y)|$\\
+       \color{gray!45!black} any shape: skew, multimodality, heavy tails}}
+    \end{column}
+
+  \end{columns}
+
+  \vspace{0.7em}
+  {\footnotesize\bfseries\color{netorange}
+   \onslide<3->{A Gaussian head cannot represent Forecast A or B --- the flow can.}}\\[0.3em]
+  {\footnotesize\color{nogablue}
+   \onslide<4->{Both fit by maximum likelihood; ranked by proper scores
+   \emph{and} by operational cost.}}
 \end{frame}
 
 % ===================== Recap ===========================================

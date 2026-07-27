@@ -41,12 +41,44 @@ presentation:
         - On the left show a distribution of the Renewable Generation Forecast
         - On the right show a distribution of the Total Demand Forecast
         - Then draw arrow from them to the bottom center and show the combined Net Demand Forecast distribution.
+        - Finally reveal the caveat below the diagram - demand and renewable generation are strongly
+          dependent, the marginals do not determine the difference, the joint law must be modelled.
+      note: We can not just subtract the two distributions as they are likely highly dependent, we need to use a probabilistic model to combine them.
 
     - title: Risk-Aware Prediction
       content:
         - Show a distribution of the Net Demand combined with:
             - Day ahead Market Bidding data (illustrated as a monotone increasing step function)
             - Real-time Market Bidding Forecast (illustrated as a probabilistic distribution)
+
+    - title: Full Distribution vs Confidence Interval
+      content:
+        - Reveal two strongly skewed mirror-image distributions sharing the same 90% interval (grey band):
+            - "Forecast A: long right tail. Forecast B: the same density reflected, long left tail"
+            - Caption reads "Identical 90% interval - mirrored tail risk"
+        - Then mark the cost-optimal reserve d* on each, under the 5:1 under-prediction penalty.
+        - Then reveal the argument, one bullet at a time:
+            - Same endpoints, mirrored shape - the interval cannot tell a shortfall risk from a surplus risk.
+            - Cost-optimal decisions integrate the density; two endpoints cannot supply it. The two d* differ visibly.
+            - One density serves every risk level - any quantile, any reserve margin, no refitting.
+      note: >
+        The density is located at s=0.17624, the unique shift making q05+q95=2, so the
+        90% interval is symmetric about the centre and reflection leaves it exactly
+        invariant. d* is the 5/6 quantile and must be recomputed per curve, not mirrored:
+        for Y=2-X the identity is q_Y(5/6) = 2 - q_X(1/6). Both d* land above the centre
+        (the penalty always hedges upward) but at clearly different reserves - which is
+        the point: identical intervals, different decisions.
+
+    - title: Solution
+      content:
+        - Describe which models we are going to use for full distribution probabilistic forecasting.
+        - Two columns, each showing a network glyph feeding its output down into a density:
+            - "Left (reveal first): deep network with a Gaussian head, outputs (mu, sigma), draws a symmetric bell"
+            - "Right (reveal second): normalizing flow, network conditions an invertible map f_theta, draws a skewed bimodal density"
+        - Under each column a pro and a con - closed form but always unimodal and symmetric, versus exact likelihood and any shape.
+        - Then reveal the callback - a Gaussian head cannot represent Forecast A or B from the previous slide, the flow can.
+        - Finally reveal that both are fit by maximum likelihood and ranked by proper scores and by operational cost.
+      note: The two densities are scaled to enclose the same area (1.05 over the plotted range), so the flow is not read as carrying less probability mass.
 
     - title: Recap
       content:
