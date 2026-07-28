@@ -185,3 +185,40 @@ statistical model.  This lets us ask not merely whether cost-aware training beat
 a symmetric loss in the abstract, but whether it can improve upon the forecast
 currently used to help run a national grid.  The cost-minimising quantile that
 this training targets is characterised formally in Section~\ref{sec:modeling}.
+
+\subsection{Contributions}
+
+The contributions of this paper are as follows:
+
+\begin{enumerate}
+    \item \textbf{A general asymmetric-cost formulation.}  We formulate day-ahead
+          demand forecasting under a general, not-necessarily-linear asymmetric
+          cost function that subsumes the pinball loss as a special case, and we
+          train a feedforward neural network to minimise it end-to-end
+          (Sections~\ref{sec:modeling}--\ref{sec:method}).
+
+    \item \textbf{Evaluation against a real operational forecast.}  Rather than
+          benchmarking against a synthetic statistical baseline, we compare
+          against the \emph{actual} day-ahead forecasts published by the Israeli
+          system operator Noga --- a strong, real-world baseline produced with
+          proprietary data and domain expertise.
+
+    \item \textbf{A practical model that improves on the operator's forecast.}
+          Although raw predictive accuracy was \emph{not} a goal of this work,
+          our model outperforms the Noga forecast not only on cost-sensitive
+          metrics but even under symmetric error metrics such as mean squared
+          error.  We regard this as an incidental by-product of a deliberately
+          simple architecture and believe that substantial further improvement
+          is readily achievable.
+
+    \item \textbf{A demonstration of economic impact.}  We quantify the
+          operational cost reduction that cost-aware training delivers over
+          symmetric baselines across a range of cost scenarios, showing an effect
+          that is large enough --- and cheap enough to obtain --- to be practical
+          to adopt in a live market setting.
+
+    \item \textbf{An open-source implementation.}  We release our complete code
+          and data pipeline, from raw data ingestion through model training and
+          evaluation, as open source,\footnote{\url{https://github.com/gkutiel/noga}}
+          so that our results can be reproduced and extended.
+\end{enumerate}

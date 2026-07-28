@@ -36,6 +36,15 @@ operational costs.  Our main findings are:
           operational cost recovers much of the gap on asymmetric metrics, but
           cannot match a model trained end-to-end, because it cannot adapt the
           upward bias to the input-conditional structure of forecast error.
+
+    \item \textbf{The approach is practical and improves on the operational
+          forecast.}  Our model is a small, open-source feedforward network that
+          trains in minutes on commodity hardware.  Even though predictive
+          accuracy was not an objective of this work, it improves on the Noga
+          operational forecast not only on cost-sensitive metrics but even under
+          symmetric error metrics such as MSE --- and we believe substantial
+          further gains are readily achievable.  Together with a demonstrated
+          economic benefit, this makes the method realistic to adopt in practice.
 \end{enumerate}
 
 \subsection{Implications for Market Participants and Policymakers}
@@ -90,7 +99,10 @@ that better reflects operational costs.
     \item \textbf{Distributional forecasting.}  Training models to output full
           predictive distributions (via normalising flows, conformal prediction,
           or Bayesian deep learning) would enable the optimal quantile to be
-          selected adaptively as a function of current cost parameters.
+          selected adaptively as a function of current cost parameters.  We regard
+          this, rather than training against a fixed cost function, as the proper
+          long-term formulation of the problem, for the reasons set out in the
+          concluding remarks below.
 
     \item \textbf{Nonlinear and non-smooth cost functions.}  Step-function or
           tiered cost structures require optimisation approaches beyond the
@@ -134,7 +146,24 @@ This work demonstrates that a conceptually simple modification --- replacing the
 MSE training objective with a cost-sensitive asymmetric loss function
 (specifically, a non-linear variant of the pinball loss at the cost-minimising
 quantile) --- leads to meaningful improvements in operational performance without
-sacrificing computational tractability.  We hope these findings contribute to a broader shift
+sacrificing computational tractability.
+
+We stress, however, that training against a \emph{predefined, fixed} cost
+function is not the solution we ultimately advocate.  It couples the learned
+model to one particular cost structure, so that a change in the cost ratio ---
+driven by fuel prices, reserve availability, or the time of day --- in principle
+requires retraining, and it collapses the rich uncertainty in future demand into
+a single quantile chosen in advance.  We view it as one useful step in the right
+direction rather than the destination.  The desired formulation, in our view, is
+to \emph{decouple estimation from decision-making}: first predict the full
+\emph{conditional distribution} of demand given the available features, and then,
+at decision time, optimise the procurement quantity against whatever cost
+function currently prevails.  This separation would let a single trained model
+serve any cost structure, adapt the optimal bias to the input-conditional
+uncertainty of each slot, and expose the full distribution for downstream
+risk-aware decisions.  Realising it is the main direction of our future work.
+
+We hope these findings contribute to a broader shift
 towards cost-aware forecasting practices in the electricity industry and stimulate
 further research at the intersection of machine learning and energy systems
 optimisation.
