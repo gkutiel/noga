@@ -1,50 +1,3 @@
-\subsection{Experimental Setup}
-
-All models share the same architecture and training procedure described in
-Section~\ref{sec:method}; they differ only in their training objective.
-We compare three training strategies:
-
-\begin{itemize}
-    \item \textbf{L1 (MAE)} — trained with mean absolute error (symmetric baseline).
-    \item \textbf{Pinball 5:1} — trained with the pinball loss at a cost ratio of
-          $5\!:\!1$ (under-prediction penalised 5$\times$ more than over-prediction).
-    \item \textbf{Pinball 20:1} — trained with the pinball loss at a cost ratio of
-          $20\!:\!1$.
-\end{itemize}
-
-To isolate the benefit of end-to-end cost-aware training, we additionally
-evaluate \emph{post-hoc calibrated} variants of all three models
-(Section~\ref{sec:posthoc}), in which an affine transformation
-$g(z)=\alpha z + \beta$ is fitted on the training set to minimise the
-expected asymmetric cost.
-
-Models are evaluated on three cost functions that reflect different assumptions
-about the cost of over- and under-prediction: the L1 cost, the Pinball~5:1
-cost, and the Pinball~20:1 cost.  The primary metrics are the
-\textbf{Pinball~5:1} and \textbf{Pinball~20:1} costs, which best reflect the
-asymmetric structure of real-world electricity procurement costs.
-
-\subsection{Evaluation Cost Functions}
-
-Figure~\ref{fig:loss_fns} illustrates the three cost functions used for
-evaluation.
-The Pinball~5:1 and Pinball~20:1 functions penalise under-predictions more
-heavily than over-predictions, reflecting the real-world asymmetry of
-electricity procurement costs, while L1 serves as a symmetric reference point.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\linewidth]{plot/loss_fns.png}
-    \caption{The three cost functions used for evaluation: L1 (MAE, symmetric
-             baseline), Pinball~5:1, and Pinball~20:1.  The pinball functions
-             penalise under-predictions more heavily than over-predictions,
-             with the 20:1 variant applying a much steeper penalty on the
-             under-prediction side.}
-    \label{fig:loss_fns}
-\end{figure}
-
-\subsection{Results}
-
 Table~\ref{tab:eval} reports the average test-set cost of each model under
 each evaluation cost function, before and after post-hoc calibration.
 
@@ -93,9 +46,7 @@ on each metric and how calibration shifts the ranking.
     \label{fig:confusion-matrix}
 \end{figure}
 
-\subsection{Discussion}
-
-\paragraph{Each model excels on its own training metric.}
+\paragraph*{Each model excels on its own training metric.}
 Without calibration, a clear diagonal dominance is visible in
 Figure~\ref{fig:confusion-matrix}: each model achieves its lowest cost on
 the metric it was trained to minimise.
@@ -105,7 +56,7 @@ Pinball~20:1 cost ($0.841$).
 This confirms that the training objective directly shapes the cost profile
 of the resulting forecast.
 
-\paragraph{Asymmetric training substantially outperforms the symmetric baseline.}
+\paragraph*{Asymmetric training substantially outperforms the symmetric baseline.}
 The advantage of cost-aware training grows with the asymmetry ratio.
 Under the Pinball~5:1 metric, the Pinball~5:1 model ($1.820$) outperforms
 the L1 baseline ($3.045$) by $40\%$.
@@ -116,7 +67,7 @@ model produces a heavily right-skewed error distribution, deliberately
 over-predicting to avoid costly under-procurement events, while the L1
 model is symmetric and centred near zero.
 
-\paragraph{Post-hoc calibration narrows but does not close the gap.}
+\paragraph*{Post-hoc calibration narrows but does not close the gap.}
 Affine calibration substantially improves the L1 model on asymmetric metrics
 (Pinball~20:1: $3.167 \to 1.022$; Pinball~5:1: $3.045 \to 1.979$),
 confirming that a global bias correction captures much of the asymmetric
@@ -132,7 +83,7 @@ A uniform global correction applies the same rescaling to every prediction
 regardless of context; only a model that conditions its output on time
 features can adapt its bias to each slot individually.
 
-\paragraph{Error distributions reflect the targeted quantile.}
+\paragraph*{Error distributions reflect the targeted quantile.}
 Figure~\ref{fig:error_histograms} shows the prediction error distributions
 on the test set for each model.
 The L1 model is symmetric and centred near zero, as expected for a
@@ -152,4 +103,3 @@ the quantile targeted by its respective asymmetric loss.
              bias required to minimise the cost under higher asymmetry ratios.}
     \label{fig:error_histograms}
 \end{figure}
-

@@ -5,7 +5,7 @@ procurement quantity $p$ before observing actual demand $X$.  We model $X$ as a
 random variable whose distribution is \emph{unknown} and must be inferred from
 data; we make no parametric assumption about its form.
 
-\paragraph{Assumptions.}  We adopt the following assumptions, which are mild and
+\paragraph*{Assumptions.}  We adopt the following assumptions, which are mild and
 operationally grounded:
 
 \begin{enumerate}
@@ -24,7 +24,7 @@ operationally grounded:
           optimisers.
 \end{enumerate}
 
-\paragraph{Cost structure.}  Let $\ell_o:\mathbb{R}_{\geq 0}\to\mathbb{R}_{\geq
+\paragraph*{Cost structure.}  Let $\ell_o:\mathbb{R}_{\geq 0}\to\mathbb{R}_{\geq
 0}$ and $\ell_u:\mathbb{R}_{\geq 0}\to\mathbb{R}_{\geq 0}$ denote the cost
 functions for over- and under-prediction respectively, where the argument is the
 magnitude of the error.  
@@ -39,15 +39,15 @@ The total realised cost of procurement decision $p$ against actual demand $X$ is
     \label{eq:cost}
 \end{equation}
 
-\paragraph{Goal.}  The objective is to find a procurement decision $p^*$ that
+\paragraph*{Goal.}  The objective is to find a procurement decision $p^*$ that
 minimises the \emph{expected cost}, and not the expected prediction error.
 
-\paragraph{The Newsvendor Special Case:}
+\paragraph*{The Newsvendor Special Case:}
 \label{sec:newsvendor}
 
 to gain analytical insight, we first consider the classical special case in which
 costs are \emph{linear} 
-the setting of the \emph{newsvendor model}~\cite{arrow1951optimal}, a classical
+the setting of the \emph{newsvendor model}~\parencite{arrow1951optimal}, a classical
 inventory-theoretic framework in which a decision-maker commits to a quantity
 before demand is realised.  
 Let $c_o>0$ and $c_u > c_o$ be the per-unit overage
@@ -80,7 +80,7 @@ functions with under/over-prediction cost ratios of $1\!:\!5$ and $1\!:\!20$
 respectively.  These ratios are consistent with the findings of prior work on
 asymmetric costs in electricity demand forecasting, which reports that the cost
 of under-prediction typically exceeds the cost of over-prediction by a factor of
-five to twenty~\cite{weron2014electricity}.  Pinball losses are piecewise linear
+five to twenty~\parencite{weron2014electricity}.  Pinball losses are piecewise linear
 and widely used in quantile regression, making them a natural and interpretable
 baseline for cost-sensitive evaluation.
 

@@ -23,8 +23,8 @@ national demand signal.
 \end{figure}
 
 The dataset consists of two complementary sources: electricity consumption data
-obtained from the Israeli electricity system operator Noga~(\cite{noga}),
-and weather data sourced from the Israeli Meteorological Service~(\cite{ims}).
+obtained from the Israeli electricity system operator Noga~\parencite{noga},
+and weather data sourced from the Israeli Meteorological Service~\parencite{ims}.
 Electricity consumption data includes readings of power usage at 5-minute intervals.
 Crucially, it also includes the \emph{real day-ahead forecasts} published by Noga as part of the
 market clearing process.  These are the actual forecasts used by the system operator in the
@@ -71,7 +71,7 @@ The weather data includes temperature, humidity, and wind speed measurements tak
 %     \label{tab:weather-fields}
 % \end{table}
 
-\subsection{Data Analysis}
+\subsubsection{Data Analysis}
 To better understand the dataset, we performed an exploratory data analysis (EDA) to identify patterns and relationships between the electricity consumption and weather data.
 Figure~\ref{fig:daily-demand} shows the daily electricity consumption over the course of the dataset alongside the daily average temperature in Tel Aviv.
 
@@ -148,7 +148,7 @@ the daily dataset.  The data span 1{,}096~days from 1~March~2023 to
     \label{tab:dataset-stats}
 \end{table}
 
-\subsection{Forecast Error Distribution}%
+\subsubsection{Forecast Error Distribution}%
 \label{sec:forecast-error-dist}
 
 As shown in Figure~\ref{fig:demand-vs-forecast-kde}, the Noga day-ahead forecast
@@ -193,7 +193,7 @@ others.  We return to this point in Section~\ref{sec:evaluation}.
     \label{fig:error-heatmap}
 \end{figure}
 
-\subsection{Comparison with the Noga Operational Forecast}
+\subsubsection{Comparison with the Noga Operational Forecast}
 
 A distinctive feature of our dataset is the availability of the \emph{real}
 day-ahead forecasts produced by Noga and used in the actual electricity market.

@@ -31,10 +31,11 @@ operational costs.  Our main findings are:
           cost-sensitive metrics such as asymmetric loss or expected operational
           cost for model selection and evaluation.
 
-    \item \textbf{Meteorological features and the operator forecast are the most
-          informative inputs.}  Removing weather data or the operator's
-          day-ahead forecast led to the largest performance degradation in the
-          ablation study.
+    \item \textbf{Post-hoc calibration helps but does not substitute for
+          cost-aware training.}  A global affine correction fitted to the
+          operational cost recovers much of the gap on asymmetric metrics, but
+          cannot match a model trained end-to-end, because it cannot adapt the
+          upward bias to the input-conditional structure of forecast error.
 \end{enumerate}
 
 \subsection{Implications for Market Participants and Policymakers}
@@ -68,9 +69,10 @@ that better reflects operational costs.
           evaluations rely on synthetic functions that satisfy qualitative
           constraints.  The results may not precisely reflect actual market costs.
 
-    \item \textbf{Daily granularity.}  Our dataset and models operate at daily
-          resolution.  In practice, markets clear at sub-hourly intervals and the
-          asymmetry of costs may vary significantly across hours of the day.
+    \item \textbf{Time-invariant cost asymmetry.}  Although our model operates at
+          fine (5-minute) granularity, we treat the cost asymmetry as constant
+          across the day.  In practice, markets clear at sub-hourly intervals and
+          the asymmetry of costs may vary significantly across hours of the day.
 
     \item \textbf{Point forecasts only.}  Our neural network produces a single scalar
           forecast at the target quantile.  A richer approach would estimate the
@@ -99,11 +101,15 @@ that better reflects operational costs.
           the forecasting model in real time as market conditions change would be
           valuable for practical deployment.
 
-    \item \textbf{Higher temporal resolution.}  Extending the methodology to
-          hourly or sub-hourly resolution would require modelling intra-day
-          demand patterns, potentially using Transformer
+    \item \textbf{Richer temporal modelling and time-varying cost asymmetry.}
+          Our model already operates at fine (5-minute) granularity but treats
+          each target slot largely independently and assumes a constant cost
+          ratio.  Explicitly modelling intra-day and cross-day demand dynamics
+          --- for example with Transformer
           architectures~\parencite{vaswani2017attention} or temporal
-          convolutional networks.
+          convolutional networks --- together with a cost asymmetry that varies
+          by hour of the day, could better exploit the structured hour-of-week
+          error pattern documented in Section~\ref{sec:forecast-error-dist}.
 
     \item \textbf{Multi-product forecasting.}  In practice, electricity retailers
           must manage procurement across multiple products (day-ahead energy,

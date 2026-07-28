@@ -1,5 +1,18 @@
-This section describes the forecasting models and training procedures used in
-our study.
+The objective of this study is to determine whether a demand forecaster trained
+end-to-end to minimise an \emph{asymmetric operational cost} can outperform both
+a symmetric-loss model and the real operational forecast of the Israeli system
+operator, under the cost asymmetries characteristic of electricity procurement.
+This section describes the material and procedures used to answer that question:
+the dataset (Section~\ref{sec:dataset}), the neural architecture and the three
+training objectives we compare, and the protocol under which they are evaluated
+(Section~\ref{sec:model-training}).
+
+\subsection{Dataset}
+\label{sec:dataset}
+\input{dataset}
+
+\subsection{Model Training}
+\label{sec:model-training}
 
 All model variants share the same architecture: the prediction is expressed as
 a \emph{soft attention} over a short window of recent historical demand values
@@ -11,9 +24,11 @@ encoded via learned embeddings; weather features enter as continuous inputs.
 The model operates at 5-minute granularity and produces a day-ahead forecast:
 given conditions at a target time $t$, it predicts demand exactly 24~hours
 earlier in the input window---making it a suitable testbed for isolating the
-effect of the training objective on cost-aware forecasting.
+effect of the training objective on cost-aware forecasting.  The variants differ
+\emph{only} in their training objective, so that any difference in cost
+performance can be attributed to that objective alone.
 
-\subsection{Data Splitting}
+\subsubsection{Data Splitting}
 
 The dataset is partitioned chronologically at 1~January~2025:
 
@@ -26,7 +41,7 @@ The dataset is partitioned chronologically at 1~January~2025:
 
 The chronological split ensures no future information leaks into training.
 
-\subsection{Neural Network Architecture}
+\subsubsection{Neural Network Architecture}
 
 For each target 5-minute slot $t$, the model receives three types of input:
 
@@ -67,7 +82,7 @@ optimiser~\parencite{kingma2014adam} at learning rate $2\times10^{-4}$, batch
 size~10\,000, and up to 500 epochs with early stopping (patience 20,
 evaluated every 10~epochs).
 
-\subsection{Training with L1 Loss}
+\subsubsection{Training with L1 Loss}
 
 The symmetric neural network baseline is trained by minimising the mean absolute
 error (L1 loss):
@@ -81,7 +96,7 @@ L1 loss treats over- and under-prediction symmetrically, and yields predictions
 that converge to the conditional median.  As discussed in
 Section~\ref{sec:modeling}, this is suboptimal when costs are asymmetric.
 
-\subsection{Post-Hoc Cost-Optimised Baseline}
+\subsubsection{Post-Hoc Cost-Optimised Baseline}
 \label{sec:posthoc}
 
 To further isolate the benefit of end-to-end cost-aware training, we include an
@@ -109,7 +124,7 @@ Cost-aware training, by contrast, reshapes the model's response to every input
 pattern throughout optimisation, enabling feature-adaptive upward adjustments that
 are largest precisely when under-prediction risk is highest.
 
-\subsection{Training with Asymmetric Loss}
+\subsubsection{Training with Asymmetric Loss}
 
 The cost-aware neural network is trained by minimising the asymmetric cost
 function (Section~\ref{sec:modeling}) directly as the training objective.
@@ -117,27 +132,43 @@ Because the loss is differentiable, it is incorporated into the standard
 gradient-based training loop with no additional computational overhead compared
 to L1 training.
 
-% \subsection{Optimisation}
+\subsubsection{Evaluation Protocol}
+\label{sec:eval-protocol}
 
-% Both neural network variants (L1 and asymmetric loss) are trained with the Adam
-% optimiser~\parencite{kingma2014adam} at a fixed learning rate $\eta=2\times10^{-3}$
-% for a maximum of 1\,000~epochs with batch size~64.  No dropout, weight decay,
-% gradient clipping, or learning-rate scheduling is applied.
+Using the architecture and training loop above, we compare three training
+strategies, differing only in their objective:
 
-% Table~\ref{tab:hyperparams} summarises all hyperparameters.
+\begin{itemize}
+    \item \textbf{L1 (MAE)} --- trained with mean absolute error (symmetric baseline).
+    \item \textbf{Pinball 5:1} --- trained with the pinball loss at a cost ratio of
+          $5\!:\!1$ (under-prediction penalised 5$\times$ more than over-prediction).
+    \item \textbf{Pinball 20:1} --- trained with the pinball loss at a cost ratio of
+          $20\!:\!1$.
+\end{itemize}
 
-% \begin{table}[ht]
-%     \centering
-%     \begin{tabular}{lll}
-%         \toprule
-%         \textbf{Hyperparameter} & \textbf{Value} & \textbf{Notes} \\
-%         \midrule
-%         Optimizer                    & Adam      & \\
-%         Initial LR $\eta$            & $2\times10^{-3}$ & \\
-%         Maximum epochs               & 1\,000    & \\
-%         Batch size                   & 64        & \\
-%         \bottomrule
-%     \end{tabular}
-%     \caption{Hyperparameters for both neural network variants.}
-%     \label{tab:hyperparams}
-% \end{table}
+To isolate the benefit of end-to-end cost-aware training, we additionally
+evaluate \emph{post-hoc calibrated} variants of all three models
+(Section~\ref{sec:posthoc}), in which an affine transformation
+$g(z)=\alpha z + \beta$ is fitted on the training set to minimise the
+expected asymmetric cost.
+
+Models are evaluated on three cost functions that reflect different assumptions
+about the cost of over- and under-prediction: the L1 cost, the Pinball~5:1
+cost, and the Pinball~20:1 cost.  The primary metrics are the
+\textbf{Pinball~5:1} and \textbf{Pinball~20:1} costs, which best reflect the
+asymmetric structure of real-world electricity procurement costs.
+Figure~\ref{fig:loss_fns} illustrates these three cost functions: the
+Pinball~5:1 and Pinball~20:1 functions penalise under-predictions more heavily
+than over-predictions, reflecting the real-world asymmetry of electricity
+procurement costs, while L1 serves as a symmetric reference point.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{plot/loss_fns.png}
+    \caption{The three cost functions used for evaluation: L1 (MAE, symmetric
+             baseline), Pinball~5:1, and Pinball~20:1.  The pinball functions
+             penalise under-predictions more heavily than over-predictions,
+             with the 20:1 variant applying a much steeper penalty on the
+             under-prediction side.}
+    \label{fig:loss_fns}
+\end{figure}
