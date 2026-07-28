@@ -37,3 +37,4 @@ pred
 *.snm
 
 .vscode/
+tmp.txt

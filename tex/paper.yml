@@ -1,96 +1,148 @@
+Abstract:
+  - >
+    Accurate day-ahead electricity demand forecasting is critical for market
+    participants, who must commit to procurement before actual demand is observed.
+  - >
+    Traditional approaches minimise symmetric losses such as MSE, which implicitly
+    treat over- and under-prediction as equally costly. In practice, under-prediction
+    --- triggering emergency reserves, load shedding, or costly real-time purchases ---
+    is far more expensive than over-prediction.
+  - >
+    We formalise this asymmetry through an explicit cost function and incorporate it
+    directly into the training objective, training a feedforward neural network with
+    an asymmetric loss that targets the cost-minimising prediction.
+  - >
+    Using daily Israeli electricity demand from March 2023 to February 2026, augmented
+    with weather data from three cities, we evaluate against MSE-trained baselines using
+    synthetic asymmetric cost functions.
+  - >
+    Cost-aware training yields statistically significant reductions in operational cost
+    versus symmetric baselines, and MSE is shown to be a poor surrogate for operational
+    cost under asymmetric loss.
+
 Introduction:
-  - Describe the modern electricity grid:
+  - Describe the modern electricity grid and wholesale markets:
       - >
-        Describe the mechanism of electricity markets, 
-        where producers submit bids to sell electricity at certain prices, 
-        and consumers submit bids to buy electricity at certain prices. 
-        The market clears at a price where supply meets demand.
+        Producers and large consumers interact, directly or through a central operator,
+        to set how much power is generated and consumed. In a stylised day-ahead market,
+        producers submit supply offers and suppliers submit demand bids, and a system
+        operator clears the market at a single price per settlement period (typically one hour).
+      - This mechanism promotes efficiency by rewarding low-cost producers and incentivising demand response (Stoft 2002; Kirschen & Strbac 2018).
+  - Describe the Israeli market setting of this study:
       - >
-        Emphasize the importance of accurate demand forecasting for market participants, 
-        as it affects their bidding strategies and profitability.
-
-  - Introduce the concept of asymmetric costs in electricity markets:
+        The Israeli market is comparatively centralised: the system operator (Noga)
+        forecasts national demand for each hour of the following day, and this day-ahead
+        forecast --- with the resulting price signal --- determines scheduled generation.
+        It is a coordinated, forecast-driven dispatch rather than a continuously cleared auction.
+      - Regardless of market design, the day-ahead demand forecast is the pivotal quantity: it is fixed before real-time demand is known and its accuracy propagates into scheduling and price.
+  - Motivate accurate forecasting:
+      - Procurement decisions are finalised a day in advance; inaccurate forecasts force costly corrective actions in the balancing / real-time markets.
       - >
-        Explain that overestimating demand can lead to excess supply, 
-        which may result in financial losses for producers due to unsold electricity. 
-        Conversely, underestimating demand can lead to shortages, 
-        which may also result in financial losses due to the need to purchase electricity at higher prices to meet demand.
+        It is plausible that suppliers simply draw their share from the operator's published
+        forecast, so more sophisticated forecasting could translate into lower retail prices.
+      - Price differences arise from two sources of uncertainty --- demand prediction error and production-capacity prediction error; this paper concerns only day-ahead demand uncertainty (production-side uncertainty is out of scope).
 
-      - Emphasize the asymmetric nature of these costs, where the cost of underestimation is much higher than the cost of overestimation.
+  - Asymmetric Costs in Electricity Markets (subsection):
+      - Overestimation: excess supply can be sold back, curtailed, or stored, yielding a relatively modest and bounded per-unit loss.
+      - Underestimation: additional electricity must be sourced in the real-time market at volatile, spiking prices; extreme cases trigger load shedding, emergency imports, or expensive peaking units, with reliability and regulatory implications.
+      - Empirically, the ratio of under- to over-procurement cost, c_u / c_o, typically lies in [5, 20] (Zhang et al. 2022). This asymmetry means a rational participant should minimise expected asymmetric cost, not expected squared error.
+      - Situate within broader forecasting literature: Weron (2014) reviews electricity price forecasting; Hong & Fan (2016) review probabilistic load forecasting and argue point forecasts are insufficient; GEFCom2014 (Hong et al. 2016) established pinball loss as a community standard.
+      - Note the disconnect: most practical systems still use symmetric losses (MSE/MAE) for both training and evaluation, a systematic source of suboptimality.
 
-Related Work:
-  - Review existing literature on electricity demand forecasting:
-      - >
-        Summarize various approaches to demand forecasting, 
-        including statistical methods, machine learning techniques, and deep learning models. 
-        Highlight the strengths and weaknesses of each approach.
+  - Cost-Oriented and Asymmetric Learning for Load Forecasting (subsection):
+      - Koenker & Bassett (1978) introduced regression quantiles: minimising the asymmetric pinball ("check") loss estimates the conditional tau-quantile; this underpins our use of a non-linear pinball-type asymmetric loss.
+      - Christoffersen & Diebold (1997) showed the optimal point forecast under asymmetric loss is biased and time-varying, so any symmetric-objective (MSE) forecast is systematically suboptimal under asymmetric costs.
+      - Recent cost-oriented work embeds asymmetry into the learning objective:
+          - Wang et al. (2019) train an LSTM directly with pinball loss for probabilistic load forecasts.
+          - Lin et al. (2020) derive asymmetric losses from the Taiwan Power Company tariff for contract-capacity optimisation, reducing costs by 0.88%--2.42% over MSE.
+          - Wu et al. (2021) develop asymmetric SVR (AsySVR), achieving 42%--57% daily cost reductions on New South Wales data.
+          - Zhang et al. (2022) formalise the decision-oriented, cost-oriented perspective on load forecasting.
+      - Identify two gaps in prior work:
+          - Existing studies use piecewise-linear asymmetric losses, inheriting the newsvendor linearity assumption even though real procurement costs are often non-linear.
+          - They benchmark against statistical baselines rather than the forecast a real system operator actually deploys.
+      - Our contribution closes both gaps: a general non-linear asymmetric cost function (subsuming pinball as a special case), trained end-to-end, and evaluated against the real Noga day-ahead forecasts rather than a synthetic statistical model.
 
-  - Discuss previous work on cost-sensitive forecasting in electricity markets:
-      - >
-        Review studies that have addressed the issue of asymmetric costs in demand forecasting, 
-        and how they have incorporated these costs into their models. 
-        Highlight any gaps in the literature that your work aims to address.
+Cost-Sensitive Forecasting - Problem Formulation and Asymmetric Loss:
+  - Problem Formulation:
+      - The operator commits to procurement quantity p before observing demand X, modelled as a random variable with unknown, non-parametric distribution.
+      - State the assumptions:
+          - Asymmetry: under-prediction is more costly than over-prediction of equal magnitude (c_u > c_o > 0).
+          - Monotonicity: costs are non-decreasing in the magnitude of the prediction error, in either direction.
+          - Known, differentiable costs: cost functions are assumed known and differentiable so they can serve as gradient-based training objectives.
+      - Cost structure: total realised cost C(p, X) equals l_o(p - X) under over-prediction and l_u(X - p) under under-prediction.
+      - Goal: find p* minimising expected cost, not expected prediction error.
+      - Newsvendor special case: with linear costs (per-unit c_o and c_u > c_o), the optimal level follows the critical-fractile formula p* = F^{-1}(c_u / (c_u + c_o)) (Arrow et al. 1951).
+  - Limitations of the Linear Newsvendor Framework:
+      - The newsvendor model is tractable but does not capture real-world market complexity; our general formulation assumes neither linear costs nor a known demand distribution, relying instead on empirical samples via the training loss.
+  - Synthetic Cost Functions for Evaluation:
+      - Since actual market cost data is unavailable, we evaluate against synthetic cost functions satisfying the qualitative properties above.
+      - The main evaluation uses two pinball losses with under/over cost ratios of 1:5 and 1:20, consistent with the reported 5x--20x asymmetry (Weron 2014). Pinball losses are piecewise linear and standard in quantile regression.
 
-Problem Formulation:
-  - Mention the Newsvendor framework as a tool for modeling asymmetric costs in demand forecasting:
-      - >
-        Introduce the Newsvendor problem, which is a classic model in operations research that deals with inventory management under uncertainty. 
-        Explain how this framework can be adapted to model the asymmetric costs of overestimation and underestimation in electricity demand forecasting.
-      - >
-        Emphasize the limitations of the Newsvendor framework:
-        - It assumes linearity in costs, which may not always hold in real-world scenarios.
-        - It assumes a known probability distribution of demand, which may not be accurate in practice.
-  - Formulate the problem:
-      - >
-        Given an arbitrary demand distribution, and arbitrary cost functions for overestimation and underestimation,
-        how can we determine the optimal forecasting strategy that minimizes expected costs?
+Methods:
+  - Frame the objective: determine whether a forecaster trained end-to-end on an asymmetric operational cost can outperform both a symmetric-loss model and the real Noga operational forecast.
 
-      - Mention that, in this paper, we do not have an access to actual costs
-      - We will generate synthetic cost functions to evaluate the performance of our forecasting models under different cost scenarios.
-      - Qualitatively the cost functions behave:
-          - overestimation:
-              - The cost is monotonically increasing with the degree of overestimation,
-              - The cost is convex, meaning that the marginal cost of overestimation increases as the degree of overestimation increases.
-          - underestimation:
-              - The cost is monotonically increasing with the degree of underestimation,
-              - The cost is convex, meaning that the marginal cost of underestimation increases as the degree of underestimation increases.
+  - Dataset (subsection):
+      - Israeli electricity market context:
+          - small country (~22,145 km^2, ~9.8M people) with population highly concentrated on the ~150 km Mediterranean coastal plain (Haifa--Tel Aviv--Ashdod), motivating the choice of Tel Aviv, Jerusalem, and Haifa weather stations. (Figure: population density.)
+      - Two data sources: electricity consumption from Noga (5-minute readings, including the real day-ahead forecasts used in market clearing) and weather from the Israeli Meteorological Service (temperature, humidity, wind speed every three hours in the three cities).
+      - The real day-ahead forecasts enable (i) direct comparison against the operational baseline and (ii) analysis of real-world operator error, motivating the cost asymmetries studied.
+      - Data analysis / EDA:
+          - Daily demand over time shows clear seasonal patterns: summer peak (July--August, cooling) and secondary winter peak (January--February, heating).
+          - Demand vs. Tel Aviv mean temperature shows the characteristic U-shape with a balance point near 20 C.
+          - KDE of forecast error (actual minus day-ahead forecast) is approximately zero-mean with slightly heavier right tails.
+      - Summary statistics: 1,096 days from 1 March 2023 to 28 February 2026 (total demand, day-ahead forecast, forecast error, and station temperatures), with three anomalous forecast values excluded.
+      - Forecast Error Distribution (subsection):
+          - The Noga error is nearly zero-mean (+312 MWh) and roughly symmetric (std 3,241 MWh) --- essentially unbiased.
+          - This is good for accuracy but a warning sign for cost: under asymmetric costs the cost-minimising forecast is a higher quantile, not the conditional mean, so a symmetric zero-mean forecast systematically incurs higher expected operational cost.
+          - A heatmap of mean percentage absolute error by hour-of-day and day-of-week shows structured, non-uniform difficulty, implying a single global affine correction cannot fix all slots.
+      - Comparison with the Noga operational forecast (subsection):
+          - Noga achieves R^2 ~ 0.98 (strong accuracy baseline) but behaves as a conditional-mean estimator with no cost-asymmetry adjustment; high R^2 is a misleading indicator of operational performance under asymmetric costs.
 
-Dataset:
-  - Describe the dataset used for demand forecasting:
-      - >
-        Provide details about the dataset, including the source, time period covered, and the granularity of the data (e.g., hourly, daily). 
-        Mention any preprocessing steps taken to clean and prepare the data for analysis.
+  - Model Training (subsection):
+      - Shared architecture across variants: the prediction is a soft attention over a short window of recent historical demand plus a learned additive correction, with weather and temporal features determining both attention weights and the correction. Operates at 5-minute granularity, forecasting demand 24 hours ahead. Variants differ only in training objective.
+      - Data splitting: chronological split at 1 January 2025 --- training March 2023--December 2024 (~672 days), test January 2025--February 2026 (~424 days), preventing future information leakage.
+      - Neural network architecture:
+          - Inputs: a history window of H=10 five-minute readings ending 24 hours before the target; nine continuous weather variables (temperature, wet-bulb temperature, relative humidity for three stations); and learned temporal embeddings for time of day (288, dim 16), day of week (7, dim 3), and month (12, dim 2).
+          - Concatenated into a dimension-40 vector, passed through a small MLP (two hidden layers of width 32, LeakyReLU) producing H+1 outputs: H attention logits over the history window and one additive correction delta.
+          - Forecast = softmax-weighted sum over the history window plus delta; demand normalised by scale factor s=100 during training.
+          - Optimisation: Adam (Kingma & Ba 2014), learning rate 2e-4, batch size 10,000, up to 500 epochs with early stopping (patience 20, evaluated every 10 epochs).
+      - Training with L1 loss: symmetric baseline minimising mean absolute error, converging to the conditional median (suboptimal under asymmetric costs).
+      - Post-hoc cost-optimised baseline: adjust L1-trained predictions after training via a learned affine transform g(z) = alpha*z + beta minimising expected asymmetric cost on the training set, applied uniformly at test time. It can only apply a global affine correction and cannot adapt to local input features.
+      - Training with asymmetric loss: minimise the differentiable asymmetric cost function directly as the training objective, with no extra computational overhead versus L1.
+      - Evaluation protocol:
+          - Compare three training strategies differing only in objective: L1 (MAE), Pinball 5:1, and Pinball 20:1.
+          - Additionally evaluate post-hoc affine-calibrated variants of all three models.
+          - Evaluate on three cost functions (L1, Pinball 5:1, Pinball 20:1); the Pinball 5:1 and 20:1 costs are the primary metrics.
 
-  - Highlight any relevant features in the dataset that may be useful for forecasting demand, such as weather conditions, time of day, and historical demand patterns.
-
-Method:
-  - Describe the forecasting models used in the study:
-      - Our solution is based on a deep learning model, specifically a Long Short-Term Memory (LSTM) network, which is well-suited for time series forecasting tasks.
-      - We directly optimize the forecasting model for the asymmetric cost function, by incorporating the cost function into the loss function used for training the model.
-
-Evaluation:
-  - Describe the baseline models:
-      - A random forest model
-
-  - Evaluation metrics:
-      - Compare the performance of the models with respect to MSE loss
-      - Compare the same LSTM when trained with MSE loss and when trained with the asymmetric cost function
-      - >
-        Show that MSE loss is not a good metric for evaluating the performance of forecasting models in the presence of asymmetric costs, 
-        as it does not capture the true cost implications of overestimation and underestimation.
+Results and Discussion:
+  - Report the test-set cost of each model under each evaluation metric (table + colour-coded model x loss confusion matrix), before and after post-hoc calibration.
+  - Each model excels on its own training metric: without calibration a clear diagonal dominance appears --- L1 lowest L1 cost (2.704), Pinball 5:1 lowest 5:1 cost (1.820), Pinball 20:1 lowest 20:1 cost (0.841).
+  - Asymmetric training substantially outperforms the symmetric baseline, and the advantage grows with the asymmetry ratio: Pinball 5:1 beats L1 by 40% on the 5:1 metric; Pinball 20:1 beats L1 by 73% on the 20:1 metric.
+  - Post-hoc calibration narrows but does not close the gap:
+      - affine calibration improves the L1 model on asymmetric metrics (Pinball 20:1: 3.167 -> 1.022) but still falls short of dedicated pinball models, because a single global shift cannot replicate the input-conditional upward bias of end-to-end training (the hour/day error heatmap explains why).
+  - Error distributions reflect the targeted quantile: the L1 model is symmetric and centred near zero, the Pinball 5:1 model is modestly right-shifted, and the Pinball 20:1 model has a pronounced positive tail.
 
 Conclusion and Future Work:
-  - Summarize the main findings of the study:
-      - >
-        Our results demonstrate that incorporating asymmetric cost modeling into the forecasting process can lead to improved performance in terms of cost savings, 
-        compared to traditional forecasting methods that do not account for asymmetric costs.
-
-  - Discuss the implications of the findings for market participants and policymakers:
-      - >
-        The findings suggest that market participants should consider incorporating asymmetric cost modeling into their forecasting strategies to better manage risks associated with demand uncertainty. 
-        Policymakers may also want to consider implementing regulations that encourage the use of cost-sensitive forecasting methods in electricity markets.
-
-  - Suggest directions for future research:
-      - >
-        Future research could explore the use of more complex cost functions that better capture the real-world costs associated with overestimation and underestimation. 
-        Additionally, future studies could investigate the impact of different types of demand uncertainty on the performance of forecasting models with asymmetric cost modeling.
+  - Summary of findings:
+      - Asymmetric costs are pervasive and substantial (c_u/c_o in [5, 20]) and materially change the optimal forecasting strategy.
+      - The newsvendor framework gives a principled optimality condition: the cost-minimising level is the quantile tau* = c_u/(c_u + c_o) (e.g. ~0.833 for a ratio of 5).
+      - Asymmetric-loss training effectively targets the cost-minimising quantile and achieves lower expected operational cost than an L1-trained baseline, consistently across cost parameters.
+      - Symmetric loss is a misleading evaluation metric: the L1 model has lower MAE yet higher operational cost; practitioners should use cost-sensitive metrics.
+      - Post-hoc calibration helps but does not substitute for cost-aware training, as it cannot adapt the upward bias to the input-conditional structure of forecast error.
+  - Implications for market participants and policymakers:
+      - Market participants: MSE-optimised tools systematically under-procure; asymmetric-loss training or post-hoc quantile adjustment reduces procurement cost with negligible overhead.
+      - Grid operators: incentivising cost-sensitive forecasting improves system reliability; reward forecast accuracy via cost-sensitive metrics rather than MSE.
+      - Policymakers: support cost-sensitive forecasting requirements in market design, e.g. mandatory reporting of asymmetric (pinball) loss alongside MSE.
+  - Limitations:
+      - Synthetic cost functions (no access to actual market cost data).
+      - Time-invariant cost asymmetry treated as constant across the day.
+      - Point forecasts only (a single scalar at the target quantile, no full predictive distribution).
+      - Fixed cost ratio c_u/c_o assumed constant over time.
+  - Directions for future research:
+      - Distributional forecasting (normalising flows, conformal prediction, Bayesian deep learning) for adaptive quantile selection.
+      - Nonlinear and non-smooth (step/tiered) cost functions via distributionally robust optimisation or stochastic programming.
+      - Online and adaptive learning that updates the model in real time.
+      - Richer temporal modelling (Transformers, temporal convolutional networks) with hour-of-day-varying cost asymmetry.
+      - Multi-product forecasting across day-ahead energy, reserves, and ancillary services.
+      - Real cost data via collaboration with market participants or operators.
+  - Concluding remarks: replacing the MSE objective with a cost-sensitive asymmetric loss at the cost-minimising quantile improves operational performance without sacrificing tractability, contributing to a shift toward cost-aware forecasting in the electricity industry.
