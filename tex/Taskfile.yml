@@ -7,3 +7,8 @@ tasks:
       - ./evince-synctex.sh listen code --goto %f:%l  &
       - evince main.pdf &
       - latexmk -pvc -pdf -interaction=nonstopmode -synctex=1 main.tex
+
+  docx:
+    desc: "Generate main.docx from the LaTeX paper"
+    cmds:
+      - pandoc main.tex --citeproc --bibliography=ref.bib -o main.docx
