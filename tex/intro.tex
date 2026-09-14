@@ -44,7 +44,7 @@ uncertainty: errors in predicting \emph{demand}, and errors in predicting
 available \emph{production capacity}---the latter being especially pronounced in
 systems that rely heavily on variable renewable generation such as solar and
 wind~\parencite{morales2014integrating}.  This paper is concerned exclusively
-with the first source, uncertainty in day-ahead demand; production-side
+with the first source of differences, uncertainty in day-ahead demand; production-side
 uncertainty, while important, is outside our scope.
 
 \subsection{Asymmetric Costs in Electricity Markets}
@@ -99,9 +99,9 @@ electricity load, price, wind, and solar tracks.  It established pinball loss as
 community standard and demonstrated that models explicitly optimised for quantile
 accuracy substantially outperform those adjusted only post-hoc.
 
-Despite the theoretical clarity of this framing, the majority of practical
+Despite the theoretical clarity of this framing, most practical
 forecasting systems in electricity markets continue to use symmetric loss
-functions---most commonly MSE or mean absolute error (MAE)---both for training
+functions---most commonly mean squared error (MSE) or mean absolute error (MAE)---both for training
 predictive models and for evaluating their performance.  This disconnect between
 training objective and operational cost constitutes a systematic source of
 suboptimality that has received growing attention in the academic
@@ -133,37 +133,37 @@ between symmetric training objectives and asymmetric operational costs directly
 in the electricity setting, embedding the cost asymmetry into the learning
 objective itself rather than correcting for it after the fact.
 
-\textcite{wang2019pinball} train a Long Short-Term Memory (LSTM) network directly
+\textcite{wang2019pinball} trained a Long Short-Term Memory (LSTM) network directly
 with the pinball loss to produce probabilistic individual load forecasts.  By
 guiding the network to minimise $\mathbb{E}[\mathcal{L}_\tau]$ rather than MSE,
 their approach yields calibrated quantile predictions without requiring post-hoc
 quantile regression on the residuals.  Their results show improved reliability and
 sharpness compared to symmetric-loss baselines.
 
-\textcite{lin2020asymmetric} address the related problem of contract-capacity
+\textcite{lin2020asymmetric} addressed the related problem of contract-capacity
 optimisation for high-voltage consumers, where the electricity pricing structure
 is inherently asymmetric: underestimating demand triggers penalty charges at a
-higher per-unit rate than overestimating.  They propose several asymmetric loss
+higher per-unit rate than overestimating.  They proposed several asymmetric loss
 functions derived directly from the Taiwan Power Company's pricing formula, and
 demonstrate that LSTM models trained with these loss functions reduce electricity
 costs by 0.88\%--2.42\% over symmetric MSE baselines.
 
-\textcite{wu2021svr} extend this idea to support vector regression (SVR),
+\textcite{wu2021svr} extended this idea to support vector regression (SVR),
 developing a cost-oriented asymmetric SVR (AsySVR) framework based on a
 linear-linear loss function with an insensitivity parameter to improve
 generalisation.  Evaluated on New South Wales load data, their asymmetric
-framework achieves daily economic cost reductions of 42\%--57\% relative to
+framework achieved daily economic cost reductions of 42\%--57\% relative to
 standard SVR, underscoring that the choice of loss function can have a large
 practical impact on operational outcomes.
 
-\textcite{zhang2022costoriented} further formalise the decision-oriented
+\textcite{zhang2022costoriented} further formalised the decision-oriented
 perspective on load forecasting, framing the problem explicitly in terms of the
 downstream cost incurred by the system operator.  Their cost-oriented framework
 bridges the gap between forecast-accuracy metrics and operational objectives, and
 provides theoretical justification for replacing standard point-forecast losses
 with cost-aware alternatives.
 
-Taken together, this body of work establishes that asymmetric, cost-sensitive
+Taken together, this recent body of work establishes that asymmetric, cost-sensitive
 training objectives are both theoretically motivated and empirically superior to
 symmetric alternatives in electricity applications.  Two gaps, however, remain.
 First, existing studies almost exclusively employ \emph{piecewise-linear}
@@ -172,30 +172,26 @@ a specific tariff---and thus inherit the newsvendor model's linearity assumption
 even though real procurement costs are frequently non-linear.  Second, and more
 practically, these methods are typically benchmarked against statistical
 baselines rather than against the forecast an experienced system operator
-actually deploys, leaving open whether cost-aware training improves upon a strong,
+actually deploys, leaving open the question of whether cost-aware training improves upon a strong,
 real-world operational forecast.
-
-Our work is designed to close both gaps.  We formulate the forecasting problem
-with a general, not-necessarily-linear asymmetric cost function that subsumes the
-pinball loss as a special case, and train a neural network to minimise it
-end-to-end.  Crucially, we evaluate against the \emph{real} day-ahead forecasts
-published by the Israeli system operator Noga---an operational baseline with
-access to proprietary data and domain expertise---rather than against a synthetic
-statistical model.  This lets us ask not merely whether cost-aware training beats
-a symmetric loss in the abstract, but whether it can improve upon the forecast
-currently used to help run a national grid.  The cost-minimising quantile that
-this training targets is characterised formally in Section~\ref{sec:modeling}.
 
 \subsection{Contributions}
 
-The contributions of this paper are as follows:
+Our work is designed to overcome both gaps currently existing in the literature described above.  We formulate the forecasting problem
+with a general, not necessarily linear asymmetric cost function that subsumes the
+pinball loss as a special case, and train a neural network to minimise it
+end-to-end.  Crucially, we evaluate against the \emph{real} day-ahead forecasts
+published by the Israeli system operator Noga - an operational baseline with
+access to proprietary data and domain expertise - rather than against a synthetic
+statistical model.  This lets us ask not merely whether cost-aware training beats
+a symmetric loss in the abstract, but whether it can improve upon the forecast
+currently used to help run a national grid.  The contributions of this paper are thus as follows:
 
 \begin{enumerate}
     \item \textbf{A general asymmetric-cost formulation.}  We formulate day-ahead
           demand forecasting under a general, not-necessarily-linear asymmetric
           cost function that subsumes the pinball loss as a special case, and we
-          train a feedforward neural network to minimise it end-to-end
-          (Sections~\ref{sec:modeling}--\ref{sec:method}).
+          train a feedforward neural network to minimise it end-to-end.
 
     \item \textbf{Evaluation against a real operational forecast.}  Rather than
           benchmarking against a synthetic statistical baseline, we compare

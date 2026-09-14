@@ -1,11 +1,12 @@
 \subsection{Summary of Findings}
 
 This paper addressed day-ahead electricity demand forecasting under asymmetric
-operational costs.  Our main findings are:
+operational costs using a 3-year national-scale, high-resolution dataset of
+electricity use prediction and actual consumption.  Our main findings are:
 
 \begin{enumerate}
     \item \textbf{Asymmetric costs are pervasive and substantial.}  In
-          electricity markets the costs of under-predicting demand substantially
+          electricity markets, the costs of under-predicting demand substantially
           exceed those of over-prediction.  Empirically plausible cost ratios
           $c_u/c_o\in[5,20]$ have a large impact on the optimal forecasting
           strategy.
@@ -13,7 +14,7 @@ operational costs.  Our main findings are:
     \item \textbf{The newsvendor framework provides a principled optimality
           condition.}  The cost-minimising procurement level corresponds to a
           specific quantile $\tau^*=c_u/(c_u+c_o)$ of the conditional demand
-          distribution.  For a cost ratio of~5 this yields $\tau^*\approx 0.833$,
+          distribution.  For a cost ratio of~5, this yields $\tau^*\approx 0.833$,
           i.e.\ the 83.3rd percentile of demand --- a systematic upward shift
           that is normatively \emph{desirable} under asymmetric costs.
 
@@ -41,9 +42,9 @@ operational costs.  Our main findings are:
           forecast.}  Our model is a small, open-source feedforward network that
           trains in minutes on commodity hardware.  Even though predictive
           accuracy was not an objective of this work, it improves on the Noga
-          operational forecast not only on cost-sensitive metrics but even under
-          symmetric error metrics such as MSE --- and we believe substantial
-          further gains are readily achievable.  Together with a demonstrated
+          operational forecast not only on cost-sensitive metrics but also under
+          symmetric error metrics such as MSE; we believe substantial
+          further gains in this aspect are readily achievable.  Together with a demonstrated
           economic benefit, this makes the method realistic to adopt in practice.
 \end{enumerate}
 
@@ -71,6 +72,8 @@ quantiles, alongside MSE, would provide a richer picture of forecast quality
 that better reflects operational costs.
 
 \subsection{Limitations}
+
+Along with these positive findings, this work also has several limitations, as follows:
 
 \begin{itemize}
     \item \textbf{Synthetic cost functions.}  Since we do not have access to
@@ -116,10 +119,10 @@ that better reflects operational costs.
     \item \textbf{Richer temporal modelling and time-varying cost asymmetry.}
           Our model already operates at fine (5-minute) granularity but treats
           each target slot largely independently and assumes a constant cost
-          ratio.  Explicitly modelling intra-day and cross-day demand dynamics
-          --- for example with Transformer
+          ratio.  Explicitly modelling intra-day and cross-day demand dynamics,
+          for example with Transformer
           architectures~\parencite{vaswani2017attention} or temporal
-          convolutional networks --- together with a cost asymmetry that varies
+          convolutional networks, together with a cost asymmetry that varies
           by hour of the day, could better exploit the structured hour-of-week
           error pattern documented in Section~\ref{sec:forecast-error-dist}.
 
@@ -138,8 +141,8 @@ that better reflects operational costs.
 
 Electricity demand forecasting sits at the intersection of time series analysis,
 optimisation under uncertainty, and energy economics.  As markets become more
-complex --- driven by variable renewable energy, demand response, and distributed
-storage --- the costs of forecast errors are likely to increase, making
+complex, driven by variable renewable energy, demand response, and distributed
+storage, the costs of forecast errors are likely to increase, making
 cost-sensitive forecasting ever more important.
 
 This work demonstrates that a conceptually simple modification --- replacing the
@@ -150,8 +153,8 @@ sacrificing computational tractability.
 
 We stress, however, that training against a \emph{predefined, fixed} cost
 function is not the solution we ultimately advocate.  It couples the learned
-model to one particular cost structure, so that a change in the cost ratio ---
-driven by fuel prices, reserve availability, or the time of day --- in principle
+model to one particular cost structure, so that a change in the cost ratio,
+driven by fuel prices, reserve availability, or the time of day, in principle
 requires retraining, and it collapses the rich uncertainty in future demand into
 a single quantile chosen in advance.  We view it as one useful step in the right
 direction rather than the destination.  The desired formulation, in our view, is
@@ -162,7 +165,6 @@ function currently prevails.  This separation would let a single trained model
 serve any cost structure, adapt the optimal bias to the input-conditional
 uncertainty of each slot, and expose the full distribution for downstream
 risk-aware decisions.  Realising it is the main direction of our future work.
-
 We hope these findings contribute to a broader shift
 towards cost-aware forecasting practices in the electricity industry and stimulate
 further research at the intersection of machine learning and energy systems

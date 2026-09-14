@@ -52,7 +52,6 @@ inventory-theoretic framework in which a decision-maker commits to a quantity
 before demand is realised.  
 Let $c_o>0$ and $c_u > c_o$ be the per-unit overage
 and underage costs.
-
 This is a well known problem in which the optimal procurement level is given by the critical fractile formula:
 \begin{equation}
     p^* = F^{-1}\!\left(\frac{c_u}{c_u + c_o}\right)
@@ -63,8 +62,7 @@ This is a well known problem in which the optimal procurement level is given by 
 \label{sec:limitations_nv}
 
 While the newsvendor model provides a tractable and theoretically grounded
-formulation, it does not always capture the complexities of real-world electricity markets.  
-
+formulation, it does not always capture the complexities of real-world electricity markets.
 Our general formulation (Equation~\eqref{eq:cost}) addresses this limitation:
 it does not assume linear costs and it does not require knowledge of the demand
 distribution, relying instead on empirical samples via the training loss.
@@ -72,11 +70,10 @@ distribution, relying instead on empirical samples via the training loss.
 \subsection{Synthetic Cost Functions for Evaluation}
 
 Since we do not have access to actual cost data from the electricity market
-operator, we evaluate our models against \emph{synthetic} cost functions that
+operator, we evaluated our models against \emph{synthetic} cost functions that
 satisfy the qualitative properties stated in the problem formulation.
-
-For simplicity, we conduct our main evaluation using two \emph{pinball loss}
-functions with under/over-prediction cost ratios of $1\!:\!5$ and $1\!:\!20$
+For simplicity, we conducted our main evaluation using two \emph{pinball loss}
+functions with under/over-prediction cost ratios of $1\!:\!5$ and $1\!:\!20$,
 respectively.  These ratios are consistent with the findings of prior work on
 asymmetric costs in electricity demand forecasting, which reports that the cost
 of under-prediction typically exceeds the cost of over-prediction by a factor of

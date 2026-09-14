@@ -1,7 +1,7 @@
 The dataset is collected from the Israeli electricity market.
 Israel is a small country in the Middle East, covering an area of approximately
-22{,}145~km\textsuperscript{2} with a population of roughly 9.8~million people.
-Despite this small size, the population is highly concentrated: the vast majority
+20{,}770~km\textsuperscript{2} with a population of roughly 10~million people as of 2026.
+The population geographic distribution is highly concentrated: the vast majority
 of Israelis live along the narrow Mediterranean coastal plain, a strip
 approximately 150~km long stretching from Haifa in the north through the
 greater Tel~Aviv metropolitan area and on to Ashdod in the south.
@@ -18,7 +18,7 @@ national demand signal.
     approximately 150~km from Haifa to Ashdod, concentrates the overwhelming
     majority of the population.  This spatial clustering justifies using weather
     observations from Tel~Aviv, Haifa, and Jerusalem as the primary climatic
-    features for demand forecasting.}
+    features for demand forecasting.  Population density is per 1 square kilometre.}
     \label{fig:pop-density}
 \end{figure}
 
@@ -34,7 +34,8 @@ of our learned models against the operational forecasts actually used in the mar
 serving as a strong real-world baseline; and (ii)~we can analyze the
 distribution of real-world prediction errors produced by an experienced operator,
 which motivates and contextualizes the cost asymmetries studied in this paper.
-The weather data includes temperature, humidity, and wind speed measurements taken every three hours in the three major cities of Israel: Tel Aviv, Jerusalem, and Haifa.
+In Israel, where the percentage of households with air conditioning systems is currently 96.5\% (ranging from 89\% in the lower decile to 98.3\% in the upper decile) according to data from Israel's Central Bureau of Statistics, there is a strong correlation between electricity consumption levels and building cooling and heating loads resulting from changing weather conditions and building occupancy trends.
+The weather data includes air temperature and relative humidity, whose combined effect controls building cooling loads, alongside wind speed measurements taken every three hours in the three major cities of Israel: Tel Aviv, Jerusalem, and Haifa.
 % Table~\ref{tab:electricity-fields} summarizes the fields present in the electricity consumption data,
 % and Table~\ref{tab:weather-fields} summarizes the fields present in the weather data. 
 % The dataset covers the period from March 2023 to February 2026, 
@@ -73,27 +74,27 @@ The weather data includes temperature, humidity, and wind speed measurements tak
 
 \subsubsection{Data Analysis}
 To better understand the dataset, we performed an exploratory data analysis (EDA) to identify patterns and relationships between the electricity consumption and weather data.
-Figure~\ref{fig:daily-demand} shows the daily electricity consumption over the course of the dataset alongside the daily average temperature in Tel Aviv.
+Figure~\ref{fig:daily-demand} shows daily electricity consumption over the dataset period (1 March 2023 to 28 February 2026) alongside the daily average air temperature in Tel Aviv.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{plot/daily_demand_by_time.png}
-    \caption{Daily electricity consumption (MWh) over the dataset period
-    (March~2023--February~2026).  Clear seasonal patterns are visible, with
+    \caption{Daily electricity consumption (MWh) and observed air temperature over the dataset period
+    (1 March 2023 to 28 February 2026).  Clear seasonal patterns are visible, with
     a summer peak (July--August) driven by air-conditioning loads and a secondary
     winter peak (January--February) driven by heating.}
     \label{fig:daily-demand}
 \end{figure}
 
-Figure~\ref{fig:daily-demand-vs-temp} shows the relationship between daily electricity consumption and the daily average temperature in Tel Aviv.
+Figure~\ref{fig:daily-demand-vs-temp} shows the relationship between daily electricity consumption and the daily average air temperature in Tel Aviv.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{plot/daily_demand_vs_avg_temp_Tel_Aviv.png}
-    \caption{Daily electricity consumption vs.\ daily mean temperature in
+    \caption{Daily electricity consumption vs.\ daily mean air temperature in
     Tel~Aviv.  The characteristic U-shaped relationship is visible, with
-    high demand at both high temperatures (cooling loads) and low temperatures
-    (heating loads).  The balance-point temperature is approximately
+    high demand at both high air temperatures (cooling loads) and low air temperatures
+    (heating loads).  The balance-point air temperature is approximately
     20\,$^\circ$C.}
     \label{fig:daily-demand-vs-temp}
 \end{figure}
@@ -137,13 +138,13 @@ the daily dataset.  The data span 1{,}096~days from 1~March~2023 to
         Total demand (MWh) & 73\,421 & 14\,852 & 19\,742 & 70\,435 & 114\,103 \\
         Day-ahead forecast (MWh) & 73\,109 & 14\,680 & 2\,400$^{*}$ & 70\,200 & 116\,148 \\
         Forecast error (MWh) & $+312$ & 3\,241 & $-12\,300$ & $+284$ & $+11\,543$ \\
-        Temp.\ Tel~Aviv ($^\circ$C)    & 22.1 & 4.8 &  9.6 & 22.5 & 30.3 \\
-        Temp.\ Jerusalem ($^\circ$C)   & 18.9 & 6.4 &  2.3 & 19.8 & 36.5 \\
-        Temp.\ Haifa ($^\circ$C)       & 20.3 & 5.1 &  4.4 & 20.8 & 31.3 \\
+        Air Temp.\ Tel~Aviv ($^\circ$C)    & 22.1 & 4.8 &  9.6 & 22.5 & 30.3 \\
+        Air Temp.\ Jerusalem ($^\circ$C)   & 18.9 & 6.4 &  2.3 & 19.8 & 36.5 \\
+        Air Temp.\ Haifa ($^\circ$C)       & 20.3 & 5.1 &  4.4 & 20.8 & 31.3 \\
         \bottomrule
     \end{tabular}
     \caption{Summary statistics for daily variables ($N = 1{,}096$ days,
-    March~2023--February~2026).
+    1 March 2023 to 28 February 2026).
     $^{*}$Three anomalous forecast values excluded from statistics; see text.}
     \label{tab:dataset-stats}
 \end{table}

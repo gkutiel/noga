@@ -46,7 +46,7 @@ on each metric and how calibration shifts the ranking.
     \label{fig:confusion-matrix}
 \end{figure}
 
-\paragraph*{Each model excels on its own training metric.}
+\paragraph*{Each model excels on its own training metric}
 Without calibration, a clear diagonal dominance is visible in
 Figure~\ref{fig:confusion-matrix}: each model achieves its lowest cost on
 the metric it was trained to minimise.
@@ -56,7 +56,7 @@ Pinball~20:1 cost ($0.841$).
 This confirms that the training objective directly shapes the cost profile
 of the resulting forecast.
 
-\paragraph*{Asymmetric training substantially outperforms the symmetric baseline.}
+\paragraph*{Asymmetric training substantially outperforms the symmetric baseline}
 The advantage of cost-aware training grows with the asymmetry ratio.
 Under the Pinball~5:1 metric, the Pinball~5:1 model ($1.820$) outperforms
 the L1 baseline ($3.045$) by $40\%$.
@@ -67,7 +67,7 @@ model produces a heavily right-skewed error distribution, deliberately
 over-predicting to avoid costly under-procurement events, while the L1
 model is symmetric and centred near zero.
 
-\paragraph*{Post-hoc calibration narrows but does not close the gap.}
+\paragraph*{Post-hoc calibration narrows but does not close the gap}
 Affine calibration substantially improves the L1 model on asymmetric metrics
 (Pinball~20:1: $3.167 \to 1.022$; Pinball~5:1: $3.045 \to 1.979$),
 confirming that a global bias correction captures much of the asymmetric
@@ -83,7 +83,7 @@ A uniform global correction applies the same rescaling to every prediction
 regardless of context; only a model that conditions its output on time
 features can adapt its bias to each slot individually.
 
-\paragraph*{Error distributions reflect the targeted quantile.}
+\paragraph*{Error distributions reflect the targeted quantile}
 Figure~\ref{fig:error_histograms} shows the prediction error distributions
 on the test set for each model.
 The L1 model is symmetric and centred near zero, as expected for a

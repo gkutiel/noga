@@ -1,4 +1,4 @@
-The objective of this study is to determine whether a demand forecaster trained
+The objective of this study was to determine whether a demand forecaster trained
 end-to-end to minimise an \emph{asymmetric operational cost} can outperform both
 a symmetric-loss model and the real operational forecast of the Israeli system
 operator, under the cost asymmetries characteristic of electricity procurement.
@@ -16,8 +16,9 @@ training objectives we compare, and the protocol under which they are evaluated
 
 All model variants share the same architecture: the prediction is expressed as
 a \emph{soft attention} over a short window of recent historical demand values
-plus a learned additive correction.  Weather conditions (temperature, wet-bulb
-temperature, and relative humidity at three meteorological stations) and
+plus a learned additive correction.  Weather conditions (air temperature, wet-bulb
+temperature, and relative humidity --- all raw fields reported directly by the
+IMS --- at three meteorological stations) and
 temporal patterns (time of day, day of week, month of year) jointly determine
 both the attention weights and the correction term.  Temporal features are
 encoded via learned embeddings; weather features enter as continuous inputs.
@@ -52,7 +53,7 @@ For each target 5-minute slot $t$, the model receives three types of input:
           from the previous day).
 
     \item \textbf{Weather features.}  Nine continuous variables measured at
-          time $t$: temperature, wet-bulb temperature, and relative humidity
+          time $t$: air temperature, wet-bulb temperature, and relative humidity
           for three stations (Haifa, Jerusalem, Tel~Aviv).
 
     \item \textbf{Temporal embeddings.}  Learned embeddings for time of day
@@ -78,7 +79,7 @@ during training and rescaled at inference time.  The model thus learns to
 select which historical reading is most informative given the current
 conditions, and applies a weather- and calendar-conditioned correction.
 Both models (L1 and asymmetric) are trained with the Adam
-optimiser~\parencite{kingma2014adam} at learning rate $2\times10^{-4}$, batch
+optimiser~\parencite{kingma2014adam} at a learning rate $2\times10^{-4}$, batch
 size~10\,000, and up to 500 epochs with early stopping (patience 20,
 evaluated every 10~epochs).
 
@@ -135,7 +136,7 @@ to L1 training.
 \subsubsection{Evaluation Protocol}
 \label{sec:eval-protocol}
 
-Using the architecture and training loop above, we compare three training
+Using the architecture and training loop above, we compared three training
 strategies, differing only in their objective:
 
 \begin{itemize}
@@ -147,12 +148,12 @@ strategies, differing only in their objective:
 \end{itemize}
 
 To isolate the benefit of end-to-end cost-aware training, we additionally
-evaluate \emph{post-hoc calibrated} variants of all three models
+evaluated \emph{post-hoc calibrated} variants of all three models
 (Section~\ref{sec:posthoc}), in which an affine transformation
 $g(z)=\alpha z + \beta$ is fitted on the training set to minimise the
 expected asymmetric cost.
 
-Models are evaluated on three cost functions that reflect different assumptions
+Models were evaluated on three cost functions that reflect different assumptions
 about the cost of over- and under-prediction: the L1 cost, the Pinball~5:1
 cost, and the Pinball~20:1 cost.  The primary metrics are the
 \textbf{Pinball~5:1} and \textbf{Pinball~20:1} costs, which best reflect the

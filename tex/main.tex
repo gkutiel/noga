@@ -27,8 +27,9 @@
 \title{\textbf{Cost-Sensitive Electricity Demand Forecasting\\
 via Asymmetric Loss Optimisation}\\[0.6em]
 \large Beyond the Linear Newsvendor Framework}
-\author{Or Aleksandrowicz \quad Avigdor Gal \quad Gilad Kutiel \quad Omri Savir \\[0.6em]
-\normalsize Technion --- Israel Institute of Technology}
+\author{Gilad Kutiel \quad Or Aleksandrowicz \quad Avigdor Gal  \\[0.6em]
+\normalsize Technion --- Israel Institute of Technology \\[0.3em]
+\footnotesize\ttfamily gilad.kutiel@gmail.com \quad oraleks@technion.ac.il \quad avigal@technion.ac.il}
 \date{March 2026}
 
 \begin{document}
@@ -41,16 +42,16 @@ deregulated power markets, where procurement decisions must be made before
 actual demand is observed.  
 Traditional forecasting approaches minimise symmetric
 loss functions such as mean squared error (MSE), which implicitly treat over- and
-under-prediction as equally costly.  In practice the costs of under-predicting
+under-prediction as equally costly.  In practice, the costs of under-predicting
 demand --- triggering emergency reserve activation, load shedding, or costly
-real-time purchases --- substantially exceed those of over-prediction.  
+real-time purchases --- substantially exceed those of over-prediction.
 We formalise this asymmetry through an explicit cost function and incorporate it
 directly into the training objective, replacing symmetric loss functions with a
 cost-sensitive alternative.  Concretely, we train a feedforward neural network with an asymmetric loss function that directly targets
 the cost-minimising prediction under the prevailing cost structure.  Using a dataset of daily electricity demand in
 Israel spanning March~2023 to February~2026, augmented with meteorological data
-from three major cities, we evaluate our approach against MSE-trained baseline models.  Synthetic asymmetric cost functions are
-generated to assess performance across a range of cost scenarios.  Our results
+from three major cities, we evaluate our approach against MSE-trained baseline models.  We then generate synthetic asymmetric cost functions
+to assess performance across a range of cost scenarios.  Our results
 demonstrate that cost-aware training leads to statistically significant
 reductions in operational cost compared to symmetric baselines, and that MSE is a
 poor surrogate for operational cost under asymmetric loss.
@@ -60,6 +61,8 @@ practical, open-source model improves on this operational forecast even under
 symmetric error metrics, while additionally delivering an economic benefit we
 argue is realistic to adopt.
 \end{abstract}
+
+\noindent\textbf{Keywords:} electricity demand forecasting; asymmetric loss functions; cost-sensitive learning; newsvendor model; pinball loss; day-ahead markets
 
 \setcounter{tocdepth}{2}
 \tableofcontents
@@ -80,6 +83,9 @@ argue is realistic to adopt.
 
 \section{Conclusion and Future Work}\label{sec:conclusion}
 \input{conclusion}
+
+\section*{Funding}
+This work was funded by Israel's Ministry of Energy and Infrastructure, grant number 223-11-056.
 
 \FloatBarrier
 \newpage
