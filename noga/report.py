@@ -136,6 +136,7 @@ def report(seeds=SEEDS, price_seeds=PRICE_SEEDS):
     pretrain(seeds, price_seeds)
 
     rows, daily = [], {}
+    savings_base = None
     for ps in price_seeds:
         for s in seeds:
             preds, meta = run(s, ps)
@@ -172,6 +173,7 @@ def report(seeds=SEEDS, price_seeds=PRICE_SEEDS):
     dm.to_csv(RES / "price_dm.csv", index=False, float_format="%.4g")
     print(dm.to_string(index=False))
 
+    assert savings_base is not None
     savings(summary, savings_base)
 
 
@@ -195,9 +197,9 @@ def savings(summary: pd.DataFrame, meta: pd.DataFrame):
     energy = y.mean() * 8760  # MWh / year
     bill = (meta[P_DA].to_numpy() * y).sum() * SLOT_H * 365 / days
 
-    def saved(col, key):
-        return (summary.loc[key, (col, "mean")]
-                - summary.loc[(PROPOSED, "raw"), (col, "mean")])
+    def saved(col, key) -> float:
+        mean = summary[(col, "mean")]
+        return float(mean[key]) - float(mean[(PROPOSED, "raw")])
 
     rows = []
     for key in SAVINGS_VS:

@@ -24,7 +24,7 @@ from noga.price import P_DA, P_O, P_U, SURPRISE, PriceParams, synth
 # TRAIN
 # Fixed for every model, no early stopping (the cost on a held-out window is
 # too noisy to select a stopping point).
-EPOCHS = 1500
+EPOCHS = 3000
 BATCH_SIZE = 10_000
 # First test day; training uses everything before it. 2025-07-01 is the second
 # rolling-origin fold (test 2025-H2). Set with the NOGA_TRAIN_END variable.
@@ -89,6 +89,7 @@ class Model(pl.LightningModule):
         self.month = nn.Embedding(12, M_EMBD)
         self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED)
 
+        head = nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 1 + AFFINE_HEAD)
         self.net = nn.Sequential(
             nn.Linear(N + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
             *[
@@ -98,12 +99,12 @@ class Model(pl.LightningModule):
                 ) for _ in range(N_LAYERS)
             ],
             nn.LeakyReLU(),
-            nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 1 + AFFINE_HEAD),
+            head,
         )
         if AFFINE_HEAD:  # start from a = 1
             with torch.no_grad():
-                self.net[-1].weight[HISTORY_LEN].zero_()
-                self.net[-1].bias[HISTORY_LEN].zero_()
+                head.weight[HISTORY_LEN].zero_()
+                head.bias[HISTORY_LEN].zero_()
         # Shares the hidden representation with the demand forecast.
         self.price = (
             nn.Linear(HIDDEN_SIZE, 2) if name in PRICE_HEADS else None)
@@ -143,20 +144,23 @@ class Model(pl.LightningModule):
         pred = self.demand(z, X)
         loss = self.loss(pred, y, c)
 
-        log = dict(on_step=False, on_epoch=True, batch_size=len(y))
         if self.name != "cost":
-            self.log(f"loss/{self.name}", loss, **log)
+            self.log_epoch(f"loss/{self.name}", loss, len(y))
         with torch.no_grad():
             cost = loss_fns["cost"](pred, y, c) * COST_PER_YEAR
-        self.log("cost/train", cost, **log)
+        self.log_epoch("cost/train", cost, len(y))
 
         if self.price is not None:
             price_loss = torch.mean(
                 (self.price(z) - torch.log(c[:, 1:])) ** 2)
-            self.log("loss/price", price_loss, **log)
+            self.log_epoch("loss/price", price_loss, len(y))
             loss = loss + PRICE_WEIGHT * price_loss
 
         return loss
+
+    def log_epoch(self, name: str, value: Tensor, batch_size: int):
+        self.log(name, value, on_step=False, on_epoch=True,
+                 batch_size=batch_size)
 
     def on_train_epoch_end(self):
         '''Monitoring only: the epoch budget is fixed, never chosen on test.'''
@@ -371,6 +375,7 @@ def train(
     trainer = pl.Trainer(
         max_epochs=EPOCHS,
         deterministic=True,
+        log_every_n_steps=1,  # all tags are per epoch; avoids a warning
         limit_val_batches=0,
         enable_checkpointing=False,
         logger=logger,

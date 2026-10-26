@@ -9,7 +9,7 @@ from torch.optim import Adam
 # A slot's own prices are never model inputs (the day-ahead price is set only
 # after the procurement decision); they enter training only through the
 # "cost" loss. Yesterday's day-ahead price is an input (see model.Data).
-LossFn = Callable[[Tensor, Tensor, Tensor | None], Tensor]
+LossFn = Callable[[Tensor, Tensor, Tensor], Tensor]
 Name = Literal[
     "l2",
     "l1",
@@ -20,7 +20,7 @@ Name = Literal[
 ]
 
 
-def pinball(pred: Tensor, y: Tensor, fac=5) -> Tensor:
+def pinball(pred: Tensor, y: Tensor, fac: float = 5) -> Tensor:
     u = 1 / (1 + fac)
     error = pred - y
     loss = torch.where(error > 0, u * error, (1-u) * -error)
@@ -36,7 +36,7 @@ def pinball_opt(pred: Tensor, y: Tensor, c: Tensor) -> Tensor:
     errors are independent of prices).
     '''
     p_da, p_o, p_u = c[:, 0], c[:, 1], c[:, 2]
-    fac = ((p_u - p_da).sum() / p_o.sum()).item()
+    fac = float((p_u - p_da).sum() / p_o.sum())
     return pinball(pred, y, fac=fac)
 
 
@@ -68,8 +68,8 @@ def total(pred: Tensor, y: Tensor, c: Tensor) -> Tensor:
 
 
 loss_fns: dict[Name, LossFn] = {
-    "l2": lambda pred, y, c=None: torch.mean((pred - y) ** 2),
-    "l1": lambda pred, y, c=None: torch.mean(torch.abs(pred - y)),
+    "l2": lambda pred, y, c: torch.mean((pred - y) ** 2),
+    "l1": lambda pred, y, c: torch.mean(torch.abs(pred - y)),
     "Pinball med": pinball_q(0.5),
     "Pinball opt": pinball_opt,
     "Pinball p95": pinball_q(0.95),

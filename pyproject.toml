@@ -34,3 +34,13 @@ torchvision = { index = "pytorch-cpu" }
 
 [tool.setuptools.packages.find]
 include = ["noga*"]
+
+[dependency-groups]
+dev = [
+    "pandas-stubs>=3.0.5.260914",
+]
+
+[tool.pyright]
+include = ["noga"]
+venvPath = "."
+venv = ".venv"

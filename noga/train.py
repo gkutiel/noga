@@ -11,14 +11,15 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from noga.cost import SHORT
+from noga.cost import SHORT, Name
 from noga.model import git_sha, pt, train
 
-BY_SHORT = {short: name for name, short in SHORT.items()}
+BY_SHORT: dict[str, Name] = {short: name for name, short in SHORT.items()}
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
+    parser = argparse.ArgumentParser(
+        description=(__doc__ or "").strip().splitlines()[0])
     parser.add_argument("model", choices=list(BY_SHORT))
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--price-seed", type=int, default=0)

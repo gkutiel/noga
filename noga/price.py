@@ -110,7 +110,8 @@ def check(seed=0):
     print(df.describe().T.to_string(float_format="{:.2f}".format))
     print(f"ratio p_u/p_o: {r.min():.2f}..{r.max():.2f}")
     print(f"tau: {t.min():.3f}..{t.max():.3f} (median {t.median():.3f})")
-    print(f"spearman(r, p_da): {spearmanr(r, df[P_DA]).statistic:.3f}")
+    rho = float(spearmanr(r, df[P_DA])[0])  # type: ignore[arg-type]
+    print(f"spearman(r, p_da): {rho:.3f}")
 
 
 if __name__ == "__main__":

@@ -309,7 +309,9 @@ def plot_loss_fns():
 
     for name in PRICE_FREE:
         fn = loss_fns[name]
-        costs = [fn(errors[i:i+1], zeros).item() for i in range(len(errors))]
+        # Price-free losses ignore c.
+        costs = [fn(errors[i:i+1], zeros, zeros).item()
+                 for i in range(len(errors))]
         ax.plot(errors.numpy(), costs, label=name, linewidth=2)
 
     ax.axvline(0, color="gray", linewidth=0.8, linestyle="--")
