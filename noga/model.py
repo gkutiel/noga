@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -288,9 +289,37 @@ class pt:
         return f"{name}-s{seed}-p{price_seed}{params_tag(params)}{end}"
 
     @staticmethod
-    def model(name: Name, seed: int, price_seed: int,
+    def short(name: Name, seed: int, price_seed: int,
               params: PriceParams = PriceParams()):
-        return Path(f'models/{pt.tag(name, seed, price_seed, params)}.pt')
+        '''Short name plus the non-default parts of the tag, e.g. cost-s1-p2.'''
+        extra = pt.tag(name, seed, price_seed, params)[len(name):]
+        extra = extra.replace("-s0", "", 1) if seed == 0 else extra
+        extra = extra.replace("-p0", "", 1) if price_seed == 0 else extra
+        return SHORT[name] + extra
+
+    @staticmethod
+    def model(name: Name, seed: int, price_seed: int,
+              params: PriceParams = PriceParams(), *, sha: str):
+        '''models/<short name>-<git sha>.pt'''
+        return Path(f"models/{pt.short(name, seed, price_seed, params)}-{sha}.pt")
+
+    @staticmethod
+    def find(name: Name, seed: int, price_seed: int,
+             params: PriceParams = PriceParams(), *, sha: str | None = None):
+        '''
+        The model file for this configuration: the given sha, else the newest
+        one of any sha, else the pre-sha name (<name>-s<seed>[-p<ps>].pt).
+        '''
+        if sha is not None:
+            path = pt.model(name, seed, price_seed, params, sha=sha)
+            return path if path.exists() else None
+        short = re.escape(pt.short(name, seed, price_seed, params))
+        match = re.compile(rf"^{short}-[0-9a-f]{{7,}}(-dirty)?\.pt$")
+        found = [p for p in Path("models").glob("*.pt") if match.match(p.name)]
+        if found:
+            return max(found, key=lambda p: p.stat().st_mtime)
+        legacy = Path(f"models/{pt.tag(name, seed, price_seed, params)}.pt")
+        return legacy if legacy.exists() else None
 
 
 def git_sha() -> str:
@@ -303,16 +332,13 @@ def git_sha() -> str:
 
 
 def experiment(name: Name, seed: int, price_seed: int,
-               params: PriceParams = PriceParams()) -> str:
+               params: PriceParams = PriceParams(), *, sha: str) -> str:
     '''
-    <YYYY-MM-DD-HH-MM>-<git sha>-<short name>, plus the non-default parts of
-    the model tag (seed, price seed, generator, fold), e.g. "-s1-p2".
+    TensorBoard run name: <YYYY-MM-DD-HH-MM>-<git sha>-<short name>, the
+    short name carrying the non-default seed/price seed/fold, e.g. "-s1-p2".
     '''
-    extra = pt.tag(name, seed, price_seed, params)[len(name):]
-    extra = extra.replace("-s0", "", 1) if seed == 0 else extra
-    extra = extra.replace("-p0", "", 1) if price_seed == 0 else extra
     stamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
-    return f"{stamp}-{git_sha()}-{SHORT[name]}{extra}"
+    return f"{stamp}-{sha}-{pt.short(name, seed, price_seed, params)}"
 
 
 def train(
@@ -320,11 +346,17 @@ def train(
         *,
         seed: int = 0,
         price_seed: int = 0,
-        params: PriceParams = PriceParams()):
-    '''Trains on the train split for a fixed number of epochs.'''
-    out = pt.model(name, seed, price_seed, params)
+        params: PriceParams = PriceParams(),
+        force: bool = False):
+    '''
+    Trains on the train split for a fixed number of epochs and saves
+    models/<short name>-<git sha>.pt. Skips if that file exists (same code,
+    same configuration) unless force.
+    '''
+    sha = git_sha()
+    out = pt.model(name, seed, price_seed, params, sha=sha)
 
-    if out.exists():
+    if out.exists() and not force:
         print(f"Skipping training: {out} already exists")
         return
 
@@ -333,7 +365,8 @@ def train(
     train_ds, test_ds = load_data(price_seed=price_seed, params=params)
     model = Model(name=name, test=test_ds)
     logger = TensorBoardLogger(
-        "logs", name="", version=experiment(name, seed, price_seed, params))
+        "logs", name="",
+        version=experiment(name, seed, price_seed, params, sha=sha))
 
     trainer = pl.Trainer(
         max_epochs=EPOCHS,
@@ -354,9 +387,16 @@ def load_model(
         *,
         seed: int = 0,
         price_seed: int = 0,
-        params: PriceParams = PriceParams()):
+        params: PriceParams = PriceParams(),
+        sha: str | None = None):
+    '''The model of the given sha, else the newest one (see pt.find).'''
+    path = pt.find(name, seed, price_seed, params, sha=sha)
+    if path is None:
+        raise FileNotFoundError(
+            f"no model for {pt.short(name, seed, price_seed, params)}"
+            + (f" at {sha}" if sha else ""))
     model = Model(name=name)
-    model.load_state_dict(torch.load(pt.model(name, seed, price_seed, params)))
+    model.load_state_dict(torch.load(path))
     model.eval()
     return model
 

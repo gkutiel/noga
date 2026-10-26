@@ -58,7 +58,7 @@ data/ims.he.csv ──► data/ims.csv   ──┘
 - The `cost` model (`PRICE_HEADS`) has auxiliary heads predicting log `p_o`, log `p_u` (multi-task loss, weight `PRICE_WEIGHT`); `predict_prices()` returns them.
 - `Data` is batch-indexable (use `dl()`), yields `(month, day, time, X, y, c)` with `c = [p_da, p_o, p_u] / P_SCALE`; `Data.meta` holds per-item context for evaluation.
 - Splits: train 2023-04..2024-12, test 2025. Every model trains on train for a fixed `EPOCHS` (no early stopping); C1/C2 are fitted on the baselines' train predictions.
-- Models saved as `models/<name>-s<seed>[-p<price_seed>[-params]].pt` (price seed only for `PRICE_DEPENDENT` models). `train()` skips existing files: move old models away after changing the architecture.
+- Models saved as `models/<short name>[-s<seed>][-p<price_seed>]…-<git sha>.pt` (non-default parts only, e.g. `cost-a1b2c3d.pt`, `p95-s1-p2-a1b2c3d.pt`). `train()` skips only if that exact file (same commit) exists; `--force` retrains. `load_model`/`pt.find` take a given `sha`, else the newest file, else the pre-sha name (`cost-s0-p0.pt`, the 42-model matrix). `noga.report` reuses a model of any commit.
 
 **Losses (`noga/cost.py`):** `Name` lists the variants: `l2`, `l1`; `Pinball med/opt/p95` (constant quantile derived from training prices: median of the per-slot optimal tau, the cost-optimal constant E[c_u]/(E[c_u]+E[c_o]), 95th percentile of tau); `cost` (proposed) = mean excess cost `(p_u-p_da)(y-p)+ + p_o(p-y)+`. Losses take `(pred, y, c)`.
 

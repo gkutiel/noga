@@ -20,7 +20,8 @@ from scipy import stats
 
 from noga import calibrate as cal
 from noga.cost import Name
-from noga.model import PRICE_DEPENDENT, load_data, load_model, predict, train
+from noga.model import (
+    PRICE_DEPENDENT, load_data, load_model, predict, pt, train)
 from noga.price import P_DA, P_O, P_U, PriceParams, tau
 
 RES = Path("res")
@@ -63,8 +64,10 @@ def run(
         params: PriceParams = PriceParams(),
         names: tuple[Name, ...] = get_args(Name)):
     '''Returns {method: test predictions} and the test/cal metadata.'''
+    # Reuse a model of any commit; train only missing configurations.
     for name in names:
-        train(name, seed=seed, price_seed=price_seed, params=params)
+        if pt.find(name, seed, price_seed, params) is None:
+            train(name, seed=seed, price_seed=price_seed, params=params)
 
     # Post-hoc adjustments are fitted on the train split, where they correct
     # each baseline for having been trained on the wrong loss.
@@ -115,10 +118,14 @@ def _train(job):
 
 
 def pretrain(seeds, price_seeds, jobs=JOBS):
-    '''Trains every (model, seed, price seed) in parallel processes.'''
+    '''
+    Trains every (model, seed, price seed) that has no model file yet (of any
+    commit; see pt.find) in parallel processes.
+    '''
     todo = {
         (name, s, ps if name in PRICE_DEPENDENT else 0)
         for name in get_args(Name) for s in seeds for ps in price_seeds}
+    todo = {job for job in todo if pt.find(*job) is None}
     with ProcessPoolExecutor(jobs, mp_context=get_context("spawn")) as pool:
         list(pool.map(_train, sorted(todo)))
 
