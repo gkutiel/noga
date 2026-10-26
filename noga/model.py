@@ -25,13 +25,13 @@ from noga.price import P_DA, P_O, P_U, SURPRISE, PriceParams, synth
 # TRAIN
 # Fixed for every model, no early stopping (the cost on a held-out window is
 # too noisy to select a stopping point).
-EPOCHS = 1000
+EPOCHS = 500
 BATCH_SIZE = 10_000
 # AdamW for every model. Decay applies to the Linear weights only (not biases
 # or embeddings); each step shrinks them by LR * WEIGHT_DECAY, so small values
 # (1e-2 shrinks ~11% over 3000 epochs) barely act.
 LR = 1e-3
-WEIGHT_DECAY = 0.1
+WEIGHT_DECAY = 0.2
 # First test day; training uses everything before it. 2025-07-01 is the second
 # rolling-origin fold (test 2025-H2). Set with the NOGA_TRAIN_END variable.
 TRAIN_END = os.environ.get("NOGA_TRAIN_END", "2025-01-01")
