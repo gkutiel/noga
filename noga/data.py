@@ -40,6 +40,10 @@ PRICE_COLUMNS = [
     "real_time_unconstrained",
 ]
 
+# Day-ahead price used as p_da (the constrained SMP adds grid-redispatch
+# spikes unrelated to system-wide demand).
+DA_PRICE = "day_ahead_unconstrained"
+
 # 30-minute settlement periods.
 PERIOD_MIN = 30
 
@@ -151,7 +155,7 @@ def data_csv():
 
     # Each 5-minute slot takes the day-ahead price of its settlement period.
     price["slot"] = pd.to_timedelta(price["time"]).dt.total_seconds() // 60
-    price = price.rename(columns={"day_ahead_constrained": "p_da"})
+    price = price.rename(columns={DA_PRICE: "p_da"})
     data["slot"] = data["time"] // PERIOD_MIN * PERIOD_MIN
     data = pd.merge(
         data,

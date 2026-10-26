@@ -1,28 +1,38 @@
+import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from torch import Tensor, nn
-from torch.utils.data import BatchSampler, DataLoader, Dataset
-from torch.utils.data import RandomSampler, SequentialSampler
+from torch.utils.data import (
+    BatchSampler,
+    DataLoader,
+    Dataset,
+    RandomSampler,
+    SequentialSampler,
+)
 
-from noga.cost import USE_PRICE, Name, loss_fns, optims
-from noga.price import P_DA, P_O, P_U, PriceParams, synth
+from noga.cost import Name, loss_fns, optims
+from noga.price import P_DA, P_O, P_U, SURPRISE, PriceParams, synth
 
 # TRAIN
-MAX_EPOCHS = 500
+# Fixed for every model, no early stopping (the cost on a held-out window is
+# too noisy to select a stopping point).
+EPOCHS = 1500
 BATCH_SIZE = 10_000
+# First test day; training uses everything before it. 2025-07-01 is the second
+# rolling-origin fold (test 2025-H2). Set with the NOGA_TRAIN_END variable.
+TRAIN_END = os.environ.get("NOGA_TRAIN_END", "2025-01-01")
 
 # MODEL
 M_EMBD = 2
 D_EMBD = 3
 T_EMBED = 16
 N_LAYERS = 2
-HIDDEN_SIZE = 32
+HIDDEN_SIZE = 48
 Y_SCALE = 100
 P_SCALE = 100
 
@@ -44,16 +54,21 @@ FEATURES = [
     # 'wind_speed_m_s_Jerusalem',
     # 'wind_speed_m_s_TelAviv',
 ]
-# Known at decision time: log day-ahead price and the over-prediction ratio.
-PRICE_FEATURES = ['log_p_da', 'p_o_ratio']
 
 # Models whose training depends on the synthetic price draw.
-PRICE_DEPENDENT: set[Name] = USE_PRICE | {"cost-noprice"}
+PRICE_DEPENDENT: set[Name] = {
+    "cost", "Pinball med", "Pinball opt", "Pinball p95"}
+# Models with auxiliary heads predicting log p_o and log p_u (multi-task
+# training only; the slot's own prices are targets, never inputs).
+PRICE_HEADS: set[Name] = {"cost"}
+PRICE_WEIGHT = 1.0
+# Forecast = a * attention + b (a = exp(s) > 0, per slot) instead of
+# attention + b. Models get an "-ab" file suffix. Set NOGA_AFFINE_HEAD=1.
+AFFINE_HEAD = os.environ.get("NOGA_AFFINE_HEAD") == "1"
 
 
-def n_features(name: Name):
-    n = len(FEATURES) + HISTORY_LEN
-    return n + len(PRICE_FEATURES) if name in USE_PRICE else n
+# + log of the day-ahead price 24h before t (published before the decision).
+N = len(FEATURES) + HISTORY_LEN + 1
 
 
 class Model(pl.LightningModule):
@@ -68,7 +83,7 @@ class Model(pl.LightningModule):
         self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED)
 
         self.net = nn.Sequential(
-            nn.Linear(n_features(name) + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
+            nn.Linear(N + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
             *[
                 nn.Sequential(
                     nn.LeakyReLU(),
@@ -76,41 +91,68 @@ class Model(pl.LightningModule):
                 ) for _ in range(N_LAYERS)
             ],
             nn.LeakyReLU(),
-            nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 1),
+            nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 1 + AFFINE_HEAD),
         )
+        if AFFINE_HEAD:  # start from a = 1
+            with torch.no_grad():
+                self.net[-1].weight[HISTORY_LEN].zero_()
+                self.net[-1].bias[HISTORY_LEN].zero_()
+        # Shares the hidden representation with the demand forecast.
+        self.price = (
+            nn.Linear(HIDDEN_SIZE, 2) if name in PRICE_HEADS else None)
 
-    def forward(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
+    def hidden(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
         f = torch.concat([
             self.month(month),
             self.day(day),
             self.time(time),
             X
         ], dim=1)
+        return self.net[:-1](f)
 
+    def demand(self, z: Tensor, X: Tensor):
         hist = X[:, :HISTORY_LEN]
 
-        out = self.net(f)
+        out = self.net[-1](z)
 
         hist = (hist * torch.softmax(out[:, :HISTORY_LEN], dim=1)).sum(dim=1)
 
+        if AFFINE_HEAD:
+            return torch.exp(out[:, HISTORY_LEN]) * hist + out[:, HISTORY_LEN + 1]
         return hist + out[:, HISTORY_LEN]
+
+    def forward(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
+        return self.demand(self.hidden(month, day, time, X), X)
+
+    def prices(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
+        '''Predicted (p_o, p_u), scaled by P_SCALE.'''
+        assert self.price is not None
+        return torch.exp(self.price(self.hidden(month, day, time, X)))
 
     def step(self, batch, batch_idx, step='train'):
         month, day, time, X, y, c = batch
 
-        pred = self(month, day, time, X)
+        z = self.hidden(month, day, time, X)
+        pred = self.demand(z, X)
         loss = self.loss(pred, y, c)
 
         self.log(f"{step}/{self.name}", loss, prog_bar=True)
         self.log(f"{step}/l1", torch.mean(torch.abs(pred - y)), prog_bar=True)
+        # Comparable across all models (the cost model's loss already is it).
+        if self.name != "cost":
+            with torch.no_grad():
+                self.log(f"{step}/cost", loss_fns["cost"](pred, y, c))
+
+        if self.price is not None:
+            price_loss = torch.mean(
+                (self.price(z) - torch.log(c[:, 1:])) ** 2)
+            self.log(f"{step}/price", price_loss, prog_bar=True)
+            loss = loss + PRICE_WEIGHT * price_loss
 
         return loss
 
     def training_step(self, batch, batch_idx):
         return self.step(batch, batch_idx)
-
-    def validation_step(self, batch, batch_idx):
-        return self.step(batch, batch_idx, step='val')
 
     def configure_optimizers(self):
         return optims[self.name](self.parameters())
@@ -121,24 +163,27 @@ def with_prices(
         *,
         price_seed: int,
         params: PriceParams = PriceParams()) -> pd.DataFrame:
-    '''Adds synthetic p_o, p_u (one draw per settlement period) and features.'''
+    '''Adds synthetic p_o, p_u (one draw per settlement period).'''
+    surprise = (df["actual"] - df["forecast"]) / df["forecast"]
     periods = df[["period", P_DA]].drop_duplicates("period")
+    periods[SURPRISE] = surprise.groupby(df["period"]).mean().loc[
+        periods["period"]].to_numpy()
     periods = synth(periods, seed=price_seed, params=params)
 
     df = df.merge(periods[["period", P_O, P_U]], on="period", how="left")
-    df["log_p_da"] = np.log(df[P_DA]) - 5
-    df["p_o_ratio"] = 10 * df[P_O] / df[P_DA]
     return df
 
 
 class Data(Dataset):
     '''
     Item j predicts slot t = j + DAY_IN_5_MIN + HISTORY_LEN - 1 from the
-    HISTORY_LEN demand readings ending 24h before t and the features at t.
+    HISTORY_LEN demand readings ending 24h before t, the features at t and
+    the day-ahead price 24h before t (today's price is set only after the
+    procurement decision, yesterday's is already public).
     Indexable by a list of indices, so a BatchSampler yields whole batches.
     '''
 
-    def __init__(self, df: pd.DataFrame, use_price: bool):
+    def __init__(self, df: pd.DataFrame):
         df = df.reset_index(drop=True)
         n = len(df) - DAY_IN_5_MIN - HISTORY_LEN + 1
         t = np.arange(n) + DAY_IN_5_MIN + HISTORY_LEN - 1
@@ -147,8 +192,11 @@ class Data(Dataset):
         y = y / Y_SCALE
         hist = y.unfold(0, HISTORY_LEN, 1)[:n]
 
-        cols = FEATURES + PRICE_FEATURES if use_price else FEATURES
-        X = torch.tensor(df[cols].to_numpy()[t], dtype=torch.float32)
+        X = torch.tensor(df[FEATURES].to_numpy()[t], dtype=torch.float32)
+        lag_p = torch.tensor(
+            np.log(df[P_DA].to_numpy()[t - DAY_IN_5_MIN] / P_SCALE),
+            dtype=torch.float32)
+        X = torch.concat([X, lag_p[:, None]], dim=1)
 
         self.month = torch.tensor(df["month"].to_numpy()[t].astype(int))
         self.day = torch.tensor(df["day"].to_numpy()[t].astype(int))
@@ -181,29 +229,24 @@ class Data(Dataset):
 
 def splits(df: pd.DataFrame):
     '''
-    train: 2023-04 .. 2024-08
-    cal:   2024-09 .. 2024-12 (early stopping and post-hoc calibration)
-    test:  2025
+    train: 2023-04 .. TRAIN_END (exclusive)
+    test:  TRAIN_END .. 2025-12
     '''
-    year, month = df["year"], df["month"]  # month is 0-based
-    train = (year < 2024) | ((year == 2024) & (month < 8))
-    cal = (year == 2024) & (month >= 8)
-    test = year == 2025
-    return df[train], df[cal], df[test]
+    end = (pd.Timestamp(TRAIN_END) - pd.Timestamp("2023-01-01")).days
+    train = df["date_ord"] < end
+    return df[train], df[~train & (df["year"] == 2025)]
 
 
-def load_data(
-        *,
-        use_price: bool,
-        price_seed: int,
-        params: PriceParams = PriceParams()):
+def load_data(*, price_seed: int, params: PriceParams = PriceParams()):
+    '''Returns the (train, test) datasets.'''
     data = pd.read_csv("data/data.csv")
     data = with_prices(data, price_seed=price_seed, params=params)
-    return tuple(Data(df, use_price) for df in splits(data))
+    return tuple(Data(df) for df in splits(data))
 
 
 def dl(ds: Dataset, shuffle=True):
-    sampler = RandomSampler(ds) if shuffle else SequentialSampler(ds)  # type: ignore
+    sampler = RandomSampler(
+        ds) if shuffle else SequentialSampler(ds)  # type: ignore
     return DataLoader(
         ds,
         batch_size=None,
@@ -223,19 +266,17 @@ class pt:
     @staticmethod
     def tag(name: Name, seed: int, price_seed: int,
             params: PriceParams = PriceParams()):
+        # Non-default cut-offs get their own files (rolling-origin folds).
+        end = "" if TRAIN_END == "2025-01-01" else f"-t{TRAIN_END[:7]}"
+        end += "-ab" if AFFINE_HEAD else ""
         if name not in PRICE_DEPENDENT:
-            return f"{name}-s{seed}"
-        return f"{name}-s{seed}-p{price_seed}{params_tag(params)}"
+            return f"{name}-s{seed}{end}"
+        return f"{name}-s{seed}-p{price_seed}{params_tag(params)}{end}"
 
     @staticmethod
     def model(name: Name, seed: int, price_seed: int,
               params: PriceParams = PriceParams()):
         return Path(f'models/{pt.tag(name, seed, price_seed, params)}.pt')
-
-    @staticmethod
-    def ckpt(name: Name, seed: int, price_seed: int,
-             params: PriceParams = PriceParams()):
-        return Path(f'models/{pt.tag(name, seed, price_seed, params)}.ckpt')
 
 
 def train(
@@ -244,56 +285,33 @@ def train(
         seed: int = 0,
         price_seed: int = 0,
         params: PriceParams = PriceParams()):
-    pl.seed_everything(seed)
-
+    '''Trains on the train split for a fixed number of epochs.'''
     out = pt.model(name, seed, price_seed, params)
 
     if out.exists():
         print(f"Skipping training: {out} already exists")
         return
 
+    pl.seed_everything(seed)
+
     model = Model(name=name)
     logger = TensorBoardLogger(
         "logs", name=pt.tag(name, seed, price_seed, params))
 
-    early_stopping = EarlyStopping(
-        monitor=f"val/{name}",
-        patience=20,
-        mode="min")
-
-    ckpt = pt.ckpt(name, seed, price_seed, params)
-    ckpt.unlink(missing_ok=True)
-
-    checkpoint = ModelCheckpoint(
-        dirpath=ckpt.parent,
-        filename=ckpt.stem,
-        save_weights_only=True,
-        monitor=f"val/{name}",
-        mode="min",
-        save_top_k=1)
-
     trainer = pl.Trainer(
-        max_epochs=MAX_EPOCHS,
+        max_epochs=EPOCHS,
         deterministic=True,
         log_every_n_steps=4,
-        check_val_every_n_epoch=10,
-        callbacks=[early_stopping, checkpoint],
+        limit_val_batches=0,
+        enable_checkpointing=False,
         logger=logger,
         enable_progress_bar=False)
 
-    train_ds, cal_ds, _ = load_data(
-        use_price=name in USE_PRICE,
-        price_seed=price_seed,
-        params=params)
-
-    trainer.fit(model, dl(train_ds), dl(cal_ds, shuffle=False))
-
-    best_weights = torch.load(
-        checkpoint.best_model_path,
-        weights_only=True)
+    train_ds, _ = load_data(price_seed=price_seed, params=params)
+    trainer.fit(model, dl(train_ds))
 
     out.parent.mkdir(exist_ok=True)
-    torch.save(best_weights["state_dict"], out)
+    torch.save(model.state_dict(), out)
 
 
 def load_model(
@@ -315,6 +333,15 @@ def predict(model: Model, ds: Data) -> np.ndarray:
             model(m, d, t, X)
             for m, d, t, X, _, _ in dl(ds, shuffle=False)])
     return pred.numpy() * Y_SCALE
+
+
+def predict_prices(model: Model, ds: Data) -> np.ndarray:
+    '''Predicted (p_o, p_u) in ₪/MWh, shape (n, 2).'''
+    with torch.no_grad():
+        pred = torch.cat([
+            model.prices(m, d, t, X)
+            for m, d, t, X, _, _ in dl(ds, shuffle=False)])
+    return pred.numpy() * P_SCALE
 
 
 if __name__ == "__main__":

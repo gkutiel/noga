@@ -7,6 +7,8 @@ import pandas as pd
 P_DA = "p_da"
 P_O = "p_o"
 P_U = "p_u"
+# Relative system-wide demand surprise per period: (actual - forecast) / forecast.
+SURPRISE = "surprise"
 
 
 @dataclass(frozen=True)
@@ -21,6 +23,11 @@ class PriceParams:
     where u in [0, 1] is the log-price position between the q_lo and q_hi
     quantiles of p_da. Since alpha * r_lo > 1, p_o < p_da < p_u always holds,
     and p_u is a noisy, convex, increasing function of p_da.
+
+    Scarcity (rho > 0): eta is correlated with the standardised system-wide
+    demand surprise z (actual vs. the operator's day-ahead forecast), keeping
+    its variance: eta = sigma_u * (rho * z + sqrt(1 - rho^2) * xi). Shortfall
+    is then most expensive exactly when the whole system is short.
     '''
     alpha: float = 0.3
     gamma: float = 2.0
@@ -30,6 +37,7 @@ class PriceParams:
     r_hi: float = 20.0
     q_lo: float = 0.05
     q_hi: float = 0.99
+    rho: float = 0.0
 
 
 def synth(
@@ -38,7 +46,8 @@ def synth(
         seed: int,
         params: PriceParams = PriceParams()) -> pd.DataFrame:
     '''
-    prices: one row per settlement period with a `p_da` column.
+    prices: one row per settlement period with a `p_da` column, and a
+    `surprise` column (relative demand surprise) when params.rho > 0.
     Returns a copy with `p_o` and `p_u` columns added.
     '''
     assert params.alpha * params.r_lo > 1, "p_u must exceed p_da"
@@ -51,6 +60,10 @@ def synth(
 
     eps_o = rng.normal(0, params.sigma_o, len(p_da))
     eta = rng.normal(0, params.sigma_u, len(p_da))
+    if params.rho:
+        z = robust_z(prices[SURPRISE].to_numpy())
+        eta = (np.sqrt(1 - params.rho ** 2) * eta
+               + params.rho * params.sigma_u * z)
 
     p_o = params.alpha * (1 + eps_o) * p_da
     r = np.clip(
@@ -65,6 +78,13 @@ def synth(
     return out
 
 
+def robust_z(x: np.ndarray, clip=4.0):
+    '''Median/MAD standardisation, clipped (the published forecast has outliers).'''
+    med = np.median(x)
+    mad = 1.4826 * np.median(np.abs(x - med))
+    return np.clip((x - med) / mad, -clip, clip)
+
+
 def tau(p_da, p_o, p_u):
     '''Cost-optimal quantile: c_u / (c_u + c_o), c_u = p_u - p_da, c_o = p_o.'''
     c_u = p_u - p_da
@@ -74,8 +94,10 @@ def tau(p_da, p_o, p_u):
 def check(seed=0):
     from scipy.stats import spearmanr
 
+    from noga.data import DA_PRICE
+
     prices = pd.read_csv("data/price.csv")
-    prices = prices.rename(columns={"day_ahead_constrained": P_DA})
+    prices = prices.rename(columns={DA_PRICE: P_DA})
     df = synth(prices[[P_DA]], seed=seed)
 
     r = df[P_U] / df[P_O]

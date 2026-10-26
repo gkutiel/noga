@@ -7,17 +7,20 @@ the Israeli savings estimate and the paper figures.
     uv run -m noga.report quick      # one seed, one price seed
 '''
 import sys
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import get_context
 from pathlib import Path
 from typing import get_args
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import torch
 from scipy import stats
 
 from noga import calibrate as cal
-from noga.cost import PINBALL_TAU, USE_PRICE, Name
-from noga.model import load_data, load_model, predict, train
+from noga.cost import Name
+from noga.model import PRICE_DEPENDENT, load_data, load_model, predict, train
 from noga.price import P_DA, P_O, P_U, PriceParams, tau
 
 RES = Path("res")
@@ -28,6 +31,9 @@ PROPOSED = "cost"
 NOGA = "Noga"
 SLOT_H = 5 / 60  # one 5-minute slot, in hours
 DM_LAG = 7
+# Parallel training: processes x torch threads per process.
+JOBS = 1
+THREADS = 4
 
 BLUE, ORANGE, AQUA, YELLOW = "#2a78d6", "#eb6834", "#1baf7a", "#eda100"
 INK, MUTED = "#1f2328", "#8a9099"
@@ -35,10 +41,16 @@ INK, MUTED = "#1f2328", "#8a9099"
 
 def metrics(pred, meta: pd.DataFrame):
     y = meta["actual"].to_numpy()
-    ex = cal.excess(pred, y, meta[P_DA], meta[P_O], meta[P_U]) * SLOT_H
-    days = meta["date_ord"].nunique()
+    p_da, p_o, p_u = (meta[c].to_numpy() for c in (P_DA, P_O, P_U))
+    under = (p_u - p_da) * np.maximum(y - pred, 0) * SLOT_H
+    over = p_o * np.maximum(pred - y, 0) * SLOT_H
+    ex = under + over
+    year = 365 / meta["date_ord"].nunique()
     return {
-        "excess": ex.sum() * 365 / days,  # ₪ per year
+        # ₪ per year, split into the under- and over-prediction terms.
+        "excess": ex.sum() * year,
+        "excess_under": under.sum() * year,
+        "excess_over": over.sum() * year,
         "mae": np.abs(pred - y).mean(),
         "rmse": np.sqrt(((pred - y) ** 2).mean()),
         "coverage": (y <= pred).mean(),
@@ -54,44 +66,35 @@ def run(
     for name in names:
         train(name, seed=seed, price_seed=price_seed, params=params)
 
-    data = {
-        p: load_data(use_price=p, price_seed=price_seed, params=params)
-        for p in (False, True)}
-    meta_tr, meta_cal, meta_te = (ds.meta for ds in data[False])
+    # Post-hoc adjustments are fitted on the train split, where they correct
+    # each baseline for having been trained on the wrong loss.
+    ds_tr, ds_te = load_data(price_seed=price_seed, params=params)
+    meta_tr, meta_te = ds_tr.meta, ds_te.meta
 
-    # E[p_u/p_o | p_da] from past prices only (train + cal).
-    known = pd.concat([meta_tr, meta_cal])
-    ratio = cal.RatioMap().fit(
-        known[P_DA].to_numpy(), known[P_O].to_numpy(), known[P_U].to_numpy())
-
-    raw_cal, raw_te = {}, {}
+    raw_tr, raw_te = {}, {}
     for name in names:
-        _, ds_cal, ds_te = data[name in USE_PRICE]
         model = load_model(
             name, seed=seed, price_seed=price_seed, params=params)
-        raw_cal[name] = predict(model, ds_cal)
+        raw_tr[name] = predict(model, ds_tr)
         raw_te[name] = predict(model, ds_te)
 
-    raw_cal[NOGA] = meta_cal["forecast"].to_numpy()
+    raw_tr[NOGA] = meta_tr["forecast"].to_numpy()
     raw_te[NOGA] = meta_te["forecast"].to_numpy()
 
     out = {}
     for name in raw_te:
-        p_cal, p_te = raw_cal[name], raw_te[name]
+        p_tr, p_te = raw_tr[name], raw_te[name]
         out[(name, "raw")] = p_te
-        if name in {PROPOSED, "cost-noprice"}:
+        # The unified model is used as trained; no post-hoc adjustment.
+        if name == PROPOSED:
             continue
-        out[(name, "C1 affine")] = cal.affine(p_cal, meta_cal)(p_te, meta_te)
-        out[(name, "C2 newsvendor")] = cal.newsvendor(
-            p_cal, meta_cal, ratio)(p_te, meta_te)
-        out[(name, "C3 residual")] = cal.residual(
-            p_cal, meta_cal, ratio)(p_te, meta_te)
+        out[(name, "C1 affine")] = cal.affine(p_tr, meta_tr)(p_te, meta_te)
+        out[(name, "C2 hourly affine")] = cal.hourly_affine(
+            p_tr, meta_tr)(p_te, meta_te)
 
-    out[("Pinball bank", "C4 bank")] = cal.bank(
-        {PINBALL_TAU[n]: raw_te[n] for n in PINBALL_TAU}, meta_te, ratio)
     out[("Oracle", "raw")] = meta_te["actual"].to_numpy()
 
-    return out, meta_te, ratio
+    return out, meta_te
 
 
 def dm_test(d: np.ndarray, lag=DM_LAG):
@@ -105,28 +108,45 @@ def dm_test(d: np.ndarray, lag=DM_LAG):
     return t, 2 * stats.norm.sf(abs(t))
 
 
+def _train(job):
+    torch.set_num_threads(THREADS)
+    name, seed, price_seed = job
+    train(name, seed=seed, price_seed=price_seed)
+
+
+def pretrain(seeds, price_seeds, jobs=JOBS):
+    '''Trains every (model, seed, price seed) in parallel processes.'''
+    todo = {
+        (name, s, ps if name in PRICE_DEPENDENT else 0)
+        for name in get_args(Name) for s in seeds for ps in price_seeds}
+    with ProcessPoolExecutor(jobs, mp_context=get_context("spawn")) as pool:
+        list(pool.map(_train, sorted(todo)))
+
+
 def report(seeds=SEEDS, price_seeds=PRICE_SEEDS):
     RES.mkdir(exist_ok=True)
     PLOTS.mkdir(exist_ok=True)
+    pretrain(seeds, price_seeds)
 
     rows, daily = [], {}
     for ps in price_seeds:
         for s in seeds:
-            preds, meta, ratio = run(s, ps)
+            preds, meta = run(s, ps)
             for (model, method), p in preds.items():
                 m, d = metrics(p, meta)
                 rows.append({"model": model, "calibration": method,
                              "seed": s, "price_seed": ps, **m})
                 daily.setdefault((model, method), []).append(d)
             if (s, ps) == (seeds[0], price_seeds[0]):
-                figures(preds, meta, ratio)
+                figures(preds, meta)
                 savings_base = meta
 
     runs = pd.DataFrame(rows)
     runs.to_csv(RES / "price_runs.csv", index=False, float_format="%.4f")
 
-    summary = runs.groupby(["model", "calibration"])[
-        ["excess", "mae", "rmse", "coverage"]].agg(["mean", "std"])
+    summary = runs.groupby(["model", "calibration"])[[
+        "excess", "excess_under", "excess_over", "mae", "rmse", "coverage"
+    ]].agg(["mean", "std"])
     summary = summary.sort_values(("excess", "mean"))
     summary.to_csv(RES / "price_summary.csv", float_format="%.4f")
     print(summary.to_string(float_format="{:,.3f}".format))
@@ -148,22 +168,40 @@ def report(seeds=SEEDS, price_seeds=PRICE_SEEDS):
     savings(summary, savings_base)
 
 
+SAVINGS_VS = [
+    (NOGA, "raw"),
+    (NOGA, "C1 affine"),
+    (NOGA, "C2 hourly affine"),
+    ("l2", "raw"),
+    ("l2", "C1 affine"),
+    ("l2", "C2 hourly affine"),
+]
+
+
 def savings(summary: pd.DataFrame, meta: pd.DataFrame):
-    '''Annual ₪ saving of the proposed model vs raw/calibrated Noga.'''
-    ex = summary[("excess", "mean")]
+    '''
+    Annual ₪ saving of the proposed model vs raw/calibrated Noga and MSE,
+    split into the under-prediction and over-prediction cost terms.
+    '''
     y = meta["actual"].to_numpy()
     days = meta["date_ord"].nunique()
     energy = y.mean() * 8760  # MWh / year
     bill = (meta[P_DA].to_numpy() * y).sum() * SLOT_H * 365 / days
 
+    def saved(col, key):
+        return (summary.loc[key, (col, "mean")]
+                - summary.loc[(PROPOSED, "raw"), (col, "mean")])
+
     rows = []
-    for method in ["raw", "C1 affine", "C2 newsvendor", "C3 residual"]:
-        saved = ex[(NOGA, method)] - ex[(PROPOSED, "raw")]
+    for key in SAVINGS_VS:
+        total = saved("excess", key)
         rows.append({
-            "vs": f"Noga {method}",
-            "saving_nis_per_year": saved,
-            "saving_nis_per_mwh": saved / energy,
-            "saving_pct_of_da_bill": 100 * saved / bill,
+            "vs": " ".join(key),
+            "saving_nis_per_year": total,
+            "saving_under_nis_per_year": saved("excess_under", key),
+            "saving_over_nis_per_year": saved("excess_over", key),
+            "saving_nis_per_mwh": total / energy,
+            "saving_pct_of_da_bill": 100 * total / bill,
         })
     out = pd.DataFrame(rows)
     out.attrs["energy_mwh"] = energy
@@ -182,7 +220,7 @@ def _style(ax):
     ax.tick_params(colors=INK)
 
 
-def figures(preds, meta: pd.DataFrame, ratio: cal.RatioMap):
+def figures(preds, meta: pd.DataFrame):
     p_da = meta[P_DA].to_numpy()
     t = tau(p_da, meta[P_O].to_numpy(), meta[P_U].to_numpy())
 
@@ -191,10 +229,10 @@ def figures(preds, meta: pd.DataFrame, ratio: cal.RatioMap):
     idx = np.random.default_rng(0).choice(len(t), 5000, replace=False)
     ax.scatter(p_da[idx], t[idx], s=8, color=BLUE, alpha=0.35,
                linewidths=0, label=r"realised $\tau_t$")
-    grid = np.geomspace(p_da.min(), p_da.max(), 200)
-    ax.plot(grid, ratio.tau(grid, PriceParams().alpha * grid),
-            color=INK, linewidth=2,
-            label=r"$\hat\tau$ (known at decision time)")
+    bins = pd.qcut(p_da, 20)
+    binned = pd.DataFrame({"p": p_da, "t": t}).groupby(bins, observed=True)
+    ax.plot(binned["p"].median(), binned["t"].mean(), color=INK, linewidth=2,
+            label=r"mean $\tau_t$ by price bin")
     ax.set_xscale("log")
     ax.set_xlabel("Day-ahead price (₪/MWh)")
     ax.set_ylabel(r"Cost-optimal quantile $\tau_t$")
@@ -208,9 +246,9 @@ def figures(preds, meta: pd.DataFrame, ratio: cal.RatioMap):
     dec = pd.qcut(p_da, 10, labels=False)
     y = meta["actual"].to_numpy()
     shown = [
-        ((NOGA, "C2 newsvendor"), "Noga + C2", ORANGE),
-        (("l2", "C2 newsvendor"), "MSE + C2", YELLOW),
-        (("Pinball bank", "C4 bank"), "Pinball bank (C4)", AQUA),
+        ((NOGA, "C2 hourly affine"), "Noga + C2", ORANGE),
+        (("l2", "C2 hourly affine"), "MSE + C2", YELLOW),
+        (("Pinball opt", "C2 hourly affine"), "Pinball opt + C2", AQUA),
         ((PROPOSED, "raw"), "Proposed", BLUE),
     ]
     target = pd.Series(t).groupby(dec).mean()
@@ -257,23 +295,26 @@ SENSITIVITY = {
     "sigma_u=0.3": PriceParams(sigma_u=0.3),
     "r in [5,10]": PriceParams(r_hi=10.0),
     "r in [10,20]": PriceParams(r_lo=10.0),
+    "scarcity rho=0.3": PriceParams(rho=0.3),
+    "scarcity rho=0.6": PriceParams(rho=0.6),
+    "scarcity rho=0.9": PriceParams(rho=0.9),
 }
 SENSITIVITY_SHOWN = [
     ((PROPOSED, "raw"), "Proposed"),
-    (("l2", "C2 newsvendor"), "MSE + C2"),
-    (("l2", "C3 residual"), "MSE + C3"),
-    (("Pinball bank", "C4 bank"), "Pinball bank (C4)"),
-    ((NOGA, "C2 newsvendor"), "Noga + C2"),
+    (("l2", "C2 hourly affine"), "MSE + C2"),
+    (("l2", "C1 affine"), "MSE + C1"),
+    (("Pinball opt", "C2 hourly affine"), "Pinball opt + C2"),
+    ((NOGA, "C2 hourly affine"), "Noga + C2"),
     ((NOGA, "raw"), "Noga"),
 ]
 
 
 def sensitivity(seed=0, price_seed=0):
     '''Excess cost (M₪/yr) under alternative imbalance-price generators.'''
-    names: tuple[Name, ...] = ("l2", *PINBALL_TAU, PROPOSED)
+    names: tuple[Name, ...] = ("l2", "Pinball opt", PROPOSED)
     rows = []
     for label, params in SENSITIVITY.items():
-        preds, meta, _ = run(seed, price_seed, params, names)
+        preds, meta = run(seed, price_seed, params, names)
         row = {"generator": label}
         for key, name in SENSITIVITY_SHOWN:
             row[name] = metrics(preds[key], meta)[0]["excess"] / 1e6

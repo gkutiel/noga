@@ -1,11 +1,11 @@
 The objective of this study was to determine whether a single demand forecaster
-that receives day-ahead prices as inputs and is trained end-to-end on the
-realised procurement cost (Section~\ref{sec:modeling}) can outperform models
+trained end-to-end on the realised procurement cost, with prices used only in
+the training loss (Section~\ref{sec:modeling}) can outperform models
 trained to minimise MSE, models trained with a fixed cost asymmetry, post-hoc
-cost calibrations of both, and the real operational forecast of the Israeli
+cost adjustments of both, and the real operational forecast of the Israeli
 system operator.  This section describes the dataset
 (Section~\ref{sec:dataset}), the neural architecture and the training
-objectives we compare, the post-hoc calibration baselines, and the protocol
+objectives we compare, the post-hoc cost adjustments, and the protocol
 under which they are evaluated (Section~\ref{sec:model-training}).
 
 \subsection{Dataset}
@@ -20,30 +20,30 @@ a \emph{soft attention} over a short window of recent historical demand values
 plus a learned additive correction.  Weather conditions (air temperature, wet-bulb
 temperature, and relative humidity --- all raw fields reported directly by the
 IMS --- at three meteorological stations),
-temporal patterns (time of day, day of week, month of year) and, for the
-price-aware variants, the known prices jointly determine both the attention
-weights and the correction term.  Temporal features are encoded via learned
-embeddings; weather and price features enter as continuous inputs.  The model
+and temporal patterns (time of day, day of week, month of year) jointly
+determine both the attention weights and the correction term.  Temporal
+features are encoded via learned embeddings; weather features enter as
+continuous inputs.  Prices are never model inputs: the day-ahead price is set
+only after the procurement decision, so prices are used only in the training
+loss and in the evaluation.  The model
 operates at 5-minute granularity and produces a day-ahead forecast.  The
-variants differ \emph{only} in their training objective and in whether they see
-prices, so that any difference in cost can be attributed to these two factors.
+variants differ \emph{only} in their training objective, so that any
+difference in cost can be attributed to it.
 
 \subsubsection{Data Splitting}
 
 The dataset is partitioned chronologically:
 
 \begin{itemize}
-    \item \textbf{Training set:} April~2023 -- August~2024.
-    \item \textbf{Calibration set:} September -- December~2024.  Used for early
-          stopping and for fitting every post-hoc calibrator.
+    \item \textbf{Training set:} April~2023 -- December~2024.
     \item \textbf{Test set:} January -- December~2025, held out for final
           evaluation.
 \end{itemize}
 
-The chronological split ensures that no future information leaks into training
-or calibration.  In particular, calibrators are fitted on predictions for data
-that the model was not trained on, so that their residuals are representative of
-test-time errors.
+All models are trained on the training set, and the post-hoc cost adjustments
+of the baselines (Section~\ref{sec:posthoc}) are fitted on the baselines'
+predictions for the training set.  The chronological split ensures that no
+future information leaks into training or adjustment.
 
 \subsubsection{Neural Network Architecture}
 
@@ -58,11 +58,6 @@ For each target 5-minute slot $t$, the model receives the following inputs:
     \item \textbf{Weather features.}  Nine continuous variables measured at
           time $t$: air temperature, wet-bulb temperature, and relative humidity
           for three stations (Haifa, Jerusalem, Tel~Aviv).
-
-    \item \textbf{Price features} (price-aware variants only).  The log
-          day-ahead price $\log\pi^{\mathrm{DA}}_t$ and the over-prediction
-          price ratio $\pi^o_t/\pi^{\mathrm{DA}}_t$, both known at decision
-          time.  The under-prediction price $\pi^u_t$ is never an input.
 
     \item \textbf{Temporal embeddings.}  Learned embeddings for time of day
           (288 positions, dimension~16), day of week (7~positions,
@@ -84,8 +79,10 @@ the last output is an additive correction scalar~$\delta$.  The forecast is:
 where demand values and prices are normalised by a constant scale factor of
 $100$ during training and rescaled at inference time.  All models are trained
 with the Adam optimiser~\parencite{kingma2014adam} at a learning rate
-$2\times10^{-4}$, batch size~10\,000, and up to 500 epochs with early stopping
-on the calibration set (patience 20, evaluated every 10~epochs).
+$2\times10^{-4}$ and batch size~10\,000 for a fixed budget of 1\,500 epochs.
+We use a fixed budget, identical for all models, rather than early stopping,
+because the cost on a held-out window of a few months is dominated by a
+handful of price spikes and is too noisy to select a stopping point.
 
 \subsubsection{Training Objectives}
 
@@ -96,58 +93,52 @@ We compare the following training objectives:
           the conditional mean and median.
     \item \textbf{Pinball $r\!:\!1$} for $r\in\{5,10,20\}$ --- fixed-ratio
           asymmetric baselines targeting the constant quantile $r/(r+1)$.
-    \item \textbf{Price-aware cost (proposed)} --- price features as inputs and
-          the mean excess cost (Equation~\eqref{eq:excess}) with the
-          \emph{realised} prices as the loss.
+    \item \textbf{Price-aware cost (proposed)} --- the mean excess cost
+          (Equation~\eqref{eq:excess}) with the \emph{realised} historical
+          prices as the loss.  The inputs are the same as for every other
+          model.
 \end{itemize}
 
-Two ablations separate the effect of the price inputs from that of the
-price-weighted loss: \textbf{cost without price inputs}, trained on the same
-loss but without seeing prices, and \textbf{MSE with price inputs}, which sees
-prices but is trained with a symmetric loss.  Because the loss is
-differentiable almost everywhere, the price-aware objective adds no
-computational overhead compared to L1 training.
+Because the loss is differentiable almost everywhere, the price-aware
+objective adds no computational overhead compared to L1 training.
 
-\subsubsection{Post-Hoc Cost Calibration}
+\subsubsection{Post-Hoc Cost Adjustment}
 \label{sec:posthoc}
 
 To test whether the benefit of the unified model could be obtained more
-cheaply, we apply four post-hoc calibrations to the outputs of the MSE, L1,
-pinball and Noga forecasts.  All of them are fitted on the calibration set and
-use only information available at decision time.  Several of them require an
-estimate of the cost-optimal quantile; we estimate
-$\hat\tau_t$ by plugging into Equation~\eqref{eq:optimal_threshold} a binned
-estimate of $\mathbb{E}[\pi^u_t/\pi^o_t \mid \pi^{\mathrm{DA}}_t]$ fitted on
-past prices (training and calibration periods).
+cheaply, we adjust the outputs of the MSE, L1, pinball and Noga forecasts
+\emph{after} training so that they target the cost rather than the error.
+The purpose of the adjustment is to correct a model for having been trained on
+the wrong loss, so both adjustments are fitted on the baseline's predictions
+for the training set, using the realised historical prices.  At prediction
+time they use only information available at decision time.
 
 \begin{itemize}
     \item \textbf{C1 --- global affine.}  $g(\hat y)=a\hat y + b$, with $(a,b)$
-          minimising the mean excess cost on the calibration set.  This is the
-          calibration used in earlier work and in the previous version of this
-          study.
-    \item \textbf{C2 --- price-aware newsvendor (predict-then-optimise).}
-          $g(\hat y_t) = \hat y_t + Q_{h(t)}(\hat\tau_t)$, where $Q_h$ is the
-          empirical quantile function of the calibration residuals
-          $y-\hat y$ in hour-of-day $h$.  This is the textbook two-stage
-          approach: first forecast, then shift the forecast to the
-          price-dependent cost-optimal quantile.
-    \item \textbf{C3 --- learned residual.}
-          $g(\hat y_t) = \hat y_t + \mathbf{w}^\top\phi_t$, where $\phi_t$
-          contains $\hat y_t$, the price features, $\hat\tau_t$ and an
-          hour-of-day one-hot encoding, and $\mathbf{w}$ minimises the
-          excess cost on the calibration set.
-    \item \textbf{C4 --- quantile bank.}  Applicable to the fixed-ratio
-          models only: given the L1, Pinball 5:1, 10:1 and 20:1 models,
-          which target $\tau\in\{0.5, 0.833, 0.909, 0.952\}$, each slot
-          receives the linear interpolation between the two models whose
-          quantiles bracket $\hat\tau_t$.
+          minimising the mean excess cost on the training set.  This is the
+          adjustment used in earlier work and in the previous version of this
+          study.  It is price-blind: the same correction applies to every slot.
+    \item \textbf{C2 --- hourly newsvendor (predict-then-optimise).}
+          $g(\hat y_t) = \hat y_t + s_{h(t)}$, where for each hour of the day
+          $h$ the shift $s_h$ minimises the realised excess cost of the
+          shifted training-set forecasts:
+          \[
+              s_h = \arg\min_s \sum_{i:\,h(i)=h}
+                    c^u_i\,(e_i - s)^+ + c^o_i\,(s - e_i)^+,
+              \qquad e_i = y_i - \hat y_i .
+          \]
+          The solution is the cost-weighted quantile of the hour's errors,
+          the empirical counterpart of
+          Equation~\eqref{eq:weighted_quantile}.  This is the textbook
+          two-stage approach: first forecast, then shift the forecast to the
+          cost-optimal quantile.
 \end{itemize}
 
-C2--C4 are price-aware: they use the same known prices as the proposed model.
-They differ from it in that the price information enters \emph{after} a model
-has been trained on a price-blind objective, so they can only shift the
-forecast according to the price and the hour, not according to how price
-interacts with the weather, the calendar and the recent demand.
+Like the proposed model, C2 uses historical prices only for fitting.  It
+differs from it in that the cost information enters \emph{after} a model has
+been trained on a price-blind objective, so it can only shift the forecast by
+hour of the day, not according to how the cost asymmetry interacts with the
+weather, the calendar and the recent demand.
 
 \subsubsection{Evaluation Protocol}
 \label{sec:eval-protocol}

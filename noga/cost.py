@@ -6,28 +6,18 @@ from torch.nn import Parameter
 from torch.optim import Adam
 
 # c[:, 0] = p_da, c[:, 1] = p_o, c[:, 2] = p_u (scaled prices, see model.P_SCALE).
+# A slot's own prices are never model inputs (the day-ahead price is set only
+# after the procurement decision); they enter training only through the
+# "cost" loss. Yesterday's day-ahead price is an input (see model.Data).
 LossFn = Callable[[Tensor, Tensor, Tensor | None], Tensor]
 Name = Literal[
     "l2",
     "l1",
-    "Pinball 5:1",
-    "Pinball 10:1",
-    "Pinball 20:1",
-    "l2+price",
-    "cost-noprice",
+    "Pinball med",
+    "Pinball opt",
+    "Pinball p95",
     "cost",
 ]
-
-# Models that receive the known prices (p_da, p_o) as input features.
-USE_PRICE: set[Name] = {"l2+price", "cost"}
-
-# Fixed-ratio pinball models and the quantile each one targets.
-PINBALL_TAU: dict[Name, float] = {
-    "l1": 0.5,
-    "Pinball 5:1": 5 / 6,
-    "Pinball 10:1": 10 / 11,
-    "Pinball 20:1": 20 / 21,
-}
 
 
 def pinball(pred: Tensor, y: Tensor, fac=5) -> Tensor:
@@ -35,6 +25,29 @@ def pinball(pred: Tensor, y: Tensor, fac=5) -> Tensor:
     error = pred - y
     loss = torch.where(error > 0, u * error, (1-u) * -error)
     return torch.mean(loss * 2)
+
+
+# Fixed-quantile baselines whose single quantile is derived from the training
+# prices (estimated on each training batch). Prices set only that constant.
+
+def pinball_opt(pred: Tensor, y: Tensor, c: Tensor) -> Tensor:
+    '''
+    Cost-optimal constant quantile tau* = E[c_u]/(E[c_u]+E[c_o]) (optimal when
+    errors are independent of prices).
+    '''
+    p_da, p_o, p_u = c[:, 0], c[:, 1], c[:, 2]
+    fac = ((p_u - p_da).sum() / p_o.sum()).item()
+    return pinball(pred, y, fac=fac)
+
+
+def pinball_q(q: float) -> LossFn:
+    '''Constant quantile = the q-quantile of the per-slot optimal tau_t.'''
+    def loss(pred: Tensor, y: Tensor, c: Tensor) -> Tensor:
+        p_da, p_o, p_u = c[:, 0], c[:, 1], c[:, 2]
+        c_u = p_u - p_da
+        t = torch.quantile(c_u / (c_u + p_o), q).item()
+        return pinball(pred, y, fac=t / (1 - t))
+    return loss
 
 
 def excess(pred: Tensor, y: Tensor, c: Tensor) -> Tensor:
@@ -57,17 +70,14 @@ def total(pred: Tensor, y: Tensor, c: Tensor) -> Tensor:
 loss_fns: dict[Name, LossFn] = {
     "l2": lambda pred, y, c=None: torch.mean((pred - y) ** 2),
     "l1": lambda pred, y, c=None: torch.mean(torch.abs(pred - y)),
-    "Pinball 5:1": lambda pred, y, c=None: pinball(pred, y),
-    "Pinball 10:1": lambda pred, y, c=None: pinball(pred, y, fac=10),
-    "Pinball 20:1": lambda pred, y, c=None: pinball(pred, y, fac=20),
-    "l2+price": lambda pred, y, c=None: torch.mean((pred - y) ** 2),
-    "cost-noprice": lambda pred, y, c: torch.mean(excess(pred, y, c)),
+    "Pinball med": pinball_q(0.5),
+    "Pinball opt": pinball_opt,
+    "Pinball p95": pinball_q(0.95),
     "cost": lambda pred, y, c: torch.mean(excess(pred, y, c)),
 }
 
 # Losses that do not depend on prices (e.g. for plotting).
-PRICE_FREE: list[Name] = [
-    n for n in get_args(Name) if n not in {"cost-noprice", "cost"}]
+PRICE_FREE: list[Name] = ["l2", "l1"]
 
 
 def opt(params: Iterator[Parameter]):

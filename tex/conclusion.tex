@@ -85,12 +85,11 @@ Along with these positive findings, this work also has several limitations, as f
           assumed imbalance-price level and should be read as an estimate under
           the stated cost model.
 
-    \item \textbf{Known day-ahead price.}  We treat the SMP as the
-          market-clearing price and assume that it, and the over-prediction
-          price, are known when the procurement quantity is chosen.  In the
-          Israeli market the SMP is itself derived from the operator's
-          day-ahead schedule; a participant who must forecast the price would
-          face additional uncertainty.
+    \item \textbf{No price information at decision time.}  Since the SMP is
+          set only after procurement decisions are made, our models use
+          prices only during training.  Forecasts of the day-ahead price, if
+          available, could be added as inputs and would likely improve the
+          cost further.
 
     \item \textbf{Price-taker assumption.}  We evaluate the cost of a single
           procurement decision at given prices and ignore the feedback of a
@@ -133,8 +132,8 @@ Along with these positive findings, this work also has several limitations, as f
           Section~\ref{sec:forecast-error-dist}.
 
     \item \textbf{Joint price and demand forecasting.}  Relaxing the
-          known-price assumption by forecasting the day-ahead price jointly with
-          demand, and modelling the dependence of imbalance prices on the
+          price-blind setting by forecasting the day-ahead price jointly with
+          demand and feeding the price forecast to the model, and modelling the dependence of imbalance prices on the
           system-wide forecast error (scarcity pricing), are natural next
           steps.
 

@@ -197,19 +197,22 @@ Our work addresses these gaps.  We formulate day-ahead demand forecasting as the
 minimisation of the realised procurement cost, where committed energy is paid at
 the \emph{real} day-ahead market price and imbalances are settled at
 under- and over-prediction prices that depend on it.  We train a single
-\emph{price-aware} neural network that receives the known prices as inputs and
-minimises this cost end-to-end.  We then compare it with symmetric (MSE) models,
-fixed-ratio asymmetric models, and strong post-hoc calibrations of both,
-including calibrations of the \emph{real} day-ahead forecast published by the
+\emph{price-aware} neural network to minimise this cost end-to-end.  Because
+the day-ahead price is set only after suppliers commit, prices are not model
+inputs; they enter only through the training loss, from which the model learns
+when shortfall tends to be expensive.  We then compare it with symmetric (MSE) models,
+fixed-ratio asymmetric models, and post-hoc cost adjustments of both,
+including adjustments of the \emph{real} day-ahead forecast published by the
 Israeli system operator Noga.  The contributions of this paper are as follows:
 
 \begin{enumerate}
     \item \textbf{A unified price-aware forecasting model.}  To the best of our
           knowledge, this is the first work on national electricity demand
           forecasting that integrates \emph{real} day-ahead market prices into
-          the model, both as inputs and as the time-varying slopes of the
-          training loss, so that a single model learns the price-dependent
-          cost-optimal quantile.
+          the model's training objective, as the time-varying slopes of the
+          loss, so that a single model learns the cost-optimal forecast from
+          consumption and price data jointly, without requiring prices at
+          decision time.
 
     \item \textbf{A novel open dataset.}  We assemble and release a new dataset
           for the Israeli market that combines 5-minute national demand, the
@@ -224,13 +227,13 @@ Israeli system operator Noga.  The contributions of this paper are as follows:
           that increases with the price), and we use it to study the
           sensitivity of our conclusions.
 
-    \item \textbf{Strong baselines, including the operator's forecast.}  We show
-          that the unified model outperforms models trained to minimise MSE,
-          fixed-ratio asymmetric models, and models that are post-calibrated to
-          the cost after training (global affine correction, a price-aware
-          newsvendor correction, a learned residual correction, and a bank of
-          quantile models), as well as the Noga day-ahead forecast with the same
-          calibrations.
+    % TODO: state the outcome once the final experiments are in.
+    \item \textbf{Strong baselines, including the operator's forecast.}  We
+          compare the unified model with models trained to minimise MSE,
+          fixed-ratio asymmetric models, and models that are adjusted to the
+          cost after training (a global affine correction and a price-aware
+          newsvendor correction), as well as the Noga day-ahead forecast with
+          the same adjustments.
 
     \item \textbf{An estimate of the potential savings in Israel.}  We translate
           the cost reductions into an estimate of the annual saving for the

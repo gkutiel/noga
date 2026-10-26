@@ -1,9 +1,11 @@
 '''
-Post-hoc calibration of point forecasts to the price-dependent cost.
+Post-hoc cost adjustment of point forecasts.
 
-All calibrators are fitted on the calibration split (2024-09..12) and applied
-to the test split. Inputs are plain arrays in MW and ₪/MWh; the hidden
-under-prediction price p_u is only used for fitting, never at prediction time.
+Both adjustments correct a baseline trained on the wrong loss: they are fitted
+on the baseline's predictions for the train split and applied to the test
+split.
+Prices are used only for fitting (they are unknown at decision time), so the
+adjusted forecast depends on the base forecast and the hour only.
 '''
 import numpy as np
 import pandas as pd
@@ -11,10 +13,9 @@ import torch
 
 from noga.price import P_DA, P_O, P_U
 
-N_BINS = 20
 HOURS = 24
-C3_STEPS = 2000
-C3_LR = 1e-2
+FIT_STEPS = 2000
+FIT_LR = 1e-2
 
 
 def excess(pred, y, p_da, p_o, p_u):
@@ -22,125 +23,95 @@ def excess(pred, y, p_da, p_o, p_u):
     return (p_u - p_da) * np.maximum(y - pred, 0) + p_o * np.maximum(pred - y, 0)
 
 
-class RatioMap:
-    '''Binned estimate of E[p_u / p_o | p_da] fitted on known (past) prices.'''
-
-    def fit(self, p_da, p_o, p_u):
-        log_p = np.log(p_da)
-        self.edges = np.quantile(log_p, np.linspace(0, 1, N_BINS + 1))
-        b = self._bin(log_p)
-        r = p_u / p_o
-        self.r = np.array([r[b == i].mean() for i in range(N_BINS)])
-        return self
-
-    def _bin(self, log_p):
-        return np.clip(np.searchsorted(self.edges, log_p) - 1, 0, N_BINS - 1)
-
-    def tau(self, p_da, p_o):
-        '''Estimated cost-optimal quantile for each slot.'''
-        p_u = p_o * self.r[self._bin(np.log(p_da))]
-        c_u = p_u - p_da
-        return c_u / (c_u + p_o)
-
-
 def hour(meta: pd.DataFrame):
     return (meta["time"].to_numpy() // 60).astype(int)
 
 
-def affine(pred_cal, meta_cal: pd.DataFrame):
-    '''C1: p = a * pred + b minimising the excess cost on the calibration set.'''
-    feats = lambda pred, _: np.stack([pred, np.ones_like(pred)], axis=1)
-    return _linear(feats, pred_cal, meta_cal)
-
-
-def newsvendor(pred_cal, meta_cal: pd.DataFrame, ratio: RatioMap):
-    '''
-    C2 (predict-then-optimise): p = pred + Q_h(tau_hat), where Q_h is the
-    empirical quantile of the calibration residuals y - pred in the same hour.
-    '''
-    res = meta_cal["actual"].to_numpy() - pred_cal
-    h_cal = hour(meta_cal)
-    by_hour = [res[h_cal == h] for h in range(HOURS)]
-
-    def apply(pred, meta: pd.DataFrame):
-        t = ratio.tau(meta[P_DA].to_numpy(), meta[P_O].to_numpy())
-        h = hour(meta)
-        shift = np.empty_like(pred)
-        for i in range(HOURS):
-            m = h == i
-            shift[m] = np.quantile(by_hour[i], t[m])
-        return pred + shift
-
-    return apply
-
-
-def residual(pred_cal, meta_cal: pd.DataFrame, ratio: RatioMap):
-    '''
-    C3: p = pred + w . phi(pred, p_da, p_o, tau_hat, hour), with w fitted to
-    minimise the excess cost on the calibration set.
-    '''
-    def feats(pred, meta):
-        p_da = meta[P_DA].to_numpy()
-        p_o = meta[P_O].to_numpy()
-        onehot = np.eye(HOURS)[hour(meta)]
-        return np.concatenate([
-            np.stack([
-                pred,
-                np.log(p_da) - 5,
-                10 * p_o / p_da,
-                ratio.tau(p_da, p_o),
-            ], axis=1),
-            onehot,
-        ], axis=1)
-
-    return _linear(feats, pred_cal, meta_cal, offset=True)
-
-
-def _linear(feats, pred_cal, meta_cal, offset=False):
-    '''Fits p = [pred +] feats @ w on the excess cost (scaled to ~1).'''
+def affine(pred_fit, meta_fit: pd.DataFrame):
+    '''C1: p = a * pred + b minimising the excess cost on the fitting set.'''
     scale = 100.0
-    X = torch.tensor(feats(pred_cal / scale, meta_cal), dtype=torch.float32)
-    base = torch.tensor(pred_cal / scale if offset else 0 * pred_cal,
-                        dtype=torch.float32)
-    y = torch.tensor(meta_cal["actual"].to_numpy() / scale, dtype=torch.float32)
-    c = torch.tensor(meta_cal[[P_DA, P_O, P_U]].to_numpy() / scale,
+    X = torch.tensor(
+        np.stack([pred_fit / scale, np.ones_like(pred_fit)], axis=1),
+        dtype=torch.float32)
+    y = torch.tensor(meta_fit["actual"].to_numpy() / scale, dtype=torch.float32)
+    c = torch.tensor(meta_fit[[P_DA, P_O, P_U]].to_numpy() / scale,
                      dtype=torch.float32)
 
-    w = torch.zeros(X.shape[1], requires_grad=True)
-    if not offset:
-        with torch.no_grad():
-            w[0] = 1  # start from the identity: p = pred
-
-    opt = torch.optim.Adam([w], lr=C3_LR)
-    for _ in range(C3_STEPS):
+    w = torch.tensor([1.0, 0.0], requires_grad=True)  # start from p = pred
+    opt = torch.optim.Adam([w], lr=FIT_LR)
+    for _ in range(FIT_STEPS):
         opt.zero_grad()
-        pred = base + X @ w
+        pred = X @ w
         under = torch.relu(y - pred)
         over = torch.relu(pred - y)
         loss = ((c[:, 2] - c[:, 0]) * under + c[:, 1] * over).mean()
         loss.backward()
         opt.step()
 
-    w = w.detach().numpy()
+    a, b = w.detach().numpy()
+    return lambda pred, meta: a * pred + b * scale
 
-    def apply(pred, meta: pd.DataFrame):
-        out = feats(pred / scale, meta) @ w
-        return (pred / scale * offset + out) * scale
 
+def cost_shift(err, c_u, c_o):
+    '''
+    argmin_s sum_i c_u[i] (err[i] - s)+ + c_o[i] (s - err[i])+ :
+    the smallest err[k] (sorted) at which the surplus cost of errors below
+    balances the shortfall cost of errors above, i.e. a cost-weighted quantile.
+    '''
+    order = np.argsort(err)
+    cum = np.cumsum((c_u + c_o)[order])
+    k = np.searchsorted(cum, c_u.sum())
+    return err[order][min(k, len(err) - 1)]
+
+
+def newsvendor_shift(pred_fit, meta_fit: pd.DataFrame):
+    '''
+    Per-hour cost-optimal constant shift s_h of the errors y - pred (exact,
+    a cost-weighted quantile); the starting point of C2.
+    '''
+    err = meta_fit["actual"].to_numpy() - pred_fit
+    c_u = (meta_fit[P_U] - meta_fit[P_DA]).to_numpy()
+    c_o = meta_fit[P_O].to_numpy()
+    h_fit = hour(meta_fit)
+    return np.array([
+        cost_shift(err[h_fit == h], c_u[h_fit == h], c_o[h_fit == h])
+        for h in range(HOURS)])
+
+
+def hourly_affine(pred_fit, meta_fit: pd.DataFrame):
+    '''
+    C2 (predict-then-optimise): p = pred + b_h + a_h * (pred - m_h) for
+    hour-of-day h, minimising the excess cost on the fitting set. m_h is the
+    hour's mean forecast (centring decouples slope and shift). Starts from the
+    exact shift-only solution (a_h = 0), so C1 and the per-hour shift are
+    special cases.
+    '''
+    scale = 100.0
+    h_fit = hour(meta_fit)
+    m = np.array([pred_fit[h_fit == h].mean() for h in range(HOURS)])
+    hh = torch.tensor(h_fit)
+    x = torch.tensor(pred_fit / scale, dtype=torch.float32)
+    xc = x - torch.tensor(m / scale, dtype=torch.float32)[hh]
+    y = torch.tensor(meta_fit["actual"].to_numpy() / scale, dtype=torch.float32)
+    c = torch.tensor(meta_fit[[P_DA, P_O, P_U]].to_numpy() / scale,
+                     dtype=torch.float32)
+
+    b = torch.tensor(newsvendor_shift(pred_fit, meta_fit) / scale,
+                     dtype=torch.float32, requires_grad=True)
+    a = torch.zeros(HOURS, requires_grad=True)
+    opt = torch.optim.Adam([a, b], lr=FIT_LR)
+    for _ in range(FIT_STEPS):
+        opt.zero_grad()
+        pred = x + b[hh] + a[hh] * xc
+        under = torch.relu(y - pred)
+        over = torch.relu(pred - y)
+        loss = ((c[:, 2] - c[:, 0]) * under + c[:, 1] * over).mean()
+        loss.backward()
+        opt.step()
+
+    a, b = a.detach().numpy(), b.detach().numpy() * scale
+
+    def apply(pred, meta):
+        h = hour(meta)
+        return pred + b[h] + a[h] * (pred - m[h])
     return apply
-
-
-def bank(preds: dict[float, np.ndarray], meta: pd.DataFrame, ratio: RatioMap):
-    '''
-    C4: given fixed-quantile models {tau_r: pred}, interpolate per slot
-    between the two models whose tau brackets tau_hat (clamped at the ends).
-    '''
-    taus = np.array(sorted(preds))
-    P = np.stack([preds[t] for t in taus], axis=1)
-    t = ratio.tau(meta[P_DA].to_numpy(), meta[P_O].to_numpy())
-    t = np.clip(t, taus[0], taus[-1])
-
-    i = np.clip(np.searchsorted(taus, t) - 1, 0, len(taus) - 2)
-    w = (t - taus[i]) / (taus[i + 1] - taus[i])
-    rows = np.arange(len(t))
-    return (1 - w) * P[rows, i] + w * P[rows, i + 1]

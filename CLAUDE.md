@@ -19,7 +19,7 @@ uv run -m noga.price
 
 # Train all variants, calibrate, evaluate (writes res/price_*.csv, tex/plot/*)
 uv run -m noga.report quick        # seed 0, price seed 0
-uv run -m noga.report              # 3 seeds x 3 price seeds
+uv run -m noga.report              # 3 seeds x 3 price seeds (trains JOBS models in parallel)
 uv run -m noga.report sensitivity  # alternative price generators
 
 # Generate stat/error plots
@@ -44,19 +44,20 @@ data/ims.he.csv ──► data/ims.csv   ──┘
 - `data/noga.xlsx`: 5-minute electricity demand + day-ahead forecast from NOGA (Israel's grid operator). Hebrew column headers, translated in `data.py`; `noga_fixed_csv()` interpolates gaps into `data/noga.fixed.csv`.
 - `data/ims.he.csv`: Weather data from the Israeli Meteorological Service (IMS) for three stations: Haifa, Jerusalem, Tel Aviv. Hebrew headers, pivoted from long to wide format.
 - `data/Smp_01_04_2023-01_01_2026_he-IL.xlsx` → `data/price.csv`: real half-hourly day-ahead SMP (₪/MWh). Real-time columns are empty, so imbalance prices are synthetic.
-- `data/data.csv`: 5-minute rows: time (minutes), forecast, actual, weather, `p_da` (constrained SMP), year, month (0-based), day (weekday), `period` (30-min settlement index), `date_ord`. Ends 2025-12-31 / 2026-01-01 (price data end).
+- `data/data.csv`: 5-minute rows: time (minutes), forecast, actual, weather, `p_da` (unconstrained SMP, `data.DA_PRICE`), year, month (0-based), day (weekday), `period` (30-min settlement index), `date_ord`. Ends 2025-12-31 / 2026-01-01 (price data end).
 
-**Pricing (`noga/price.py`):** `synth()` draws per settlement period `p_o = alpha(1+eps)p_da` (known to the model) and `p_u = r*p_o` with `r in [5,20]` a noisy convex increasing function of `p_da` (hidden). `PriceParams` holds all generator parameters.
+**Pricing (`noga/price.py`):** `synth()` draws per settlement period `p_o = alpha(1+eps)p_da` and `p_u = r*p_o` with `r in [5,20]` a noisy convex increasing function of `p_da` (`rho > 0`: scarcity variant, noise correlated with the system-wide demand surprise). `PriceParams` holds all generator parameters. A slot's own prices are never model inputs (the SMP is set after procurement decisions; only yesterday's price is an input); they enter only the `cost` loss, the post-hoc adjustments' fitting and the evaluation.
 
 **Model (`noga/model.py`):**
-- PyTorch Lightning `Model`: soft attention over the 10 demand readings 24h earlier + additive correction; embeddings for month, day-of-week, 5-min time-of-day; 9 weather features; price-aware variants add `log_p_da`, `p_o_ratio`.
+- PyTorch Lightning `Model`: soft attention over the 10 demand readings 24h earlier + additive correction; embeddings for month, day-of-week, 5-min time-of-day; 9 weather features; log of the day-ahead price 24h earlier (already public at decision time). The slot's own prices are never inputs.
+- The `cost` model (`PRICE_HEADS`) has auxiliary heads predicting log `p_o`, log `p_u` (multi-task loss, weight `PRICE_WEIGHT`); `predict_prices()` returns them.
 - `Data` is batch-indexable (use `dl()`), yields `(month, day, time, X, y, c)` with `c = [p_da, p_o, p_u] / P_SCALE`; `Data.meta` holds per-item context for evaluation.
-- Splits: train 2023-04..2024-08, cal 2024-09..12 (early stopping + calibration), test 2025.
-- Models saved as `models/<name>-s<seed>[-p<price_seed>[-params]].pt`.
+- Splits: train 2023-04..2024-12, test 2025. Every model trains on train for a fixed `EPOCHS` (no early stopping); C1/C2 are fitted on the baselines' train predictions.
+- Models saved as `models/<name>-s<seed>[-p<price_seed>[-params]].pt` (price seed only for `PRICE_DEPENDENT` models). `train()` skips existing files: move old models away after changing the architecture.
 
-**Losses (`noga/cost.py`):** `Name` lists the variants (`l2`, `l1`, `Pinball r:1`, `l2+price`, `cost-noprice`, `cost`); losses take `(pred, y, c)`. `cost` = mean excess cost `(p_u-p_da)(y-p)+ + p_o(p-y)+`.
+**Losses (`noga/cost.py`):** `Name` lists the variants: `l2`, `l1`; `Pinball med/opt/p95` (constant quantile derived from training prices: median of the per-slot optimal tau, the cost-optimal constant E[c_u]/(E[c_u]+E[c_o]), 95th percentile of tau); `cost` (proposed) = mean excess cost `(p_u-p_da)(y-p)+ + p_o(p-y)+`. Losses take `(pred, y, c)`.
 
-**Calibration (`noga/calibrate.py`):** C1 affine, C2 price-aware newsvendor (hourly residual quantile at tau_hat), C3 learned residual, C4 pinball-model bank. All fitted on the cal split.
+**Post-hoc cost adjustment (`noga/calibrate.py`):** C1 global affine `a*pred + b`; C2 hourly affine `pred + b_h + a_h*(pred - m_h)`, started from the exact per-hour cost-optimal shift (`newsvendor_shift`, a cost-weighted quantile of errors). Both fitted on the excess cost of the baseline's train predictions.
 
 **Analysis:**
 - `noga/report.py`: experiment driver; results in `res/price_{runs,summary,dm,savings,sensitivity}.csv`, figures in `tex/plot/`.
