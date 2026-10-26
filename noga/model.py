@@ -34,9 +34,9 @@ TRAIN_END = os.environ.get("NOGA_TRAIN_END", "2025-01-01")
 # MODEL
 M_EMBD = 2
 D_EMBD = 3
-T_EMBED = 12
+T_EMBED = 8
 N_LAYERS = 2
-HIDDEN_SIZE = 32
+HIDDEN_SIZE = 24
 Y_SCALE = 100
 P_SCALE = 100
 # Mean scaled excess per slot -> M₪ per year.
