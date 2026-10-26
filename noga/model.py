@@ -30,7 +30,7 @@ BATCH_SIZE = 10_000
 # AdamW for every model. Decay applies to the Linear weights only (not biases
 # or embeddings); each step shrinks them by LR * WEIGHT_DECAY, so small values
 # (1e-2 shrinks ~11% over 3000 epochs) barely act.
-LR = 1e-3
+LR = 5e-4
 WEIGHT_DECAY = 0.1
 # First test day; training uses everything before it. 2025-07-01 is the second
 # rolling-origin fold (test 2025-H2). Set with the NOGA_TRAIN_END variable.
@@ -41,7 +41,7 @@ M_EMBD = 2
 D_EMBD = 3
 T_EMBED = 8
 N_LAYERS = 2
-HIDDEN_SIZE = 24
+HIDDEN_SIZE = 16
 Y_SCALE = 100
 P_SCALE = 100
 # Mean scaled excess per slot -> M₪ per year.
