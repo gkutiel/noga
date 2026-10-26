@@ -17,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 noga-stat = "noga.stat:main"
+train = "noga.train:main"
 
 [tool.uv]
 package = true

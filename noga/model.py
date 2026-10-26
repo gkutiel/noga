@@ -1,4 +1,6 @@
 import os
+import subprocess
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -15,7 +17,7 @@ from torch.utils.data import (
     SequentialSampler,
 )
 
-from noga.cost import Name, loss_fns, optims
+from noga.cost import SHORT, Name, loss_fns, optims
 from noga.price import P_DA, P_O, P_U, SURPRISE, PriceParams, synth
 
 # TRAIN
@@ -35,6 +37,9 @@ N_LAYERS = 2
 HIDDEN_SIZE = 48
 Y_SCALE = 100
 P_SCALE = 100
+# Mean scaled excess per slot -> M₪ per year.
+COST_PER_YEAR = Y_SCALE * P_SCALE * 8760 / 1e6
+TEST_EVERY = 50  # epochs between cost/test evaluations
 
 DAY_IN_5_MIN = 288
 HISTORY_LEN = 10
@@ -72,11 +77,12 @@ N = len(FEATURES) + HISTORY_LEN + 1
 
 
 class Model(pl.LightningModule):
-    def __init__(self, name: Name):
+    def __init__(self, name: Name, test: "Data | None" = None):
         super().__init__()
 
         self.name: Name = name
         self.loss = loss_fns[name]
+        self.test = test  # logged as cost/test during training
 
         self.day = nn.Embedding(7, D_EMBD)
         self.month = nn.Embedding(12, M_EMBD)
@@ -129,30 +135,38 @@ class Model(pl.LightningModule):
         assert self.price is not None
         return torch.exp(self.price(self.hidden(month, day, time, X)))
 
-    def step(self, batch, batch_idx, step='train'):
+    def training_step(self, batch, batch_idx):
         month, day, time, X, y, c = batch
 
         z = self.hidden(month, day, time, X)
         pred = self.demand(z, X)
         loss = self.loss(pred, y, c)
 
-        self.log(f"{step}/{self.name}", loss, prog_bar=True)
-        self.log(f"{step}/l1", torch.mean(torch.abs(pred - y)), prog_bar=True)
-        # Comparable across all models (the cost model's loss already is it).
+        log = dict(on_step=False, on_epoch=True, batch_size=len(y))
         if self.name != "cost":
-            with torch.no_grad():
-                self.log(f"{step}/cost", loss_fns["cost"](pred, y, c))
+            self.log(f"loss/{self.name}", loss, **log)
+        with torch.no_grad():
+            cost = loss_fns["cost"](pred, y, c) * COST_PER_YEAR
+        self.log("cost/train", cost, **log)
 
         if self.price is not None:
             price_loss = torch.mean(
                 (self.price(z) - torch.log(c[:, 1:])) ** 2)
-            self.log(f"{step}/price", price_loss, prog_bar=True)
+            self.log("loss/price", price_loss, **log)
             loss = loss + PRICE_WEIGHT * price_loss
 
         return loss
 
-    def training_step(self, batch, batch_idx):
-        return self.step(batch, batch_idx)
+    def on_train_epoch_end(self):
+        '''Monitoring only: the epoch budget is fixed, never chosen on test.'''
+        epoch = self.current_epoch + 1
+        if self.test is None or (epoch % TEST_EVERY and epoch != 1):
+            return
+        t = self.test
+        with torch.no_grad():
+            pred = self(t.month, t.day, t.time, t.X)
+            cost = loss_fns["cost"](pred, t.y, t.c) * COST_PER_YEAR
+        self.log("cost/test", cost)
 
     def configure_optimizers(self):
         return optims[self.name](self.parameters())
@@ -279,6 +293,28 @@ class pt:
         return Path(f'models/{pt.tag(name, seed, price_seed, params)}.pt')
 
 
+def git_sha() -> str:
+    '''Short HEAD sha, with "-dirty" if tracked files have changes.'''
+    def git(*args):
+        return subprocess.run(["git", *args], capture_output=True,
+                              text=True, check=True).stdout.strip()
+    dirty = git("status", "--porcelain", "--untracked-files=no")
+    return git("rev-parse", "--short", "HEAD") + ("-dirty" if dirty else "")
+
+
+def experiment(name: Name, seed: int, price_seed: int,
+               params: PriceParams = PriceParams()) -> str:
+    '''
+    <YYYY-MM-DD-HH-MM>-<git sha>-<short name>, plus the non-default parts of
+    the model tag (seed, price seed, generator, fold), e.g. "-s1-p2".
+    '''
+    extra = pt.tag(name, seed, price_seed, params)[len(name):]
+    extra = extra.replace("-s0", "", 1) if seed == 0 else extra
+    extra = extra.replace("-p0", "", 1) if price_seed == 0 else extra
+    stamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
+    return f"{stamp}-{git_sha()}-{SHORT[name]}{extra}"
+
+
 def train(
         name: Name,
         *,
@@ -294,20 +330,19 @@ def train(
 
     pl.seed_everything(seed)
 
-    model = Model(name=name)
+    train_ds, test_ds = load_data(price_seed=price_seed, params=params)
+    model = Model(name=name, test=test_ds)
     logger = TensorBoardLogger(
-        "logs", name=pt.tag(name, seed, price_seed, params))
+        "logs", name="", version=experiment(name, seed, price_seed, params))
 
     trainer = pl.Trainer(
         max_epochs=EPOCHS,
         deterministic=True,
-        log_every_n_steps=4,
         limit_val_batches=0,
         enable_checkpointing=False,
         logger=logger,
         enable_progress_bar=False)
 
-    train_ds, _ = load_data(price_seed=price_seed, params=params)
     trainer.fit(model, dl(train_ds))
 
     out.parent.mkdir(exist_ok=True)

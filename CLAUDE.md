@@ -17,6 +17,11 @@ uv run -m noga.data price_csv
 # Check the synthetic imbalance-price generator
 uv run -m noga.price
 
+# Train one model (refuses if tracked files are uncommitted); short names:
+# mse, l1, med, opt, p95, cost. TensorBoard runs: logs/<YYYY-MM-DD-HH-MM>-<sha>-<short>
+# with cost/train, cost/test (every 50 epochs, M₪/yr), loss/<name>, loss/price.
+uv run train cost [--seed N] [--price-seed N]
+
 # Train all variants, calibrate, evaluate (writes res/price_*.csv, tex/plot/*)
 uv run -m noga.report quick        # seed 0, price seed 0
 uv run -m noga.report              # 3 seeds x 3 price seeds (trains JOBS models in parallel)

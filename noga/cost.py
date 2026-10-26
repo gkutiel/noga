@@ -76,6 +76,16 @@ loss_fns: dict[Name, LossFn] = {
     "cost": lambda pred, y, c: torch.mean(excess(pred, y, c)),
 }
 
+# Short names for the command line and experiment names.
+SHORT: dict[Name, str] = {
+    "l2": "mse",
+    "l1": "l1",
+    "Pinball med": "med",
+    "Pinball opt": "opt",
+    "Pinball p95": "p95",
+    "cost": "cost",
+}
+
 # Losses that do not depend on prices (e.g. for plotting).
 PRICE_FREE: list[Name] = ["l2", "l1"]
 
