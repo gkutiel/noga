@@ -19,7 +19,8 @@ uv run -m noga.price
 
 # Train one model (refuses if tracked files are uncommitted); short names:
 # mse, l1, med, opt, p95, cost. TensorBoard runs: logs/<YYYY-MM-DD-HH-MM>-<sha>-<short>
-# with cost/train, cost/test (every 50 epochs, M₪/yr), loss/<name>, loss/price.
+# with cost/train, cost/test (every 50 epochs, M₪/yr), loss/<name>,
+# price/{train,test} (cost model only: MSE of predicted log p_o, log p_u).
 uv run train cost [--seed N] [--price-seed N]
 
 # Train all variants, calibrate, evaluate (writes res/price_*.csv, tex/plot/*)

@@ -45,7 +45,8 @@ def main():
         moved = out.rename(old / f"{out.stem}-{stamp}{out.suffix}")
         print(f"Moved {out} to {moved}")
 
-    train(name, seed=args.seed, price_seed=args.price_seed, force=args.force)
+    train(name, seed=args.seed, price_seed=args.price_seed, force=args.force,
+          progress=True)
 
 
 if __name__ == "__main__":

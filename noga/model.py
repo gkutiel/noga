@@ -3,6 +3,7 @@ import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -33,9 +34,9 @@ TRAIN_END = os.environ.get("NOGA_TRAIN_END", "2025-01-01")
 # MODEL
 M_EMBD = 2
 D_EMBD = 3
-T_EMBED = 16
+T_EMBED = 12
 N_LAYERS = 2
-HIDDEN_SIZE = 48
+HIDDEN_SIZE = 32
 Y_SCALE = 100
 P_SCALE = 100
 # Mean scaled excess per slot -> M₪ per year.
@@ -89,7 +90,6 @@ class Model(pl.LightningModule):
         self.month = nn.Embedding(12, M_EMBD)
         self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED)
 
-        head = nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 1 + AFFINE_HEAD)
         self.net = nn.Sequential(
             nn.Linear(N + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
             *[
@@ -99,8 +99,10 @@ class Model(pl.LightningModule):
                 ) for _ in range(N_LAYERS)
             ],
             nn.LeakyReLU(),
-            head,
+            nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 1 + AFFINE_HEAD),
         )
+        # Created last so the seeded init matches earlier commits.
+        head = cast(nn.Linear, self.net[-1])
         if AFFINE_HEAD:  # start from a = 1
             with torch.no_grad():
                 head.weight[HISTORY_LEN].zero_()
@@ -148,19 +150,24 @@ class Model(pl.LightningModule):
             self.log_epoch(f"loss/{self.name}", loss, len(y))
         with torch.no_grad():
             cost = loss_fns["cost"](pred, y, c) * COST_PER_YEAR
-        self.log_epoch("cost/train", cost, len(y))
+        self.log_epoch("cost/train", cost, len(y), prog_bar=True)
 
         if self.price is not None:
-            price_loss = torch.mean(
-                (self.price(z) - torch.log(c[:, 1:])) ** 2)
-            self.log_epoch("loss/price", price_loss, len(y))
+            price_loss = self.price_loss(z, c)
+            self.log_epoch("price/train", price_loss, len(y))
             loss = loss + PRICE_WEIGHT * price_loss
 
         return loss
 
-    def log_epoch(self, name: str, value: Tensor, batch_size: int):
+    def price_loss(self, z: Tensor, c: Tensor):
+        '''MSE of the predicted log (p_o, p_u).'''
+        assert self.price is not None
+        return torch.mean((self.price(z) - torch.log(c[:, 1:])) ** 2)
+
+    def log_epoch(self, name: str, value: Tensor, batch_size: int,
+                  prog_bar: bool = False):
         self.log(name, value, on_step=False, on_epoch=True,
-                 batch_size=batch_size)
+                 batch_size=batch_size, prog_bar=prog_bar)
 
     def on_train_epoch_end(self):
         '''Monitoring only: the epoch budget is fixed, never chosen on test.'''
@@ -169,9 +176,12 @@ class Model(pl.LightningModule):
             return
         t = self.test
         with torch.no_grad():
-            pred = self(t.month, t.day, t.time, t.X)
+            z = self.hidden(t.month, t.day, t.time, t.X)
+            pred = self.demand(z, t.X)
             cost = loss_fns["cost"](pred, t.y, t.c) * COST_PER_YEAR
-        self.log("cost/test", cost)
+            self.log("cost/test", cost, prog_bar=True)
+            if self.price is not None:
+                self.log("price/test", self.price_loss(z, t.c))
 
     def configure_optimizers(self):
         return optims[self.name](self.parameters())
@@ -351,11 +361,13 @@ def train(
         seed: int = 0,
         price_seed: int = 0,
         params: PriceParams = PriceParams(),
-        force: bool = False):
+        force: bool = False,
+        progress: bool = False):
     '''
     Trains on the train split for a fixed number of epochs and saves
     models/<short name>-<git sha>.pt. Skips if that file exists (same code,
-    same configuration) unless force.
+    same configuration) unless force. progress shows a progress bar (off by
+    default: noga.report trains in parallel, logging to a file).
     '''
     sha = git_sha()
     out = pt.model(name, seed, price_seed, params, sha=sha)
@@ -379,7 +391,7 @@ def train(
         limit_val_batches=0,
         enable_checkpointing=False,
         logger=logger,
-        enable_progress_bar=False)
+        enable_progress_bar=progress)
 
     trainer.fit(model, dl(train_ds))
 
