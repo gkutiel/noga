@@ -19,7 +19,7 @@ from torch.utils.data import (
     SequentialSampler,
 )
 
-from noga.cost import SHORT, Name, loss_fns, optims
+from noga.cost import SHORT, Name, loss_fns
 from noga.price import P_DA, P_O, P_U, SURPRISE, PriceParams, synth
 
 # TRAIN
@@ -27,6 +27,11 @@ from noga.price import P_DA, P_O, P_U, SURPRISE, PriceParams, synth
 # too noisy to select a stopping point).
 EPOCHS = 3000
 BATCH_SIZE = 10_000
+# AdamW for every model. Decay applies to the Linear weights only (not biases
+# or embeddings); each step shrinks them by LR * WEIGHT_DECAY, so small values
+# (1e-2 shrinks ~11% over 3000 epochs) barely act.
+LR = 1e-3
+WEIGHT_DECAY = 0.1
 # First test day; training uses everything before it. 2025-07-01 is the second
 # rolling-origin fold (test 2025-H2). Set with the NOGA_TRAIN_END variable.
 TRAIN_END = os.environ.get("NOGA_TRAIN_END", "2025-01-01")
@@ -184,7 +189,13 @@ class Model(pl.LightningModule):
                 self.log("price/test", self.price_loss(z, t.c))
 
     def configure_optimizers(self):
-        return optims[self.name](self.parameters())
+        decay = [m.weight for m in self.modules() if isinstance(m, nn.Linear)]
+        ids = {id(p) for p in decay}
+        rest = [p for p in self.parameters() if id(p) not in ids]
+        return torch.optim.AdamW([
+            {"params": decay, "weight_decay": WEIGHT_DECAY},
+            {"params": rest, "weight_decay": 0.0},
+        ], lr=LR)
 
 
 def with_prices(

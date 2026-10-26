@@ -1,9 +1,7 @@
-from typing import Callable, Iterator, Literal, get_args
+from typing import Callable, Literal
 
 import torch
 from torch import Tensor
-from torch.nn import Parameter
-from torch.optim import Adam
 
 # c[:, 0] = p_da, c[:, 1] = p_o, c[:, 2] = p_u (scaled prices, see model.P_SCALE).
 # A slot's own prices are never model inputs (the day-ahead price is set only
@@ -89,11 +87,3 @@ SHORT: dict[Name, str] = {
 # Losses that do not depend on prices (e.g. for plotting).
 PRICE_FREE: list[Name] = ["l2", "l1"]
 
-
-def opt(params: Iterator[Parameter]):
-    return Adam(params, lr=2e-4)
-
-
-optims: dict[Name, Callable[[Iterator[Parameter]], torch.optim.Optimizer]] = {
-    name: opt for name in get_args(Name)
-}
