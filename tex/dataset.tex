@@ -22,9 +22,14 @@ national demand signal.
     \label{fig:pop-density}
 \end{figure}
 
-The dataset consists of two complementary sources: electricity consumption data
-obtained from the Israeli electricity system operator Noga~\parencite{noga},
-and weather data sourced from the Israeli Meteorological Service~\parencite{ims}.
+The dataset consists of three complementary sources: electricity consumption
+data and day-ahead market prices obtained from the Israeli electricity system
+operator Noga~\parencite{noga, noga_smp}, and weather data sourced from the
+Israeli Meteorological Service~\parencite{ims}.  To the best of our knowledge,
+this is the first public dataset for the Israeli market that aligns national
+demand, the operator's real day-ahead forecast, real market prices and weather
+at a common 5-minute resolution, and we release it together with our
+code.
 Electricity consumption data includes readings of power usage at 5-minute intervals.
 Crucially, it also includes the \emph{real day-ahead forecasts} published by Noga as part of the
 market clearing process.  These are the actual forecasts used by the system operator in the
@@ -36,6 +41,19 @@ distribution of real-world prediction errors produced by an experienced operator
 which motivates and contextualizes the cost asymmetries studied in this paper.
 In Israel, where the percentage of households with air conditioning systems is currently 96.5\% (ranging from 89\% in the lower decile to 98.3\% in the upper decile) according to data from Israel's Central Bureau of Statistics, there is a strong correlation between electricity consumption levels and building cooling and heating loads resulting from changing weather conditions and building occupancy trends.
 The weather data includes air temperature and relative humidity, whose combined effect controls building cooling loads, alongside wind speed measurements taken every three hours in the three major cities of Israel: Tel Aviv, Jerusalem, and Haifa.
+
+\paragraph*{Day-ahead prices.}  The price data is the half-hourly day-ahead
+system marginal price (SMP) published by Noga, in \textsc{nis}/MWh, from
+1~April~2023 to 31~December~2025.  Noga publishes both a constrained SMP, which
+accounts for transmission constraints, and an unconstrained one; we use the
+constrained SMP, which is the price actually applied, and treat it as the
+market-clearing price.  Over the study period the SMP has a mean of
+$165.8$~\textsc{nis}/MWh (median $143.0$, standard deviation $98.9$), ranging
+from $39.2$ in low-demand night hours to $1{,}667$ during scarcity events.  Each
+5-minute demand slot is assigned the price of its 30-minute settlement period.
+Noga does not publish real-time imbalance prices for this period (the
+corresponding columns are empty), which is why the under- and over-prediction
+prices are generated synthetically (Section~\ref{sec:synthetic-prices}).
 % Table~\ref{tab:electricity-fields} summarizes the fields present in the electricity consumption data,
 % and Table~\ref{tab:weather-fields} summarizes the fields present in the weather data. 
 % The dataset covers the period from March 2023 to February 2026, 
@@ -125,8 +143,9 @@ Figure~\ref{fig:demand-vs-forecast-kde} shows the KDE histogram of the forecast 
 % \subsection{Dataset Statistics}
 
 Table~\ref{tab:dataset-stats} reports summary statistics for the key variables in
-the daily dataset.  The data span 1{,}096~days from 1~March~2023 to
-28~February~2026.
+the daily dataset.  The data span 1{,}006~days from 1~April~2023 to
+31~December~2025.  The average load is $9{,}167$~MW (about $80$~TWh per year)
+with a peak of $17{,}265$~MW.
 
 \begin{table}[ht]
     \centering
@@ -135,17 +154,19 @@ the daily dataset.  The data span 1{,}096~days from 1~March~2023 to
         \textbf{Variable} & \textbf{Mean} & \textbf{Std} &
         \textbf{Min} & \textbf{Median} & \textbf{Max} \\
         \midrule
-        Total demand (MWh) & 73\,421 & 14\,852 & 19\,742 & 70\,435 & 114\,103 \\
-        Day-ahead forecast (MWh) & 73\,109 & 14\,680 & 2\,400$^{*}$ & 70\,200 & 116\,148 \\
-        Forecast error (MWh) & $+312$ & 3\,241 & $-12\,300$ & $+284$ & $+11\,543$ \\
-        Air Temp.\ Tel~Aviv ($^\circ$C)    & 22.1 & 4.8 &  9.6 & 22.5 & 30.3 \\
-        Air Temp.\ Jerusalem ($^\circ$C)   & 18.9 & 6.4 &  2.3 & 19.8 & 36.5 \\
-        Air Temp.\ Haifa ($^\circ$C)       & 20.3 & 5.1 &  4.4 & 20.8 & 31.3 \\
+        Total demand (MWh) & 219\,929 & 37\,427 & 147\,762 & 211\,805 & 342\,359 \\
+        Day-ahead forecast (MWh)$^{*}$ & 219\,309 & 38\,168 & 142\,517 & 210\,569 & 347\,322 \\
+        Forecast error (MWh)$^{*}$ & $+620$ & 6\,334 & $-40\,070$ & $+632$ & $+31\,364$ \\
+        Mean day-ahead price (\textsc{nis}/MWh) & 166 & 61 & 77 & 150 & 656 \\
+        Air Temp.\ Tel~Aviv ($^\circ$C)    & 23.2 & 4.8 &  9.6 & 23.7 & 32.1 \\
+        Air Temp.\ Jerusalem ($^\circ$C)   & 19.5 & 6.3 &  2.3 & 20.7 & 36.5 \\
+        Air Temp.\ Haifa ($^\circ$C)       & 19.7 & 5.2 &  4.4 & 20.8 & 31.3 \\
         \bottomrule
     \end{tabular}
-    \caption{Summary statistics for daily variables ($N = 1{,}096$ days,
-    1 March 2023 to 28 February 2026).
-    $^{*}$Three anomalous forecast values excluded from statistics; see text.}
+    \caption{Summary statistics for daily variables ($N = 1{,}006$ days,
+    1 April 2023 to 31 December 2025).
+    $^{*}$Three days (17--19 June 2024) with an anomalous published
+    forecast are excluded.}
     \label{tab:dataset-stats}
 \end{table}
 
@@ -154,8 +175,8 @@ the daily dataset.  The data span 1{,}096~days from 1~March~2023 to
 
 As shown in Figure~\ref{fig:demand-vs-forecast-kde}, the Noga day-ahead forecast
 errors (actual minus forecast) are strikingly close to zero-mean and nearly
-symmetric: the mean error is only $+312$~MWh against a standard deviation of
-$3{,}241$~MWh, and the KDE is approximately bell-shaped with modest skewness.
+symmetric: the mean daily error is only $+620$~MWh against a standard deviation
+of $6{,}334$~MWh, and the KDE is approximately bell-shaped with modest skewness.
 In other words, the operational forecast is essentially unbiased, under-predicting
 and over-predicting with roughly equal frequency and magnitude.
 

@@ -76,24 +76,31 @@ that better reflects operational costs.
 Along with these positive findings, this work also has several limitations, as follows:
 
 \begin{itemize}
-    \item \textbf{Synthetic cost functions.}  Since we do not have access to
-          actual cost data from the Israeli electricity market, all cost
-          evaluations rely on synthetic functions that satisfy qualitative
-          constraints.  The results may not precisely reflect actual market costs.
+    \item \textbf{Synthetic imbalance prices.}  The day-ahead prices are real,
+          but Noga does not publish real-time imbalance prices for the study
+          period, so the under- and over-prediction prices are generated
+          synthetically.  Although the generator is anchored on the real
+          day-ahead price and our conclusions are robust to its parameters
+          (Section~\ref{sec:sensitivity}), the absolute savings depend on the
+          assumed imbalance-price level and should be read as an estimate under
+          the stated cost model.
 
-    \item \textbf{Time-invariant cost asymmetry.}  Although our model operates at
-          fine (5-minute) granularity, we treat the cost asymmetry as constant
-          across the day.  In practice, markets clear at sub-hourly intervals and
-          the asymmetry of costs may vary significantly across hours of the day.
+    \item \textbf{Known day-ahead price.}  We treat the SMP as the
+          market-clearing price and assume that it, and the over-prediction
+          price, are known when the procurement quantity is chosen.  In the
+          Israeli market the SMP is itself derived from the operator's
+          day-ahead schedule; a participant who must forecast the price would
+          face additional uncertainty.
+
+    \item \textbf{Price-taker assumption.}  We evaluate the cost of a single
+          procurement decision at given prices and ignore the feedback of a
+          changed forecast on the prices themselves.  For the system operator,
+          whose forecast drives the schedule, this feedback is not negligible.
 
     \item \textbf{Point forecasts only.}  Our neural network produces a single scalar
-          forecast at the target quantile.  A richer approach would estimate the
-          full predictive distribution, enabling uncertainty quantification and
-          adaptive quantile selection.
-
-    \item \textbf{Fixed cost ratio.}  We assume that $c_u/c_o$ is constant over
-          time.  In practice the relative costs may vary with fuel prices, demand
-          levels, and seasonal reserve availability.
+          forecast at the (price-dependent) target quantile.  A richer approach
+          would estimate the full predictive distribution, enabling uncertainty
+          quantification.
 \end{itemize}
 
 \subsection{Directions for Future Research}
@@ -116,15 +123,20 @@ Along with these positive findings, this work also has several limitations, as f
           the forecasting model in real time as market conditions change would be
           valuable for practical deployment.
 
-    \item \textbf{Richer temporal modelling and time-varying cost asymmetry.}
+    \item \textbf{Richer temporal modelling.}
           Our model already operates at fine (5-minute) granularity but treats
-          each target slot largely independently and assumes a constant cost
-          ratio.  Explicitly modelling intra-day and cross-day demand dynamics,
-          for example with Transformer
+          each target slot largely independently.  Explicitly modelling
+          intra-day and cross-day demand dynamics, for example with Transformer
           architectures~\parencite{vaswani2017attention} or temporal
-          convolutional networks, together with a cost asymmetry that varies
-          by hour of the day, could better exploit the structured hour-of-week
-          error pattern documented in Section~\ref{sec:forecast-error-dist}.
+          convolutional networks, could better exploit the structured
+          hour-of-week error pattern documented in
+          Section~\ref{sec:forecast-error-dist}.
+
+    \item \textbf{Joint price and demand forecasting.}  Relaxing the
+          known-price assumption by forecasting the day-ahead price jointly with
+          demand, and modelling the dependence of imbalance prices on the
+          system-wide forecast error (scarcity pricing), are natural next
+          steps.
 
     \item \textbf{Multi-product forecasting.}  In practice, electricity retailers
           must manage procurement across multiple products (day-ahead energy,
@@ -132,9 +144,10 @@ Along with these positive findings, this work also has several limitations, as f
           joint cost-sensitive forecasting framework would be a substantial
           extension.
 
-    \item \textbf{Real cost data.}  Collaboration with market participants or
-          operators to obtain actual cost data would enable precise calibration
-          and remove the need for synthetic cost functions.
+    \item \textbf{Real imbalance prices.}  Collaboration with market
+          participants or the operator to obtain actual imbalance settlement
+          prices would remove the need for synthetic under- and
+          over-prediction prices.
 \end{enumerate}
 
 \subsection{Concluding Remarks}
@@ -145,26 +158,23 @@ complex, driven by variable renewable energy, demand response, and distributed
 storage, the costs of forecast errors are likely to increase, making
 cost-sensitive forecasting ever more important.
 
-This work demonstrates that a conceptually simple modification --- replacing the
-MSE training objective with a cost-sensitive asymmetric loss function
-(specifically, a non-linear variant of the pinball loss at the cost-minimising
-quantile) --- leads to meaningful improvements in operational performance without
-sacrificing computational tractability.
+This work demonstrates that a conceptually simple modification --- giving the
+forecaster the market prices it will be settled at, and training it on the
+resulting procurement cost instead of MSE --- leads to meaningful improvements in
+operational cost without sacrificing computational tractability.  Because the
+prices enter as inputs, a single model serves the whole range of cost
+asymmetries that the market produces, rather than one fixed ratio chosen in
+advance.
 
-We stress, however, that training against a \emph{predefined, fixed} cost
-function is not the solution we ultimately advocate.  It couples the learned
-model to one particular cost structure, so that a change in the cost ratio,
-driven by fuel prices, reserve availability, or the time of day, in principle
-requires retraining, and it collapses the rich uncertainty in future demand into
-a single quantile chosen in advance.  We view it as one useful step in the right
-direction rather than the destination.  The desired formulation, in our view, is
-to \emph{decouple estimation from decision-making}: first predict the full
-\emph{conditional distribution} of demand given the available features, and then,
-at decision time, optimise the procurement quantity against whatever cost
-function currently prevails.  This separation would let a single trained model
-serve any cost structure, adapt the optimal bias to the input-conditional
-uncertainty of each slot, and expose the full distribution for downstream
-risk-aware decisions.  Realising it is the main direction of our future work.
+A complementary formulation is to \emph{decouple estimation from
+decision-making}: first predict the full \emph{conditional distribution} of
+demand, and then optimise the procurement quantity at decision time against the
+prevailing prices.  Our price-aware newsvendor baseline (C2) is a simple
+instance of this idea; our results suggest that, with the data available, the
+unified model exploits the interaction between prices and the other features
+better than such a two-stage approach.  Combining the two --- distributional
+models that are themselves trained on price-weighted objectives --- is a
+promising direction for future work.
 We hope these findings contribute to a broader shift
 towards cost-aware forecasting practices in the electricity industry and stimulate
 further research at the intersection of machine learning and energy systems

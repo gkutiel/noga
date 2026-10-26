@@ -1,11 +1,12 @@
-The objective of this study was to determine whether a demand forecaster trained
-end-to-end to minimise an \emph{asymmetric operational cost} can outperform both
-a symmetric-loss model and the real operational forecast of the Israeli system
-operator, under the cost asymmetries characteristic of electricity procurement.
-This section describes the material and procedures used to answer that question:
-the dataset (Section~\ref{sec:dataset}), the neural architecture and the three
-training objectives we compare, and the protocol under which they are evaluated
-(Section~\ref{sec:model-training}).
+The objective of this study was to determine whether a single demand forecaster
+that receives day-ahead prices as inputs and is trained end-to-end on the
+realised procurement cost (Section~\ref{sec:modeling}) can outperform models
+trained to minimise MSE, models trained with a fixed cost asymmetry, post-hoc
+cost calibrations of both, and the real operational forecast of the Israeli
+system operator.  This section describes the dataset
+(Section~\ref{sec:dataset}), the neural architecture and the training
+objectives we compare, the post-hoc calibration baselines, and the protocol
+under which they are evaluated (Section~\ref{sec:model-training}).
 
 \subsection{Dataset}
 \label{sec:dataset}
@@ -18,33 +19,35 @@ All model variants share the same architecture: the prediction is expressed as
 a \emph{soft attention} over a short window of recent historical demand values
 plus a learned additive correction.  Weather conditions (air temperature, wet-bulb
 temperature, and relative humidity --- all raw fields reported directly by the
-IMS --- at three meteorological stations) and
-temporal patterns (time of day, day of week, month of year) jointly determine
-both the attention weights and the correction term.  Temporal features are
-encoded via learned embeddings; weather features enter as continuous inputs.
-The model operates at 5-minute granularity and produces a day-ahead forecast:
-given conditions at a target time $t$, it predicts demand exactly 24~hours
-earlier in the input window---making it a suitable testbed for isolating the
-effect of the training objective on cost-aware forecasting.  The variants differ
-\emph{only} in their training objective, so that any difference in cost
-performance can be attributed to that objective alone.
+IMS --- at three meteorological stations),
+temporal patterns (time of day, day of week, month of year) and, for the
+price-aware variants, the known prices jointly determine both the attention
+weights and the correction term.  Temporal features are encoded via learned
+embeddings; weather and price features enter as continuous inputs.  The model
+operates at 5-minute granularity and produces a day-ahead forecast.  The
+variants differ \emph{only} in their training objective and in whether they see
+prices, so that any difference in cost can be attributed to these two factors.
 
 \subsubsection{Data Splitting}
 
-The dataset is partitioned chronologically at 1~January~2025:
+The dataset is partitioned chronologically:
 
 \begin{itemize}
-    \item \textbf{Training set:} March~2023 -- December~2024
-          ($\approx\!672$~days).
-    \item \textbf{Test set:} January~2025 -- February~2026
-          ($\approx\!424$~days), held out for final evaluation.
+    \item \textbf{Training set:} April~2023 -- August~2024.
+    \item \textbf{Calibration set:} September -- December~2024.  Used for early
+          stopping and for fitting every post-hoc calibrator.
+    \item \textbf{Test set:} January -- December~2025, held out for final
+          evaluation.
 \end{itemize}
 
-The chronological split ensures no future information leaks into training.
+The chronological split ensures that no future information leaks into training
+or calibration.  In particular, calibrators are fitted on predictions for data
+that the model was not trained on, so that their residuals are representative of
+test-time errors.
 
 \subsubsection{Neural Network Architecture}
 
-For each target 5-minute slot $t$, the model receives three types of input:
+For each target 5-minute slot $t$, the model receives the following inputs:
 
 \begin{itemize}
     \item \textbf{Historical demand.}  A window of $H = 10$ consecutive
@@ -56,14 +59,18 @@ For each target 5-minute slot $t$, the model receives three types of input:
           time $t$: air temperature, wet-bulb temperature, and relative humidity
           for three stations (Haifa, Jerusalem, Tel~Aviv).
 
+    \item \textbf{Price features} (price-aware variants only).  The log
+          day-ahead price $\log\pi^{\mathrm{DA}}_t$ and the over-prediction
+          price ratio $\pi^o_t/\pi^{\mathrm{DA}}_t$, both known at decision
+          time.  The under-prediction price $\pi^u_t$ is never an input.
+
     \item \textbf{Temporal embeddings.}  Learned embeddings for time of day
           (288 positions, dimension~16), day of week (7~positions,
           dimension~3), and month of year (12~positions, dimension~2).
 \end{itemize}
 
-These are concatenated into a vector of dimension $H + 9 + 16 + 3 + 2 = 40$
-and passed through a small MLP with two hidden layers of width~32 and
-LeakyReLU activations, producing an output vector
+These are concatenated and passed through a small MLP with two hidden layers of
+width~32 and LeakyReLU activations, producing an output vector
 $\mathbf{o} \in \mathbb{R}^{H+1}$.
 The first $H$ outputs are treated as attention logits over the history window;
 the last output is an additive correction scalar~$\delta$.  The forecast is:
@@ -74,102 +81,83 @@ the last output is an additive correction scalar~$\delta$.  The forecast is:
     \label{eq:forecast}
 \end{equation}
 
-where all demand values are normalised by a constant scale factor $s=100$
-during training and rescaled at inference time.  The model thus learns to
-select which historical reading is most informative given the current
-conditions, and applies a weather- and calendar-conditioned correction.
-Both models (L1 and asymmetric) are trained with the Adam
-optimiser~\parencite{kingma2014adam} at a learning rate $2\times10^{-4}$, batch
-size~10\,000, and up to 500 epochs with early stopping (patience 20,
-evaluated every 10~epochs).
+where demand values and prices are normalised by a constant scale factor of
+$100$ during training and rescaled at inference time.  All models are trained
+with the Adam optimiser~\parencite{kingma2014adam} at a learning rate
+$2\times10^{-4}$, batch size~10\,000, and up to 500 epochs with early stopping
+on the calibration set (patience 20, evaluated every 10~epochs).
 
-\subsubsection{Training with L1 Loss}
+\subsubsection{Training Objectives}
 
-The symmetric neural network baseline is trained by minimising the mean absolute
-error (L1 loss):
+We compare the following training objectives:
 
-\begin{equation}
-    \mathcal{L}_{\mathrm{L1}}(\hat{y},y)
-    = \frac{1}{N}\sum_{i=1}^{N}|\hat{y}_i - y_i|
-\end{equation}
+\begin{itemize}
+    \item \textbf{MSE} (L2) and \textbf{L1} --- symmetric baselines targeting
+          the conditional mean and median.
+    \item \textbf{Pinball $r\!:\!1$} for $r\in\{5,10,20\}$ --- fixed-ratio
+          asymmetric baselines targeting the constant quantile $r/(r+1)$.
+    \item \textbf{Price-aware cost (proposed)} --- price features as inputs and
+          the mean excess cost (Equation~\eqref{eq:excess}) with the
+          \emph{realised} prices as the loss.
+\end{itemize}
 
-L1 loss treats over- and under-prediction symmetrically, and yields predictions
-that converge to the conditional median.  As discussed in
-Section~\ref{sec:modeling}, this is suboptimal when costs are asymmetric.
+Two ablations separate the effect of the price inputs from that of the
+price-weighted loss: \textbf{cost without price inputs}, trained on the same
+loss but without seeing prices, and \textbf{MSE with price inputs}, which sees
+prices but is trained with a symmetric loss.  Because the loss is
+differentiable almost everywhere, the price-aware objective adds no
+computational overhead compared to L1 training.
 
-\subsubsection{Post-Hoc Cost-Optimised Baseline}
+\subsubsection{Post-Hoc Cost Calibration}
 \label{sec:posthoc}
 
-To further isolate the benefit of end-to-end cost-aware training, we include an
-additional baseline in which predictions from the L1-trained neural network are
-adjusted \emph{after} training by a learned affine transformation that minimises
-the expected operational cost on the training set.  Concretely, we train a
-linear calibration model $g(z) = \alpha z + \beta$ by minimising:
+To test whether the benefit of the unified model could be obtained more
+cheaply, we apply four post-hoc calibrations to the outputs of the MSE, L1,
+pinball and Noga forecasts.  All of them are fitted on the calibration set and
+use only information available at decision time.  Several of them require an
+estimate of the cost-optimal quantile; we estimate
+$\hat\tau_t$ by plugging into Equation~\eqref{eq:optimal_threshold} a binned
+estimate of $\mathbb{E}[\pi^u_t/\pi^o_t \mid \pi^{\mathrm{DA}}_t]$ fitted on
+past prices (training and calibration periods).
 
-\begin{equation}
-    (\alpha^*, \beta^*) = \arg\min_{\alpha,\beta}\;
-    \frac{1}{N_{\mathrm{train}}}\sum_{i=1}^{N_{\mathrm{train}}}
-    \mathcal{L}_{\mathrm{asym}}\!\left(\alpha\hat{y}_i + \beta,\, y_i\right)
-\end{equation}
+\begin{itemize}
+    \item \textbf{C1 --- global affine.}  $g(\hat y)=a\hat y + b$, with $(a,b)$
+          minimising the mean excess cost on the calibration set.  This is the
+          calibration used in earlier work and in the previous version of this
+          study.
+    \item \textbf{C2 --- price-aware newsvendor (predict-then-optimise).}
+          $g(\hat y_t) = \hat y_t + Q_{h(t)}(\hat\tau_t)$, where $Q_h$ is the
+          empirical quantile function of the calibration residuals
+          $y-\hat y$ in hour-of-day $h$.  This is the textbook two-stage
+          approach: first forecast, then shift the forecast to the
+          price-dependent cost-optimal quantile.
+    \item \textbf{C3 --- learned residual.}
+          $g(\hat y_t) = \hat y_t + \mathbf{w}^\top\phi_t$, where $\phi_t$
+          contains $\hat y_t$, the price features, $\hat\tau_t$ and an
+          hour-of-day one-hot encoding, and $\mathbf{w}$ minimises the
+          excess cost on the calibration set.
+    \item \textbf{C4 --- quantile bank.}  Applicable to the fixed-ratio
+          models only: given the L1, Pinball 5:1, 10:1 and 20:1 models,
+          which target $\tau\in\{0.5, 0.833, 0.909, 0.952\}$, each slot
+          receives the linear interpolation between the two models whose
+          quantiles bracket $\hat\tau_t$.
+\end{itemize}
 
-where $\hat{y}_i$ are the L1-trained predictions and
-$\mathcal{L}_{\mathrm{asym}}$ is the asymmetric loss (Section~\ref{sec:modeling}).
-The calibration is then applied uniformly to all test-set predictions.
-
-This baseline tests whether a practitioner could recover most of the cost
-reduction by post-hoc rescaling a symmetric model, without modifying the training
-objective.  Its key limitation is that it can only apply a global affine
-correction: it cannot adapt the \emph{shape} of the predictive response to local
-input features, nor exploit the asymmetric cost structure during back-propagation.
-Cost-aware training, by contrast, reshapes the model's response to every input
-pattern throughout optimisation, enabling feature-adaptive upward adjustments that
-are largest precisely when under-prediction risk is highest.
-
-\subsubsection{Training with Asymmetric Loss}
-
-The cost-aware neural network is trained by minimising the asymmetric cost
-function (Section~\ref{sec:modeling}) directly as the training objective.
-Because the loss is differentiable, it is incorporated into the standard
-gradient-based training loop with no additional computational overhead compared
-to L1 training.
+C2--C4 are price-aware: they use the same known prices as the proposed model.
+They differ from it in that the price information enters \emph{after} a model
+has been trained on a price-blind objective, so they can only shift the
+forecast according to the price and the hour, not according to how price
+interacts with the weather, the calendar and the recent demand.
 
 \subsubsection{Evaluation Protocol}
 \label{sec:eval-protocol}
 
-Using the architecture and training loop above, we compared three training
-strategies, differing only in their objective:
-
-\begin{itemize}
-    \item \textbf{L1 (MAE)} --- trained with mean absolute error (symmetric baseline).
-    \item \textbf{Pinball 5:1} --- trained with the pinball loss at a cost ratio of
-          $5\!:\!1$ (under-prediction penalised 5$\times$ more than over-prediction).
-    \item \textbf{Pinball 20:1} --- trained with the pinball loss at a cost ratio of
-          $20\!:\!1$.
-\end{itemize}
-
-To isolate the benefit of end-to-end cost-aware training, we additionally
-evaluated \emph{post-hoc calibrated} variants of all three models
-(Section~\ref{sec:posthoc}), in which an affine transformation
-$g(z)=\alpha z + \beta$ is fitted on the training set to minimise the
-expected asymmetric cost.
-
-Models were evaluated on three cost functions that reflect different assumptions
-about the cost of over- and under-prediction: the L1 cost, the Pinball~5:1
-cost, and the Pinball~20:1 cost.  The primary metrics are the
-\textbf{Pinball~5:1} and \textbf{Pinball~20:1} costs, which best reflect the
-asymmetric structure of real-world electricity procurement costs.
-Figure~\ref{fig:loss_fns} illustrates these three cost functions: the
-Pinball~5:1 and Pinball~20:1 functions penalise under-predictions more heavily
-than over-predictions, reflecting the real-world asymmetry of electricity
-procurement costs, while L1 serves as a symmetric reference point.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\linewidth]{plot/loss_fns.png}
-    \caption{The three cost functions used for evaluation: L1 (MAE, symmetric
-             baseline), Pinball~5:1, and Pinball~20:1.  The pinball functions
-             penalise under-predictions more heavily than over-predictions,
-             with the 20:1 variant applying a much steeper penalty on the
-             under-prediction side.}
-    \label{fig:loss_fns}
-\end{figure}
+The primary metric is the \textbf{excess cost} (Equation~\eqref{eq:excess})
+on the test year, in \textsc{nis} per year, i.e.\ the cost above that of a
+perfect forecast.  We also report the MAE, the RMSE and the empirical coverage
+$P(y_t\le p_t)$.  Each configuration is repeated for three training seeds and
+three independent draws of the synthetic imbalance prices; we report the mean
+and standard deviation over these nine runs.  Statistical significance of the
+difference in daily excess cost between the proposed model and each baseline is
+assessed with the Diebold--Mariano test~\parencite{diebold1995comparing} with a
+Newey--West variance estimate (lag~7 days).

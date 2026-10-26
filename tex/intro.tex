@@ -115,9 +115,9 @@ The theoretical foundation for prediction under asymmetric costs was laid by
 natural generalisation of sample quantiles to the linear model.  They showed that
 minimising the asymmetric pinball loss (equivalently, the ``check function'')
 yields an estimator of the conditional $\tau$-quantile of the response, and
-established its asymptotic properties.  This result directly underpins our use of
-a cost-sensitive asymmetric loss function---instantiated as a non-linear variant
-of the pinball loss---as the training objective for day-ahead demand forecasting.
+established its asymptotic properties.  This result directly underpins our
+training objective, which is a pinball loss whose slopes are the
+(time-varying) market prices of under- and over-prediction.
 
 \textcite{christoffersen1997optimal} provided the corresponding
 decision-theoretic foundation.  They showed that under a general asymmetric loss
@@ -165,53 +165,78 @@ with cost-aware alternatives.
 
 Taken together, this recent body of work establishes that asymmetric, cost-sensitive
 training objectives are both theoretically motivated and empirically superior to
-symmetric alternatives in electricity applications.  Two gaps, however, remain.
-First, existing studies almost exclusively employ \emph{piecewise-linear}
-asymmetric losses---the pinball loss, or the linear-linear penalties derived from
-a specific tariff---and thus inherit the newsvendor model's linearity assumption,
-even though real procurement costs are frequently non-linear.  Second, and more
-practically, these methods are typically benchmarked against statistical
-baselines rather than against the forecast an experienced system operator
-actually deploys, leaving open the question of whether cost-aware training improves upon a strong,
-real-world operational forecast.
+symmetric alternatives in electricity applications.  There are, by now, many
+works that target asymmetric costs in electricity demand forecasting.  To the
+best of our knowledge, however, none of them integrates \emph{both} consumption
+and price information into a unified model: the asymmetry is encoded as a
+\emph{fixed} cost ratio (a single pinball quantile, or the slopes of one
+tariff), and prices play no role either as model inputs or as time-varying
+weights in the loss.  In real markets the cost of a forecast error is a
+\emph{price}, and the relative cost of under- and over-prediction moves with the
+day-ahead price itself, so the cost-minimising quantile changes from one
+settlement period to the next (Section~\ref{sec:modeling}).
+
+A related line of \emph{decision-focused} or \emph{value-oriented} learning
+trains predictors against the downstream decision cost rather than a
+statistical error~\parencite{donti2017taskbased, elmachtoub2022spo}.  In power
+systems this idea has mainly been applied to renewable generation, where
+forecasts of wind or solar output are trained against day-ahead and
+real-time market costs~\parencite{stratigakos2022prescriptive,
+zhang2024valueoriented}.  Donti et al.\ also include a grid-scheduling task
+driven by load forecasts.  These works establish that market costs can be
+optimised end-to-end, but they do not address national demand forecasting with
+real market prices, nor do they benchmark against the forecast an experienced
+system operator actually deploys.  More practically, cost-aware load forecasting
+methods are typically compared with statistical baselines rather than with such
+an operational forecast, which leaves open whether cost-aware training improves
+upon a strong, real-world forecast.
 
 \subsection{Contributions}
 
-Our work is designed to overcome both gaps currently existing in the literature described above.  We formulate the forecasting problem
-with a general, not necessarily linear asymmetric cost function that subsumes the
-pinball loss as a special case, and train a neural network to minimise it
-end-to-end.  Crucially, we evaluate against the \emph{real} day-ahead forecasts
-published by the Israeli system operator Noga - an operational baseline with
-access to proprietary data and domain expertise - rather than against a synthetic
-statistical model.  This lets us ask not merely whether cost-aware training beats
-a symmetric loss in the abstract, but whether it can improve upon the forecast
-currently used to help run a national grid.  The contributions of this paper are thus as follows:
+Our work addresses these gaps.  We formulate day-ahead demand forecasting as the
+minimisation of the realised procurement cost, where committed energy is paid at
+the \emph{real} day-ahead market price and imbalances are settled at
+under- and over-prediction prices that depend on it.  We train a single
+\emph{price-aware} neural network that receives the known prices as inputs and
+minimises this cost end-to-end.  We then compare it with symmetric (MSE) models,
+fixed-ratio asymmetric models, and strong post-hoc calibrations of both,
+including calibrations of the \emph{real} day-ahead forecast published by the
+Israeli system operator Noga.  The contributions of this paper are as follows:
 
 \begin{enumerate}
-    \item \textbf{A general asymmetric-cost formulation.}  We formulate day-ahead
-          demand forecasting under a general, not-necessarily-linear asymmetric
-          cost function that subsumes the pinball loss as a special case, and we
-          train a feedforward neural network to minimise it end-to-end.
+    \item \textbf{A unified price-aware forecasting model.}  To the best of our
+          knowledge, this is the first work on national electricity demand
+          forecasting that integrates \emph{real} day-ahead market prices into
+          the model, both as inputs and as the time-varying slopes of the
+          training loss, so that a single model learns the price-dependent
+          cost-optimal quantile.
 
-    \item \textbf{Evaluation against a real operational forecast.}  Rather than
-          benchmarking against a synthetic statistical baseline, we compare
-          against the \emph{actual} day-ahead forecasts published by the Israeli
-          system operator Noga --- a strong, real-world baseline produced with
-          proprietary data and domain expertise.
+    \item \textbf{A novel open dataset.}  We assemble and release a new dataset
+          for the Israeli market that combines 5-minute national demand, the
+          operator's real day-ahead demand forecast, real half-hourly day-ahead
+          market prices (SMP), and hourly weather from three stations, covering
+          April~2023 to December~2025.
 
-    \item \textbf{A practical model that improves on the operator's forecast.}
-          Although raw predictive accuracy was \emph{not} a goal of this work,
-          our model outperforms the Noga forecast not only on cost-sensitive
-          metrics but even under symmetric error metrics such as mean squared
-          error.  We regard this as an incidental by-product of a deliberately
-          simple architecture and believe that substantial further improvement
-          is readily achievable.
+    \item \textbf{A price-dependent imbalance-cost model.}  We propose a
+          generator of synthetic under- and over-prediction prices that is
+          anchored on real day-ahead prices and reproduces the stylised facts
+          of electricity imbalance settlement (a cost ratio between 5 and 20
+          that increases with the price), and we use it to study the
+          sensitivity of our conclusions.
 
-    \item \textbf{A demonstration of economic impact.}  We quantify the
-          operational cost reduction that cost-aware training delivers over
-          symmetric baselines across a range of cost scenarios, showing an effect
-          that is large enough --- and cheap enough to obtain --- to be practical
-          to adopt in a live market setting.
+    \item \textbf{Strong baselines, including the operator's forecast.}  We show
+          that the unified model outperforms models trained to minimise MSE,
+          fixed-ratio asymmetric models, and models that are post-calibrated to
+          the cost after training (global affine correction, a price-aware
+          newsvendor correction, a learned residual correction, and a bank of
+          quantile models), as well as the Noga day-ahead forecast with the same
+          calibrations.
+
+    \item \textbf{An estimate of the potential savings in Israel.}  We translate
+          the cost reductions into an estimate of the annual saving for the
+          Israeli market, in shekels and as a share of the day-ahead energy
+          bill, together with its sensitivity to the imbalance-price
+          assumptions.
 
     \item \textbf{An open-source implementation.}  We release our complete code
           and data pipeline, from raw data ingestion through model training and

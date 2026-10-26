@@ -1,0 +1,28 @@
+Discussion:
+I want to improve the experiments and the paper by integrating the price into the model.
+The idea is that the actual total cost depends on 
+- the actual electricity consumption where cost per KWh is:
+  - day ahead pricing x min(actual consumption, forecasted consumption) +
+  - under predicted pricing x max(0, actual consumption - forecasted consumption) + 
+  - over predicted pricing x max(0, forecasted consumption - actual consumption)
+  Where under predicted pricing > day ahead pricing > over predicted pricing.
+
+Note that under predicted pricing is not known in advanced but for the purpose of this paper we should generate synthetic pricing (which the model does not know at inference time)
+Also assume that the ratio under/over is in the range of 5 to 20 and it roughly monotone increasing as a function of the day ahead price.
+
+The goal is to train a model that minimizes the total cost.
+Our paper should show that a unified model that incorporates price information and, as a result, optimize non symmetric costs, outperforms models that minimize the MSE(consumption).
+We also show that our model outperform models that were post calibrated to minimize the total cost, i.e. first trained to minimize MSE and then adjusted to account for the cost structure.
+
+
+Please discuss the above and:
+1. Suggest a way to generate synthetic pricing data that reflects the described cost structure.
+2. Plan how to update the current model to incorporate the price information into the training process.
+3. Plan how to post calibrate models that were initially trained to minimize MSE to account for the cost structure.
+4. Plan how to post calibrate models that were initially trained on a general asymmetric cost function.
+
+Also, read the paper and plan how to update:
+- update its novel contribution, as far as we know, this is the first work that integrate real prices into the model.
+- note also  that we contribute a novel dataset.
+- estimate the potential real saving from using the proposed model for the Israeli market.
+- note that there are many other work that target asymmetric cost in electricity consumption but, as far as we know, none of them integrate both consumption and price information into a unified model.

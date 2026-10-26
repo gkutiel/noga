@@ -1,6 +1,4 @@
-from itertools import product
 from pathlib import Path
-from typing import get_args
 
 import numpy as np
 import pandas as pd
@@ -9,9 +7,11 @@ import torch
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from torch import Tensor, nn
-from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.data import BatchSampler, DataLoader, Dataset
+from torch.utils.data import RandomSampler, SequentialSampler
 
-from noga.cost import Name, loss_fns, optims
+from noga.cost import USE_PRICE, Name, loss_fns, optims
+from noga.price import P_DA, P_O, P_U, PriceParams, synth
 
 # TRAIN
 MAX_EPOCHS = 500
@@ -24,10 +24,7 @@ T_EMBED = 16
 N_LAYERS = 2
 HIDDEN_SIZE = 32
 Y_SCALE = 100
-
-
-# CALIBRATION
-CAL_LR = 2e-2
+P_SCALE = 100
 
 DAY_IN_5_MIN = 288
 HISTORY_LEN = 10
@@ -47,7 +44,16 @@ FEATURES = [
     # 'wind_speed_m_s_Jerusalem',
     # 'wind_speed_m_s_TelAviv',
 ]
-N = len(FEATURES) + HISTORY_LEN
+# Known at decision time: log day-ahead price and the over-prediction ratio.
+PRICE_FEATURES = ['log_p_da', 'p_o_ratio']
+
+# Models whose training depends on the synthetic price draw.
+PRICE_DEPENDENT: set[Name] = USE_PRICE | {"cost-noprice"}
+
+
+def n_features(name: Name):
+    n = len(FEATURES) + HISTORY_LEN
+    return n + len(PRICE_FEATURES) if name in USE_PRICE else n
 
 
 class Model(pl.LightningModule):
@@ -62,7 +68,7 @@ class Model(pl.LightningModule):
         self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED)
 
         self.net = nn.Sequential(
-            nn.Linear(N + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
+            nn.Linear(n_features(name) + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
             *[
                 nn.Sequential(
                     nn.LeakyReLU(),
@@ -90,10 +96,10 @@ class Model(pl.LightningModule):
         return hist + out[:, HISTORY_LEN]
 
     def step(self, batch, batch_idx, step='train'):
-        month, day, time, X, y = batch
+        month, day, time, X, y, c = batch
 
         pred = self(month, day, time, X)
-        loss = self.loss(pred, y)
+        loss = self.loss(pred, y, c)
 
         self.log(f"{step}/{self.name}", loss, prog_bar=True)
         self.log(f"{step}/l1", torch.mean(torch.abs(pred - y)), prog_bar=True)
@@ -106,97 +112,157 @@ class Model(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         return self.step(batch, batch_idx, step='val')
 
-    def predict_step(self, batch, batch_idx): ...
-
     def configure_optimizers(self):
         return optims[self.name](self.parameters())
 
 
-def slice_j(idx: int):
-    # In 5min units.
-    return slice(idx, idx + HISTORY_LEN), idx + DAY_IN_5_MIN + HISTORY_LEN - 1
+def with_prices(
+        df: pd.DataFrame,
+        *,
+        price_seed: int,
+        params: PriceParams = PriceParams()) -> pd.DataFrame:
+    '''Adds synthetic p_o, p_u (one draw per settlement period) and features.'''
+    periods = df[["period", P_DA]].drop_duplicates("period")
+    periods = synth(periods, seed=price_seed, params=params)
+
+    df = df.merge(periods[["period", P_O, P_U]], on="period", how="left")
+    df["log_p_da"] = np.log(df[P_DA]) - 5
+    df["p_o_ratio"] = 10 * df[P_O] / df[P_DA]
+    return df
 
 
 class Data(Dataset):
-    def __init__(self, df: pd.DataFrame):
-        X = df[FEATURES]
-        y = df["actual"]
+    '''
+    Item j predicts slot t = j + DAY_IN_5_MIN + HISTORY_LEN - 1 from the
+    HISTORY_LEN demand readings ending 24h before t and the features at t.
+    Indexable by a list of indices, so a BatchSampler yields whole batches.
+    '''
 
-        self.day = df["day"].to_numpy().astype(int)
-        self.month = df["month"].to_numpy().astype(int)
-        self.time = (df["time"].to_numpy() / 5).astype(int)
+    def __init__(self, df: pd.DataFrame, use_price: bool):
+        df = df.reset_index(drop=True)
+        n = len(df) - DAY_IN_5_MIN - HISTORY_LEN + 1
+        t = np.arange(n) + DAY_IN_5_MIN + HISTORY_LEN - 1
 
-        self.X = torch.tensor(X.values, dtype=torch.float32)
-        self.y = torch.tensor(
-            y.values,
-            dtype=torch.float32) / Y_SCALE
+        y = torch.tensor(df["actual"].to_numpy(), dtype=torch.float32)
+        y = y / Y_SCALE
+        hist = y.unfold(0, HISTORY_LEN, 1)[:n]
+
+        cols = FEATURES + PRICE_FEATURES if use_price else FEATURES
+        X = torch.tensor(df[cols].to_numpy()[t], dtype=torch.float32)
+
+        self.month = torch.tensor(df["month"].to_numpy()[t].astype(int))
+        self.day = torch.tensor(df["day"].to_numpy()[t].astype(int))
+        self.time = torch.tensor((df["time"].to_numpy()[t] / 5).astype(int))
+        self.X = torch.concat([hist, X], dim=1)
+        self.y = y[t]
+        self.c = torch.tensor(
+            df[[P_DA, P_O, P_U]].to_numpy()[t],
+            dtype=torch.float32) / P_SCALE
+
+        # Per-item context for evaluation and post-hoc calibration.
+        self.meta = df.iloc[t][[
+            "date_ord", "time", "forecast", "actual", P_DA, P_O, P_U
+        ]].reset_index(drop=True)
 
     def __len__(self):
-        return len(self.y) - DAY_IN_5_MIN - HISTORY_LEN
+        return len(self.y)
 
     def __getitem__(self, idx):
-        s, j = slice_j(idx)
-
-        month = self.month[j]
-        day = self.day[j]
-        time = self.time[j]
-
-        h = self.y[s]
-
         return (
             # EMBEDDINGS
-            month, day, time,
+            self.month[idx], self.day[idx], self.time[idx],
             # X
-            torch.concat([h, self.X[j]], dim=0),
+            self.X[idx],
             # y
-            self.y[j])
+            self.y[idx],
+            # prices
+            self.c[idx])
 
 
-def load_data():
+def splits(df: pd.DataFrame):
+    '''
+    train: 2023-04 .. 2024-08
+    cal:   2024-09 .. 2024-12 (early stopping and post-hoc calibration)
+    test:  2025
+    '''
+    year, month = df["year"], df["month"]  # month is 0-based
+    train = (year < 2024) | ((year == 2024) & (month < 8))
+    cal = (year == 2024) & (month >= 8)
+    test = year == 2025
+    return df[train], df[cal], df[test]
+
+
+def load_data(
+        *,
+        use_price: bool,
+        price_seed: int,
+        params: PriceParams = PriceParams()):
     data = pd.read_csv("data/data.csv")
-
-    train_df = data[data["year"] < 2025]
-    test_df = data[data["year"] == 2025]
-
-    train_ds = Data(train_df)
-    test_ds = Data(test_df)
-
-    indices = np.random.choice(
-        len(test_ds),
-        size=int(0.3 * len(test_ds)),
-        replace=False)
-
-    val_ds = Subset(test_ds, indices)  # type: ignore
-
-    def dl(ds: Dataset, shuffle=True):
-        return DataLoader(
-            ds,
-            batch_size=BATCH_SIZE,
-            num_workers=4,
-            shuffle=shuffle,
-            drop_last=False)
-
-    return dl(train_ds), dl(val_ds), dl(test_ds, shuffle=False)
+    data = with_prices(data, price_seed=price_seed, params=params)
+    return tuple(Data(df, use_price) for df in splits(data))
 
 
-def train(name: Name):
-    pl.seed_everything(42)
+def dl(ds: Dataset, shuffle=True):
+    sampler = RandomSampler(ds) if shuffle else SequentialSampler(ds)  # type: ignore
+    return DataLoader(
+        ds,
+        batch_size=None,
+        sampler=BatchSampler(sampler, BATCH_SIZE, drop_last=False))
 
-    out = pt.model(name)
+
+def params_tag(params: PriceParams):
+    '''Empty for the default generator, else the non-default fields.'''
+    default = PriceParams()
+    diff = [
+        f"{k}={v:g}" for k, v in vars(params).items()
+        if v != getattr(default, k)]
+    return "" if not diff else "-" + ",".join(diff)
+
+
+class pt:
+    @staticmethod
+    def tag(name: Name, seed: int, price_seed: int,
+            params: PriceParams = PriceParams()):
+        if name not in PRICE_DEPENDENT:
+            return f"{name}-s{seed}"
+        return f"{name}-s{seed}-p{price_seed}{params_tag(params)}"
+
+    @staticmethod
+    def model(name: Name, seed: int, price_seed: int,
+              params: PriceParams = PriceParams()):
+        return Path(f'models/{pt.tag(name, seed, price_seed, params)}.pt')
+
+    @staticmethod
+    def ckpt(name: Name, seed: int, price_seed: int,
+             params: PriceParams = PriceParams()):
+        return Path(f'models/{pt.tag(name, seed, price_seed, params)}.ckpt')
+
+
+def train(
+        name: Name,
+        *,
+        seed: int = 0,
+        price_seed: int = 0,
+        params: PriceParams = PriceParams()):
+    pl.seed_everything(seed)
+
+    out = pt.model(name, seed, price_seed, params)
 
     if out.exists():
         print(f"Skipping training: {out} already exists")
         return
 
     model = Model(name=name)
-    logger = TensorBoardLogger("logs", name=name)
+    logger = TensorBoardLogger(
+        "logs", name=pt.tag(name, seed, price_seed, params))
 
     early_stopping = EarlyStopping(
         monitor=f"val/{name}",
         patience=20,
         mode="min")
 
-    ckpt = pt.ckpt(name)
+    ckpt = pt.ckpt(name, seed, price_seed, params)
+    ckpt.unlink(missing_ok=True)
 
     checkpoint = ModelCheckpoint(
         dirpath=ckpt.parent,
@@ -212,280 +278,44 @@ def train(name: Name):
         log_every_n_steps=4,
         check_val_every_n_epoch=10,
         callbacks=[early_stopping, checkpoint],
-        logger=logger)
+        logger=logger,
+        enable_progress_bar=False)
 
-    train_dl, val_dl, _ = load_data()
-    trainer.fit(model, train_dl, val_dl)
+    train_ds, cal_ds, _ = load_data(
+        use_price=name in USE_PRICE,
+        price_seed=price_seed,
+        params=params)
+
+    trainer.fit(model, dl(train_ds), dl(cal_ds, shuffle=False))
 
     best_weights = torch.load(
         checkpoint.best_model_path,
         weights_only=True)
 
+    out.parent.mkdir(exist_ok=True)
     torch.save(best_weights["state_dict"], out)
 
 
-class Calibration(pl.LightningModule):
-    def __init__(self, *, model_name,  loss_name: Name):
-        super().__init__()
-
-        self.model_name = model_name
-        self.loss_name = loss_name
-
-        self.net = nn.Linear(1, 1)
-        self.loss = loss_fns[loss_name]
-
-    def forward(self, X):
-        return self.net(X).squeeze(1)
-
-    def _step(self, batch, step: str):
-        pred, y = batch
-        y_hat = self(pred)
-        loss = self.loss(y_hat, y)
-
-        self.log(
-            f"{step}/{self.model_name}-{self.loss_name}",
-            loss,
-            prog_bar=True)
-
-        return loss
-
-    def training_step(self, batch, batch_idx):
-        return self._step(batch, "cal")
-
-    def validation_step(self, batch, batch_idx):
-        return self._step(batch, "cal_val")
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(params=self.parameters(), lr=CAL_LR)
-
-
-def load_model(name: Name):
+def load_model(
+        name: Name,
+        *,
+        seed: int = 0,
+        price_seed: int = 0,
+        params: PriceParams = PriceParams()):
     model = Model(name=name)
-    model.load_state_dict(torch.load(pt.model(name)))
+    model.load_state_dict(torch.load(pt.model(name, seed, price_seed, params)))
     model.eval()
     return model
 
 
-def pred_train(*, model_name: Name):
-    model = load_model(model_name)
-    train_dl, _, _ = load_data()
-
-    preds, ys = [], []
+def predict(model: Model, ds: Data) -> np.ndarray:
+    '''Predictions in MW.'''
     with torch.no_grad():
-        for m, d, t, X, y in train_dl:
-            preds.append(model(m, d, t, X))
-            ys.append(y)
-
-    return torch.cat(preds), torch.cat(ys)
-
-
-def pred_test(*, model_name: Name):
-    model = load_model(model_name)
-    _, _, test_dl = load_data()
-
-    preds, ys = [], []
-    with torch.no_grad():
-        for m, d, t, X, y in test_dl:
-            preds.append(model(m, d, t, X))
-            ys.append(y)
-
-    return torch.cat(preds), torch.cat(ys)
-
-
-def save_preds(name: Name):
-    model = load_model(name)
-
-    _, _, test_dl = load_data()
-
-    preds, actuals = [], []
-    with torch.no_grad():
-        for m, d, t, X, y in test_dl:
-            preds.append(model(m, d, t, X))
-            actuals.append(y)
-
-    pred = torch.cat(preds).numpy()
-    actual = torch.cat(actuals).numpy()
-
-    out = Path(f"csv/pred_{name}.csv")
-    pd.DataFrame({"pred": pred, "actual": actual}).to_csv(out, index=False)
-    print(f"Saved predictions to {out}")
-
-
-def eval(*, model_name: Name, loss_name: Name):
-    pred, y = pred_test(model_name=model_name)
-
-    return loss_fns[loss_name](pred, y).item()
-
-
-def calibrate(*, model_name: Name, loss_name: Name):
-    pl.seed_everything(42)
-
-    path = pt.cal(
-        model_name=model_name,
-        loss_name=loss_name)
-
-    train_pred, train_y = pred_train(model_name=model_name)
-    train_ds = torch.utils.data.TensorDataset(train_pred.unsqueeze(1), train_y)
-    train_dl = DataLoader(train_ds, batch_size=1024)
-
-    val_pred, val_y = pred_test(model_name=model_name)
-    val_ds = torch.utils.data.TensorDataset(val_pred.unsqueeze(1), val_y)
-    n_val = max(1, int(0.1 * len(val_ds)))
-    val_ds, _ = torch.utils.data.random_split(
-        val_ds,
-        [n_val, len(val_ds) - n_val])
-
-    val_dl = DataLoader(val_ds, batch_size=1024)
-
-    cal = Calibration(
-        model_name=model_name,
-        loss_name=loss_name)
-
-    logger = TensorBoardLogger("logs", name=f'cal_{model_name}_on_{loss_name}')
-
-    val_metric = f"cal_val/{model_name}-{loss_name}"
-
-    early_stopping = EarlyStopping(
-        monitor=val_metric,
-        patience=3,
-        mode="min")
-
-    ckpt_path = path.with_suffix(".ckpt")
-
-    checkpoint = ModelCheckpoint(
-        dirpath=ckpt_path.parent,
-        filename=ckpt_path.stem,
-        save_weights_only=True,
-        monitor=val_metric,
-        mode="min",
-        save_top_k=1)
-
-    trainer = pl.Trainer(
-        max_epochs=MAX_EPOCHS,
-        check_val_every_n_epoch=10,
-        deterministic=True,
-        callbacks=[
-            early_stopping,
-            checkpoint
-        ],
-        logger=logger)
-
-    trainer.fit(cal, train_dl, val_dl)
-
-    best_weights = torch.load(
-        checkpoint.best_model_path,
-        weights_only=True)
-
-    torch.save(best_weights["state_dict"], path)
-
-    # torch.save(cal.state_dict(), path)
-
-
-def load_calibrated(*, model_name: Name, loss_name: Name):
-    path = pt.cal(model_name=model_name, loss_name=loss_name)
-
-    cal = Calibration(
-        model_name=model_name,
-        loss_name=loss_name)
-
-    cal.load_state_dict(torch.load(path))
-    cal.eval()
-
-    return cal
-
-
-def eval_calibrated(*, model_name: Name, loss_name: Name):
-    if model_name == loss_name:
-        return eval(model_name=model_name, loss_name=loss_name)
-
-    pred, y = pred_test(model_name=model_name)
-
-    cal = load_calibrated(
-        model_name=model_name,
-        loss_name=loss_name)
-
-    with torch.no_grad():
-        pred_cal = cal(pred.unsqueeze(1))
-
-    return loss_fns[loss_name](pred_cal, y).item()
-
-
-class pt:
-    @staticmethod
-    def model(name: Name):
-        return Path(f'models/{name}.pt')
-
-    @staticmethod
-    def ckpt(name: Name):
-        return Path(f'models/{name}.ckpt')
-
-    @staticmethod
-    def cal(*, model_name: Name, loss_name: Name):
-        return Path(f'cal/cal_{model_name}_on_{loss_name}.pt')
-
-
-def report():
-    names = get_args(Name)
-
-    for name in names:
-        train(name)
-
-    for name in names:
-        save_preds(name)
-
-    for model_name, loss_name in product(names, names):
-        if model_name == loss_name:
-            continue
-
-        calibrate(model_name=model_name, loss_name=loss_name)
-
-    rows = [
-        {"model": m, "loss": ls, "value": eval(model_name=m, loss_name=ls)}
-        for m in names
-        for ls in names
-    ]
-
-    results = pd.DataFrame(rows).pivot(
-        index="model",
-        columns="loss",
-        values="value")
-
-    print(results.to_string(float_format="{:.4f}".format))
-    results.to_csv("res/eval.csv", float_format="%.3f")
-
-    cal_rows = [
-        {
-            "model": m,
-            "loss": ls,
-            "value": eval_calibrated(
-                model_name=m,
-                loss_name=ls)}
-
-        for m in names
-        for ls in names
-    ]
-
-    cal_results = pd.DataFrame(cal_rows).pivot(
-        index="model",
-        columns="loss",
-        values="value")
-
-    print()
-    print('-' * 40)
-    print('Calibrated results:')
-    print(cal_results.to_string(float_format="{:.4f}".format))
-    cal_results.to_csv("res/eval_calibrated.csv", float_format="%.3f")
-
-
-def pred_l1():
-    pred, y = pred_test(model_name='l1')
-    out = Path("pred/pred_l1.csv")
-    pd.DataFrame({"pred": pred.numpy() * Y_SCALE,
-                 "actual": y.numpy() * Y_SCALE}).to_csv(out, index=False)
-    print(f"Saved predictions to {out}")
+        pred = torch.cat([
+            model(m, d, t, X)
+            for m, d, t, X, _, _ in dl(ds, shuffle=False)])
+    return pred.numpy() * Y_SCALE
 
 
 if __name__ == "__main__":
-    # report()
-    pred_l1()
-    pass
+    train("cost")

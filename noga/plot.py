@@ -300,14 +300,15 @@ def day_ahead_forecast_abs_error():
 def plot_loss_fns():
     import torch
 
-    from noga.cost import loss_fns
+    from noga.cost import PRICE_FREE, loss_fns
 
     errors = torch.linspace(-3, 3, 500)
     zeros = torch.zeros(1)
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    for name, fn in loss_fns.items():
+    for name in PRICE_FREE:
+        fn = loss_fns[name]
         costs = [fn(errors[i:i+1], zeros).item() for i in range(len(errors))]
         ax.plot(errors.numpy(), costs, label=name, linewidth=2)
 

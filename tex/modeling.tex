@@ -1,84 +1,134 @@
 \subsection{Problem Formulation}
 
-In day-ahead electricity demand forecasting, the system operator must commit to a
-procurement quantity $p$ before observing actual demand $X$.  We model $X$ as a
-random variable whose distribution is \emph{unknown} and must be inferred from
-data; we make no parametric assumption about its form.
+In day-ahead electricity procurement, a market participant must commit to a
+quantity $p_t$ for every settlement slot $t$ of the following day before
+observing the actual demand $y_t$.  Committed energy is paid at the day-ahead
+price; any mismatch is settled after the fact at less favourable prices.  We
+model $y_t$ as a random variable whose conditional distribution is
+\emph{unknown} and must be learned from data; we make no parametric assumption
+about its form.
 
-\paragraph*{Assumptions.}  We adopt the following assumptions, which are mild and
-operationally grounded:
-
-\begin{enumerate}
-    \item \textbf{Asymmetry.}  Under-prediction is more costly than
-          over-prediction of equal magnitude: the costs incurred when actual
-          demand exceeds the forecast are larger than those incurred when the
-          forecast exceeds actual demand ($c_u > c_o > 0$).
-
-    \item \textbf{Monotonicity.}  Costs are non-decreasing in the magnitude of
-          the prediction error: larger errors are never cheaper than smaller
-          errors, in either direction.
-
-    \item \textbf{Known, differentiable costs.}  For the purposes of this paper
-          we assume that the cost functions are known and differentiable, so they
-          can be incorporated directly as training objectives for gradient-based
-          optimisers.
-\end{enumerate}
-
-\paragraph*{Cost structure.}  Let $\ell_o:\mathbb{R}_{\geq 0}\to\mathbb{R}_{\geq
-0}$ and $\ell_u:\mathbb{R}_{\geq 0}\to\mathbb{R}_{\geq 0}$ denote the cost
-functions for over- and under-prediction respectively, where the argument is the
-magnitude of the error.  
-The total realised cost of procurement decision $p$ against actual demand $X$ is:
-
+\paragraph*{Price-based cost.}  Let $\pi^{\mathrm{DA}}_t$ denote the day-ahead
+price, $\pi^{u}_t$ the price paid for each unit of shortfall (under-prediction),
+and $\pi^{o}_t$ the cost of each unit of surplus (over-prediction), with
 \begin{equation}
-    C(p, X) =
-    \begin{cases}
-        \ell_o(p - X) & \text{if } X \leq p \quad \text{(over-prediction)} \\
-        \ell_u(X - p) & \text{if } X > p \quad \text{(under-prediction)}
-    \end{cases}
+    \pi^{u}_t \;>\; \pi^{\mathrm{DA}}_t \;>\; \pi^{o}_t \;>\; 0.
+    \label{eq:price-order}
+\end{equation}
+The total realised cost of procuring $p_t$ when demand turns out to be $y_t$ is
+\begin{equation}
+    C_t(p_t, y_t) =
+        \pi^{\mathrm{DA}}_t \min(y_t, p_t)
+        + \pi^{u}_t \,(y_t - p_t)^{+}
+        + \pi^{o}_t \,(p_t - y_t)^{+},
     \label{eq:cost}
 \end{equation}
+where $(z)^{+}=\max(0,z)$.  Since the consumed energy $\pi^{\mathrm{DA}}_t y_t$
+must be paid regardless of the forecast, it is convenient to work with the
+\emph{excess cost} above a perfect forecast,
+\begin{equation}
+    E_t(p_t, y_t) = C_t(p_t,y_t) - \pi^{\mathrm{DA}}_t y_t
+    = \underbrace{(\pi^{u}_t - \pi^{\mathrm{DA}}_t)}_{c^{u}_t}\,(y_t - p_t)^{+}
+    + \underbrace{\pi^{o}_t}_{c^{o}_t}\,(p_t - y_t)^{+}.
+    \label{eq:excess}
+\end{equation}
+Equation~\eqref{eq:excess} is a pinball loss whose two slopes, $c^u_t$ and
+$c^o_t$, are \emph{prices} that vary from slot to slot.
 
-\paragraph*{Goal.}  The objective is to find a procurement decision $p^*$ that
-minimises the \emph{expected cost}, and not the expected prediction error.
+\paragraph*{Information structure.}  We assume that the day-ahead price is the
+market-clearing price (the Israeli system marginal price, SMP) and that it is
+known when $p_t$ is chosen, as is the over-prediction price $\pi^o_t$.  The
+under-prediction price $\pi^u_t$, in contrast, is revealed only in real time
+and is \emph{not} available to the forecaster.
 
-\paragraph*{The Newsvendor Special Case:}
+\paragraph*{Goal.}  The objective is to choose $p_t$ that minimises the
+\emph{expected total cost} $\mathbb{E}[C_t \mid \mathcal{I}_t]$ given the
+information $\mathcal{I}_t$ available at decision time---not the expected
+prediction error.
+
+\subsection{Optimal Decision: a Price-Dependent Quantile}%
 \label{sec:newsvendor}
 
-to gain analytical insight, we first consider the classical special case in which
-costs are \emph{linear} 
-the setting of the \emph{newsvendor model}~\parencite{arrow1951optimal}, a classical
-inventory-theoretic framework in which a decision-maker commits to a quantity
-before demand is realised.  
-Let $c_o>0$ and $c_u > c_o$ be the per-unit overage
-and underage costs.
-This is a well known problem in which the optimal procurement level is given by the critical fractile formula:
+For fixed prices, Equation~\eqref{eq:excess} is the classical
+\emph{newsvendor} problem~\parencite{arrow1951optimal}.  Since $E_t$ is linear
+in $\pi^u_t$, the unknown under-prediction price enters the expected cost only
+through its conditional mean $\bar\pi^u_t = \mathbb{E}[\pi^u_t \mid
+\mathcal{I}_t]$, and the expected cost is minimised by the critical fractile
 \begin{equation}
-    p^* = F^{-1}\!\left(\frac{c_u}{c_u + c_o}\right)
+    p^*_t = F_t^{-1}(\tau_t), \qquad
+    \tau_t = \frac{\bar c^{u}_t}{\bar c^{u}_t + c^{o}_t}
+           = \frac{\bar\pi^{u}_t - \pi^{\mathrm{DA}}_t}
+                  {\bar\pi^{u}_t - \pi^{\mathrm{DA}}_t + \pi^{o}_t},
     \label{eq:optimal_threshold}
 \end{equation}
+where $F_t$ is the conditional distribution of demand.  Two consequences
+motivate this paper:
+\begin{enumerate}
+    \item \textbf{The target quantile moves with the price.}  When imbalance
+          prices are a function of the day-ahead price, so is $\tau_t$.  A
+          model trained with a symmetric loss (targeting the mean or median)
+          or with a fixed-ratio pinball loss (targeting a constant quantile)
+          cannot track $\tau_t$.
+    \item \textbf{Errors in expensive slots matter more.}  The slopes of
+          Equation~\eqref{eq:excess} scale with the price level, so a
+          kilowatt-hour of error during a price spike costs many times more
+          than one at night.  A cost-trained model allocates its capacity
+          accordingly; an MSE-trained model weighs all slots equally.
+\end{enumerate}
+A \emph{unified} model that receives the known prices as input and is trained
+on Equation~\eqref{eq:excess} with the realised prices addresses both points at
+once: by the linearity argument above, training against the realised $\pi^u_t$
+yields, in expectation, the same minimiser as training against its unknown
+conditional mean.
 
-\subsection{Limitations of the Linear Newsvendor Framework}%
-\label{sec:limitations_nv}
+\subsection{Synthetic Imbalance Prices}
+\label{sec:synthetic-prices}
 
-While the newsvendor model provides a tractable and theoretically grounded
-formulation, it does not always capture the complexities of real-world electricity markets.
-Our general formulation (Equation~\eqref{eq:cost}) addresses this limitation:
-it does not assume linear costs and it does not require knowledge of the demand
-distribution, relying instead on empirical samples via the training loss.
+The day-ahead prices in our study are the \emph{real} Israeli SMP values
+(Section~\ref{sec:dataset}).  Real imbalance prices, however, are not
+published for the Israeli market, so we generate synthetic over- and
+under-prediction prices that satisfy Equation~\eqref{eq:price-order} and the
+following stylised facts:
+\begin{itemize}
+    \item the cost of surplus is roughly a fixed fraction of the day-ahead
+          price;
+    \item the price of shortfall is a non-linear, convex and noisy function of
+          the day-ahead price---scarcity is expensive exactly when the system
+          is already tight;
+    \item the under/over price ratio $\pi^u_t/\pi^o_t$ lies in $[5, 20]$ and is
+          roughly increasing in the day-ahead price, in line with the cost
+          asymmetries reported for electricity
+          procurement~\parencite{zhang2022costoriented, weron2014electricity}.
+\end{itemize}
+Concretely, for each 30-minute settlement period we draw
+\begin{align}
+    \pi^{o}_t &= \alpha\,(1+\varepsilon_t)\,\pi^{\mathrm{DA}}_t,
+        & \varepsilon_t &\sim \mathcal{N}(0, \sigma_o^2), \\
+    r_t &= \operatorname{clip}\!\Big(
+        \big(r_{\min} + (r_{\max}-r_{\min})\,u_t^{\gamma}\big)\,e^{\eta_t},\;
+        r_{\min},\, r_{\max}\Big),
+        & \eta_t &\sim \mathcal{N}(0, \sigma_u^2), \\
+    \pi^{u}_t &= r_t\,\pi^{o}_t,
+\end{align}
+where $u_t\in[0,1]$ is the position of $\log\pi^{\mathrm{DA}}_t$ between its
+5th and 99th percentiles.  We use $\alpha=0.3$, $\gamma=2$, $\sigma_o=0.03$,
+$\sigma_u=0.15$, $r_{\min}=5$ and $r_{\max}=20$.  Because $\alpha r_{\min}>1$,
+the ordering~\eqref{eq:price-order} holds in every slot, and $\pi^u_t =
+\alpha(1+\varepsilon_t)\,r_t\,\pi^{\mathrm{DA}}_t$ is the day-ahead price times
+an increasing convex multiplier.  The over-prediction price is treated as known
+to the model; the noise $\eta_t$ makes the under-prediction price unknown at
+decision time.  Figure~\ref{fig:tau-vs-price} shows the resulting
+cost-optimal quantile: it ranges from about $0.6$ in cheap night-time slots to
+about $0.94$ during price spikes.  Section~\ref{sec:sensitivity} varies all
+generator parameters.
 
-\subsection{Synthetic Cost Functions for Evaluation}
-
-Since we do not have access to actual cost data from the electricity market
-operator, we evaluated our models against \emph{synthetic} cost functions that
-satisfy the qualitative properties stated in the problem formulation.
-For simplicity, we conducted our main evaluation using two \emph{pinball loss}
-functions with under/over-prediction cost ratios of $1\!:\!5$ and $1\!:\!20$,
-respectively.  These ratios are consistent with the findings of prior work on
-asymmetric costs in electricity demand forecasting, which reports that the cost
-of under-prediction typically exceeds the cost of over-prediction by a factor of
-five to twenty~\parencite{weron2014electricity}.  Pinball losses are piecewise linear
-and widely used in quantile regression, making them a natural and interpretable
-baseline for cost-sensitive evaluation.
-
-
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{plot/tau_vs_price.png}
+    \caption{Cost-optimal quantile $\tau_t$
+             (Equation~\eqref{eq:optimal_threshold}) against the real
+             day-ahead price on the test year.  Points are realised values
+             (including the unknown noise in $\pi^u_t$); the line is the
+             estimate $\hat\tau$ available at decision time.}
+    \label{fig:tau-vs-price}
+\end{figure}

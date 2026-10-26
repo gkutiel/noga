@@ -20,11 +20,28 @@ tasks:
     cmds:
       - "uv run -m noga.data ims_csv"
 
+  price_csv:
+    desc: "Convert Noga's SMP prices from xlsx to csv"
+    status:
+      - test -f data/price.csv
+    cmds:
+      - "uv run -m noga.data price_csv"
+
+  noga_fixed_csv:
+    desc: "Interpolate missing values in noga's data"
+    deps:
+      - noga_csv
+    status:
+      - test -f data/noga.fixed.csv
+    cmds:
+      - "uv run -m noga.data noga_fixed_csv"
+
   data_csv:
     desc: "Convert all data from xlsx to csv"
     deps:
-      - noga_csv
+      - noga_fixed_csv
       - ims_csv
+      - price_csv
     status:
       - test -f data/data.csv
     cmds:

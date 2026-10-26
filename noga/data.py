@@ -31,6 +31,18 @@ IMS_STATION_TRANSLATIONS = {
 
 IMS_STATION_RANGE_PATTERN = re.compile(r"\d{2}/\d{4}-\d{2}/\d{4}$")
 
+PRICE_COLUMNS = [
+    "date",
+    "time",
+    "day_ahead_constrained",
+    "day_ahead_unconstrained",
+    "real_time_constrained",
+    "real_time_unconstrained",
+]
+
+# 30-minute settlement periods.
+PERIOD_MIN = 30
+
 
 def noga_csv() -> None:
     xlsx = pd.read_excel(
@@ -109,13 +121,43 @@ def ims_csv() -> None:
         print(f"- {col}: {row[col]}")
 
 
+def price_csv():
+    '''
+    Noga SMP export (₪/MWh, 30-minute periods), Hebrew headers in two rows:
+    date, time, day-ahead (constrained, unconstrained),
+    real-time (constrained, unconstrained).
+    '''
+    xlsx = pd.read_excel(
+        "data/Smp_01_04_2023-01_01_2026_he-IL.xlsx",
+        skiprows=2,
+        header=None,
+        names=PRICE_COLUMNS)
+
+    xlsx["date"] = pd.to_datetime(xlsx["date"]).dt.strftime("%Y-%m-%d")
+    for col in PRICE_COLUMNS[2:]:
+        xlsx[col] = pd.to_numeric(xlsx[col], errors="coerce")
+
+    xlsx.to_csv("data/price.csv", index=False)
+
+
 def data_csv():
     noga = pd.read_csv("data/noga.fixed.csv")
     ims = pd.read_csv("data/ims.csv")
+    price = pd.read_csv("data/price.csv")
 
     data = pd.merge(noga, ims, on=["date", "time"], how="left")
     int_cols = [col for col in ims.columns if col not in ["date", "time"]]
     data[int_cols] = data[int_cols].interpolate()
+
+    # Each 5-minute slot takes the day-ahead price of its settlement period.
+    price["slot"] = pd.to_timedelta(price["time"]).dt.total_seconds() // 60
+    price = price.rename(columns={"day_ahead_constrained": "p_da"})
+    data["slot"] = data["time"] // PERIOD_MIN * PERIOD_MIN
+    data = pd.merge(
+        data,
+        price[["date", "slot", "p_da"]],
+        on=["date", "slot"],
+        how="left")
 
     dt = pd.to_datetime(data['date']).dt
     data = data.dropna()
@@ -123,8 +165,13 @@ def data_csv():
     data['year'] = dt.year
     data['month'] = dt.month - 1
     data['day'] = (dt.dayofweek + 1) % 7
+    # Settlement period index: key for the synthetic imbalance prices.
+    days = (pd.to_datetime(data['date']) - pd.Timestamp("2023-01-01")).dt.days
+    data['period'] = days * (24 * 60 // PERIOD_MIN) + data['slot'] // PERIOD_MIN
+    data['date_ord'] = days
 
-    data.drop(columns=["date"], inplace=True)
+    data.drop(columns=["date", "slot"], inplace=True)
+    data.columns = [c.replace("Tel Aviv", "TelAviv") for c in data.columns]
     data.to_csv("data/data.csv", index=False)
 
 
@@ -138,9 +185,10 @@ def sample_csv():
 
 
 if __name__ == "__main__":
-    # noga_csv()
-    # noga_fixed_csv()
-    # ims_csv()
-    # data_csv()
-    sample_csv()
-    pass
+    import sys
+
+    # e.g. `uv run -m noga.data price_csv` (as used by Taskfile.yml).
+    if len(sys.argv) > 1:
+        globals()[sys.argv[1]]()
+    else:
+        sample_csv()
