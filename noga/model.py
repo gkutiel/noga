@@ -31,7 +31,7 @@ BATCH_SIZE = 5_000
 # or embeddings); each step shrinks them by LR * WEIGHT_DECAY, so small values
 # (1e-2 shrinks ~11% over 3000 epochs) barely act.
 LR = 1e-3
-WEIGHT_DECAY = 0.01
+WEIGHT_DECAY = 0.05
 # First test day; training uses everything before it. 2025-07-01 is the second
 # rolling-origin fold (test 2025-H2). Set with the NOGA_TRAIN_END variable.
 TRAIN_END = os.environ.get("NOGA_TRAIN_END", "2025-01-01")
@@ -84,7 +84,8 @@ N = len(FEATURES) + HISTORY_LEN + 1
 # Columns of X sharing one scale: the history, each weather variable over the
 # stations (temp_Haifa, temp_Jerusalem, ... -> temp), yesterday's price.
 INPUT_GROUPS = [list(range(HISTORY_LEN))] + [
-    [HISTORY_LEN + i for i, f in enumerate(FEATURES) if f.rsplit("_", 1)[0] == g]
+    [HISTORY_LEN + i for i,
+        f in enumerate(FEATURES) if f.rsplit("_", 1)[0] == g]
     for g in dict.fromkeys(f.rsplit("_", 1)[0] for f in FEATURES)
 ] + [[N - 1]]
 
