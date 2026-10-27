@@ -25,7 +25,7 @@ from noga.price import P_DA, P_O, P_U, SURPRISE, PriceParams, synth
 # TRAIN
 # Fixed for every model, no early stopping (the cost on a held-out window is
 # too noisy to select a stopping point).
-EPOCHS = 400
+EPOCHS = 500
 BATCH_SIZE = 5_000
 # Adam for every model, no weight decay.
 LR = 1e-3

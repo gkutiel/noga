@@ -1,0 +1,10 @@
+I want to simplify the baselines, here is my suggestion:
+
+Baseline 1:
+Train on MSE then fix using a linear transformation that minimize excess cost.
+
+Baseline 2:
+Use the predicted prices from our pre-trained model, then train a model that minimizes the excess cost using these predicted prices as inputs.
+
+
+Tell me what do you think about this suggestion, are these strong enough baselines to make a strong case for our model?
