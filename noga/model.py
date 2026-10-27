@@ -39,6 +39,7 @@ D_EMBD = 2
 T_EMBED = 2
 N_LAYERS = 2
 HIDDEN_SIZE = 16
+DROPOUT = 0.1
 # Mean excess per slot (₪/h: ₪/MWh x MW) -> M₪ per year.
 COST_PER_YEAR = 8760 / 1e6
 TEST_EVERY = 25  # epochs between cost/test evaluations
@@ -104,6 +105,7 @@ class Model(pl.LightningModule):
                 nn.Sequential(
                     nn.LayerNorm(HIDDEN_SIZE),
                     nn.LeakyReLU(),
+                    nn.Dropout(DROPOUT),
                     nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
                 ) for _ in range(N_LAYERS)
             ],
