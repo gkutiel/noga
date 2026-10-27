@@ -25,7 +25,7 @@ from noga.price import P_DA, P_O, P_U, SURPRISE, PriceParams, synth
 # TRAIN
 # Fixed for every model, no early stopping (the cost on a held-out window is
 # too noisy to select a stopping point).
-EPOCHS = 300
+EPOCHS = 400
 BATCH_SIZE = 5_000
 # Adam for every model, no weight decay.
 LR = 1e-3
@@ -79,7 +79,8 @@ PRICE_DEPENDENT: set[Name] = {
 # only; the slot's own prices are targets, never inputs).
 PRICE_HEADS: set[Name] = {"cost"}
 PRICE_WEIGHT = 1.0
-PRICE_TAGS = ["da", "o", "u"]  # TensorBoard price/<tag>/{train,test}, order of c
+# TensorBoard price/<tag>/{train,test}, order of c
+PRICE_TAGS = ["da", "o", "u"]
 # Day-ahead price history: PRICE_LEN prices ending 24h before t, PRICE_STEP
 # rows (30 min, one settlement period) apart: t-24h-1.5h ... t-24h.
 PRICE_LEN = 4
