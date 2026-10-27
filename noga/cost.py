@@ -3,7 +3,8 @@ from typing import Callable, Literal
 import torch
 from torch import Tensor
 
-# c[:, 0] = p_da, c[:, 1] = p_o, c[:, 2] = p_u (scaled prices, see model.P_SCALE).
+# c[:, 0] = p_da, c[:, 1] = p_o, c[:, 2] = p_u (₪/MWh; for training the model
+# divides them by its p_scale, see model.Model.set_scale).
 # A slot's own prices are never model inputs (the day-ahead price is set only
 # after the procurement decision); they enter training only through the
 # "cost" loss. Yesterday's day-ahead price is an input (see model.Data).

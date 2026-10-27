@@ -27,11 +27,8 @@ from noga.price import P_DA, P_O, P_U, SURPRISE, PriceParams, synth
 # too noisy to select a stopping point).
 EPOCHS = 300
 BATCH_SIZE = 5_000
-# AdamW for every model. Decay applies to the Linear weights only (not biases
-# or embeddings); each step shrinks them by LR * WEIGHT_DECAY, so small values
-# (1e-2 shrinks ~11% over 3000 epochs) barely act.
+# Adam for every model, no weight decay.
 LR = 1e-3
-WEIGHT_DECAY = 0.05
 # First test day; training uses everything before it. 2025-07-01 is the second
 # rolling-origin fold (test 2025-H2). Set with the NOGA_TRAIN_END variable.
 TRAIN_END = os.environ.get("NOGA_TRAIN_END", "2025-01-01")
@@ -42,10 +39,8 @@ D_EMBD = 2
 T_EMBED = 2
 N_LAYERS = 2
 HIDDEN_SIZE = 16
-Y_SCALE = 100
-P_SCALE = 100
-# Mean scaled excess per slot -> M₪ per year.
-COST_PER_YEAR = Y_SCALE * P_SCALE * 8760 / 1e6
+# Mean excess per slot (₪/h: ₪/MWh x MW) -> M₪ per year.
+COST_PER_YEAR = 8760 / 1e6
 TEST_EVERY = 25  # epochs between cost/test evaluations
 
 DAY_IN_5_MIN = 288
@@ -70,23 +65,22 @@ FEATURES = [
 # Models whose training depends on the synthetic price draw.
 PRICE_DEPENDENT: set[Name] = {
     "cost", "Pinball med", "Pinball opt", "Pinball p95"}
-# Models with auxiliary heads predicting log p_o and log p_u (multi-task
-# training only; the slot's own prices are targets, never inputs).
+# Models with a price head predicting p_da, p_o, p_u (multi-task training
+# only; the slot's own prices are targets, never inputs).
 PRICE_HEADS: set[Name] = {"cost"}
 PRICE_WEIGHT = 1.0
+# Day-ahead price history: PRICE_LEN prices ending 24h before t, PRICE_STEP
+# rows (30 min, one settlement period) apart: t-24h-1.5h ... t-24h.
+PRICE_LEN = 4
+PRICE_STEP = 6
 
 
-# + the day-ahead price 24h before t (published before the decision).
-N = len(FEATURES) + HISTORY_LEN + 1
-# The network sees X[:, HISTORY_LEN:] (weather + price); the history enters
-# only through the attention.
-N_NET = N - HISTORY_LEN
-# Columns of X[:, HISTORY_LEN:] sharing one scale: each weather variable over
-# the stations (temp_Haifa, temp_Jerusalem, ... -> temp), yesterday's price.
-INPUT_GROUPS = [
-    [i for i, f in enumerate(FEATURES) if f.rsplit("_", 1)[0] == g]
-    for g in dict.fromkeys(f.rsplit("_", 1)[0] for f in FEATURES)
-] + [[N_NET - 1]]
+# X = [demand history | weather at t | price history].
+N = HISTORY_LEN + len(FEATURES) + PRICE_LEN
+# The network sees only the weather (plus the calendar embeddings); the demand
+# and price histories enter only through their attentions.
+WEATHER = slice(HISTORY_LEN, HISTORY_LEN + len(FEATURES))
+N_NET = len(FEATURES)
 
 
 class Model(pl.LightningModule):
@@ -97,9 +91,12 @@ class Model(pl.LightningModule):
         self.loss = loss_fns[name]
         self.test = test  # logged as cost/test during training
 
-        self.day = nn.Embedding(7, D_EMBD)
-        self.month = nn.Embedding(12, M_EMBD)
-        self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED)
+        # max_norm=1 keeps every embedding vector within the unit ball, on the
+        # scale of the standardised weather, so the calendar can't grow to
+        # drown it out.
+        self.day = nn.Embedding(7, D_EMBD, max_norm=1)
+        self.month = nn.Embedding(12, M_EMBD, max_norm=1)
+        self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED, max_norm=1)
 
         self.net = nn.Sequential(
             nn.Linear(N_NET + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
@@ -120,52 +117,94 @@ class Model(pl.LightningModule):
             head.weight[HISTORY_LEN].zero_()
             head.bias[HISTORY_LEN].zero_()
         # Shares the hidden representation with the demand forecast.
+        # Attention logits over the price history, log a, log(p_o/p_da),
+        # log(p_u/p_o) (see price_pred).
         self.price = (
-            nn.Linear(HIDDEN_SIZE, 2) if name in PRICE_HEADS else None)
-        # The network sees weather + price divided by their train-split mean
-        # per input group (values ~1, no shift, so relative changes are kept);
-        # set by train() via set_scale.
-        self.x_scale: Tensor
-        self.register_buffer("x_scale", torch.ones(N_NET))
+            nn.Linear(HIDDEN_SIZE, PRICE_LEN + 3)
+            if name in PRICE_HEADS else None)
+        if self.price is not None:
+            with torch.no_grad():  # start from a = 1
+                self.price.weight[PRICE_LEN].zero_()
+                self.price.bias[PRICE_LEN].zero_()
+        # Data is in real units (MW, ₪/MWh); these train-split scales, set by
+        # train() via set_scale and saved with the model, keep the network's
+        # inputs, outputs and losses ~1:
+        #   x_mean, x_std  weather mean and std per column (standardised)
+        #   y_scale  std of the day-over-day demand change y(t) - y(t-24h),
+        #            the scale of the shift b and of the demand losses
+        #   p_scale  mean day-ahead price, the price scale in the losses
+        self.x_mean: Tensor
+        self.x_std: Tensor
+        self.y_scale: Tensor
+        self.p_scale: Tensor
+        self.register_buffer("x_mean", torch.zeros(N_NET))
+        self.register_buffer("x_std", torch.ones(N_NET))
+        self.register_buffer("y_scale", torch.tensor(1.0))
+        self.register_buffer("p_scale", torch.tensor(1.0))
 
-    def set_scale(self, X: Tensor):
-        for g in INPUT_GROUPS:
-            self.x_scale[g] = X[:, HISTORY_LEN:][:, g].mean()
+    def set_scale(self, ds: "Data"):
+        self.x_mean.copy_(ds.X[:, WEATHER].mean(0))
+        self.x_std.copy_(ds.X[:, WEATHER].std(0))
+        self.y_scale.fill_((ds.y - ds.X[:, HISTORY_LEN - 1]).std())
+        self.p_scale.fill_(ds.c[:, 0].mean())
+
+    def scaled_loss(self, pred: Tensor, y: Tensor, c: Tensor):
+        '''The training loss on scaled demand and prices.'''
+        return self.loss(
+            pred / self.y_scale, y / self.y_scale, c / self.p_scale)
 
     def hidden(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
         f = torch.concat([
             self.month(month),
             self.day(day),
             self.time(time),
-            X[:, HISTORY_LEN:] / self.x_scale
+            (X[:, WEATHER] - self.x_mean) / self.x_std
         ], dim=1)
         return self.net[:-1](f)
 
     def demand(self, z: Tensor, X: Tensor):
-        '''Forecast = a * attention + b, a = exp(s) > 0, both per slot.'''
+        '''
+        Forecast (MW) = a * attention + b, a = exp(s) > 0, both per slot;
+        b is in units of y_scale.
+        '''
         hist = X[:, :HISTORY_LEN]
 
         out = self.net[-1](z)
 
         att = (hist * torch.softmax(out[:, :HISTORY_LEN], dim=1)).sum(dim=1)
         a = torch.exp(out[:, HISTORY_LEN])
-        b = out[:, HISTORY_LEN + 1]
+        b = out[:, HISTORY_LEN + 1] * self.y_scale
         return a * att + b
 
     def forward(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
         return self.demand(self.hidden(month, day, time, X), X)
 
-    def prices(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
-        '''Predicted (p_o, p_u), scaled by P_SCALE.'''
+    def price_pred(self, z: Tensor, X: Tensor):
+        '''
+        Predicted (p_da, p_o, p_u) in ₪/MWh:
+            p_da = a * attention(price history),  a = exp(s) > 0
+            p_o  = exp(s_o) * p_da,  p_u = exp(s_u) * p_o
+        All positive, since the price history is.
+        '''
         assert self.price is not None
-        return torch.exp(self.price(self.hidden(month, day, time, X)))
+        hist = X[:, -PRICE_LEN:]
+        out = self.price(z)
+        att = (hist * torch.softmax(out[:, :PRICE_LEN], dim=1)).sum(dim=1)
+        p_da = torch.exp(out[:, PRICE_LEN]) * att
+        p_o = torch.exp(out[:, PRICE_LEN + 1]) * p_da
+        p_u = torch.exp(out[:, PRICE_LEN + 2]) * p_o
+        return torch.stack([p_da, p_o, p_u], dim=1)
+
+    def prices(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
+        '''Predicted (p_da, p_o, p_u) in ₪/MWh.'''
+        return self.price_pred(self.hidden(month, day, time, X), X)
 
     def training_step(self, batch, batch_idx):
         month, day, time, X, y, c = batch
 
         z = self.hidden(month, day, time, X)
         pred = self.demand(z, X)
-        loss = self.loss(pred, y, c)
+        loss = self.scaled_loss(pred, y, c)
 
         if self.name != "cost":
             self.log_epoch(f"loss/{self.name}", loss, len(y))
@@ -174,16 +213,18 @@ class Model(pl.LightningModule):
         self.log_epoch("cost/train", cost, len(y), prog_bar=True)
 
         if self.price is not None:
-            price_loss = self.price_loss(z, c)
+            price_loss = self.price_loss(z, X, c)
             self.log_epoch("price/train", price_loss, len(y))
             loss = loss + PRICE_WEIGHT * price_loss
 
         return loss
 
-    def price_loss(self, z: Tensor, c: Tensor):
-        '''MSE of the predicted log (p_o, p_u).'''
-        assert self.price is not None
-        return torch.mean((self.price(z) - torch.log(c[:, 1:])) ** 2)
+    def price_loss(self, z: Tensor, X: Tensor, c: Tensor):
+        '''
+        Relative squared error of (p_da, p_o, p_u): real scale, but p_u's
+        spikes don't dominate.
+        '''
+        return torch.mean(((self.price_pred(z, X) - c) / c) ** 2)
 
     def log_epoch(self, name: str, value: Tensor, batch_size: int,
                   prog_bar: bool = False):
@@ -202,16 +243,10 @@ class Model(pl.LightningModule):
             cost = loss_fns["cost"](pred, t.y, t.c) * COST_PER_YEAR
             self.log("cost/test", cost, prog_bar=True)
             if self.price is not None:
-                self.log("price/test", self.price_loss(z, t.c))
+                self.log("price/test", self.price_loss(z, t.X, t.c))
 
     def configure_optimizers(self):
-        decay = [m.weight for m in self.modules() if isinstance(m, nn.Linear)]
-        ids = {id(p) for p in decay}
-        rest = [p for p in self.parameters() if id(p) not in ids]
-        return torch.optim.AdamW([
-            {"params": decay, "weight_decay": WEIGHT_DECAY},
-            {"params": rest, "weight_decay": 0.0},
-        ], lr=LR)
+        return torch.optim.Adam(self.parameters(), lr=LR)
 
 
 def with_prices(
@@ -232,27 +267,30 @@ def with_prices(
 
 class Data(Dataset):
     '''
-    Item j predicts slot t = j + DAY_IN_5_MIN + HISTORY_LEN - 1 from the
-    HISTORY_LEN demand readings ending 24h before t, the features at t and
-    the day-ahead price 24h before t (today's price is set only after the
-    procurement decision, yesterday's is already public).
+    Each item predicts a slot t from data at least 24h old: the HISTORY_LEN
+    demand readings and the PRICE_LEN day-ahead prices ending 24h before t
+    (today's price is set only after the procurement decision), plus the
+    weather forecast for t. The first slots, without a full history, are
+    skipped.
     Indexable by a list of indices, so a BatchSampler yields whole batches.
     '''
 
     def __init__(self, df: pd.DataFrame):
         df = df.reset_index(drop=True)
-        n = len(df) - DAY_IN_5_MIN - HISTORY_LEN + 1
-        t = np.arange(n) + DAY_IN_5_MIN + HISTORY_LEN - 1
+        start = DAY_IN_5_MIN + max(
+            HISTORY_LEN - 1, (PRICE_LEN - 1) * PRICE_STEP)
+        t = np.arange(start, len(df))
+        lag = t - DAY_IN_5_MIN  # same slot yesterday
 
+        # Real units throughout: MW, ₪/MWh (the model scales, see set_scale).
         y = torch.tensor(df["actual"].to_numpy(), dtype=torch.float32)
-        y = y / Y_SCALE
-        hist = y.unfold(0, HISTORY_LEN, 1)[:n]
+        hist = y.unfold(0, HISTORY_LEN, 1)[lag - HISTORY_LEN + 1]
 
         X = torch.tensor(df[FEATURES].to_numpy()[t], dtype=torch.float32)
-        lag_p = torch.tensor(
-            df[P_DA].to_numpy()[t - DAY_IN_5_MIN] / P_SCALE,
-            dtype=torch.float32)
-        X = torch.concat([X, lag_p[:, None]], dim=1)
+        steps = np.arange(PRICE_LEN - 1, -1, -1) * PRICE_STEP
+        p_hist = torch.tensor(
+            df[P_DA].to_numpy()[lag[:, None] - steps], dtype=torch.float32)
+        X = torch.concat([X, p_hist], dim=1)
 
         self.month = torch.tensor(df["month"].to_numpy()[t].astype(int))
         self.day = torch.tensor(df["day"].to_numpy()[t].astype(int))
@@ -260,8 +298,7 @@ class Data(Dataset):
         self.X = torch.concat([hist, X], dim=1)
         self.y = y[t]
         self.c = torch.tensor(
-            df[[P_DA, P_O, P_U]].to_numpy()[t],
-            dtype=torch.float32) / P_SCALE
+            df[[P_DA, P_O, P_U]].to_numpy()[t], dtype=torch.float32)
 
         # Per-item context for evaluation and post-hoc calibration.
         self.meta = df.iloc[t][[
@@ -406,7 +443,7 @@ def train(
 
     train_ds, test_ds = load_data(price_seed=price_seed, params=params)
     model = Model(name=name, test=test_ds)
-    model.set_scale(train_ds.X)
+    model.set_scale(train_ds)
     logger = TensorBoardLogger(
         "logs", name="",
         version=experiment(name, seed, price_seed, params, sha=sha))
@@ -451,16 +488,16 @@ def predict(model: Model, ds: Data) -> np.ndarray:
         pred = torch.cat([
             model(m, d, t, X)
             for m, d, t, X, _, _ in dl(ds, shuffle=False)])
-    return pred.numpy() * Y_SCALE
+    return pred.numpy()
 
 
 def predict_prices(model: Model, ds: Data) -> np.ndarray:
-    '''Predicted (p_o, p_u) in ₪/MWh, shape (n, 2).'''
+    '''Predicted (p_da, p_o, p_u) in ₪/MWh, shape (n, 3).'''
     with torch.no_grad():
         pred = torch.cat([
             model.prices(m, d, t, X)
             for m, d, t, X, _, _ in dl(ds, shuffle=False)])
-    return pred.numpy() * P_SCALE
+    return pred.numpy()
 
 
 if __name__ == "__main__":

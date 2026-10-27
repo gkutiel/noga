@@ -1,4 +1,4 @@
-% Flow diagram of the demand model (noga/model.py @ 79f080c+dirty).
+% Flow diagram of the demand model (noga/model.py @ d8ddecf+dirty).
 % Regenerate with the /draw-model command.
 \documentclass[tikz,border=8pt]{standalone}
 \usepackage[T1]{fontenc}
@@ -24,6 +24,7 @@
   ph/.style={box, fill=phF, draw=phD},
   tn/.style={box, fill=tnF, draw=tnD, align=left, minimum height=0pt},
   arr/.style={-{Stealth[length=2.4mm]}, line width=0.8pt, draw=black!70},
+  raw/.style={arr, draw=inD, line width=1.1pt},
   w/.style={font=\scriptsize, fill=white, inner sep=1.2pt},
   swatch/.style={minimum height=3mm, minimum width=5mm, inner sep=0pt},
 }
@@ -34,43 +35,42 @@
 
 % ---------------------------------------------------------------- title
 \node[font=\large\bfseries, anchor=west] (title) at (-6.2, 1.6)
-  {Demand model \quad{\normalfont\ttfamily\small noga/model.py @ 79f080c+dirty}};
+  {Demand model \quad{\normalfont\ttfamily\small noga/model.py @ d8ddecf+dirty}};
 
 % ---------------------------------------------------------------- inputs
+\node[inp, text width=36mm] (hist) at (-4.3, 0)
+  {\T{Demand history}{12 readings, MW\\$t{-}24\text{h}{-}55\text{m}\;\ldots\;t{-}24\text{h}$}};
 \node[inp, text width=34mm] (cal) at (0, 0)
   {\T{Calendar}{month (12) $\cdot$ weekday (7)\\5-min slot of day (288)}};
-\node[inp, text width=36mm] (hist) at (-4.3, 0)
-  {\T{Demand history}{12 readings, MW\,/\,100\\$t{-}24\text{h}{-}55\text{m}\;\ldots\;t{-}24\text{h}$}};
 \node[inp, text width=36mm] (wx) at (4.3, 0)
-  {\T{Weather at $t$}{3 vars $\times$ 3 stations $=$ 9\\temp, wet bulb, humidity}};
-\node[inp, text width=36mm] (lp) at (8.5, 0)
-  {\T{Yesterday's price}{$p_{da}(t{-}24\text{h})\,/\,100$\\1 input, already public}};
+  {\T{Weather forecast for $t$}{3 vars $\times$ 3 stations $=$ 9\\temp, wet bulb, humidity}};
+\node[inp, text width=46mm] (ph) at (15.4, 0)
+  {\T{Day-ahead price history}{4 prices 30 min apart, ILS/MWh\\$t{-}24\text{h}{-}1.5\text{h}\;\ldots\;t{-}24\text{h}$}};
 \node[font=\footnotesize\itshape, text=phD, anchor=south east]
-  at ($(lp.north east)+(0,1mm)$) {not inputs: $p_{da}(t),\ p_o(t),\ p_u(t)$};
+  at ($(ph.north east)+(0,1mm)$) {not inputs: $p_{da}(t),\ p_o(t),\ p_u(t)$};
+\node[font=\footnotesize\itshape, text=inD, align=center] at (9.2, 0)
+  {network input: calendar + weather only\\histories $\geq$ 24 h old, used only by attention};
 
 % ---------------------------------------------------------------- preprocessing
 \node[pre, text width=34mm] (emb) at (0, -2.3)
-  {\T{Embeddings}{\texttt{Embedding(12,\,2)} $\to$ 2\\\texttt{Embedding(7,\,3)} $\to$ 3\\\texttt{Embedding(288,\,3)} $\to$ 3}};
-\path (wx.west |- emb) coordinate (sl) (lp.east |- emb) coordinate (sr);
-\node[pre, minimum width=0pt, text width=76mm] (scale) at ($(sl)!0.5!(sr)$)
-  {\T{Input scaling (divide, no shift)}{$x \,/\, \bar{x}_g$, \ $\bar{x}_g$ = train-split mean of group $g$\\
-   4 groups: temp $\cdot$ wet bulb $\cdot$ humidity $\cdot$ price; inputs $\approx 1$}};
+  {\T{Embeddings}{\texttt{Embedding(12,\,2)} $\to$ 2\\\texttt{Embedding(7,\,2)} $\to$ 2\\\texttt{Embedding(288,\,2)} $\to$ 2\\each vector: norm $\leq 1$}};
+\node[pre, text width=36mm] (scale) at (4.3, -2.3)
+  {\T{Standardise weather}{$(x - \mu) \,/\, \sigma$ per column\\$\mu,\ \sigma$ = train mean, std}};
 
 \draw[arr] (cal) -- node[w,right]{3 indices} (emb);
-\draw[arr] (wx.south)   -- node[w,right]{9}  (wx.south |- scale.north);
-\draw[arr] (lp.south)   -- node[w,right]{1}  (lp.south |- scale.north);
+\draw[arr] (wx) -- node[w,right]{9} (scale);
 
 % ---------------------------------------------------------------- concat
-\node[tr, text width=56mm] (cat) at (5.5, -4.3)
-  {\T{Concatenate}{embeddings $+$ scaled inputs\\$2 + 3 + 3 + 10 = 18$}};
-\draw[arr] (emb.south) |- node[w,pos=0.3,right]{8} (cat.west);
-\draw[arr] (scale.south -| 7.4,0) -- node[w,right]{10} (cat.north -| 7.4,0);
+\node[tr, text width=56mm] (cat) at (2.15, -4.5)
+  {\T{Concatenate}{$2 + 2 + 2 + 9 = 15$}};
+\draw[arr] (emb.south) -- node[w,right]{6} (emb.south |- cat.north);
+\draw[arr] (scale.south) -- node[w,right]{9} (scale.south |- cat.north);
 
 % ---------------------------------------------------------------- trunk
-\node[tr, text width=40mm] (l0) at (5.5, -6.0) {\T{Linear}{$18 \to 12$}};
-\node[tr, text width=40mm] (ln) at (5.5, -7.9) {\T{LayerNorm}{12}};
-\node[tr, text width=40mm, minimum height=8mm] (act1) at (5.5, -9.2) {\textbf{LeakyReLU}};
-\node[tr, text width=40mm] (l1) at (5.5, -10.5) {\T{Linear}{$12 \to 12$}};
+\node[tr, text width=40mm] (l0) at (2.15, -6.2) {\T{Linear}{$15 \to 16$}};
+\node[tr, text width=40mm] (ln) at (2.15, -8.1) {\T{LayerNorm}{16}};
+\node[tr, text width=40mm, minimum height=8mm] (act1) at (2.15, -9.4) {\textbf{LeakyReLU}};
+\node[tr, text width=40mm] (l1) at (2.15, -10.7) {\T{Linear}{$16 \to 16$}};
 \begin{scope}[on background layer]
   \node[draw=trD, dashed, rounded corners=4pt, fill=trF!40,
         fit=(ln)(act1)(l1), inner sep=4mm] (blk) {};
@@ -78,69 +78,78 @@
 \node[font=\bfseries\large, text=trD, anchor=west] at ($(blk.east)+(1mm,0)$) {$\times\,2$};
 \node[font=\scriptsize\itshape, text=trD, anchor=north east, inner sep=2pt]
   at (blk.north east) {repeated block};
-\node[tr, text width=40mm, minimum height=8mm] (act2) at (5.5, -12.5) {\textbf{LeakyReLU}};
-\node[tr, text width=40mm, line width=1.5pt] (z) at (5.5, -14.0)
-  {\T{Shared features $z$}{12}};
+\node[tr, text width=40mm, minimum height=8mm] (act2) at (2.15, -12.7) {\textbf{LeakyReLU}};
+\node[tr, text width=40mm, line width=1.5pt] (z) at (2.15, -14.2)
+  {\T{Shared features $z$}{16}};
 
-\draw[arr] (cat) -- node[w,right]{18} (l0);
-\draw[arr] (l0) -- node[w,right]{12} (blk.north -| ln.north) -- (ln);
+\draw[arr] (cat) -- node[w,right]{15} (l0);
+\draw[arr] (l0) -- node[w,right]{16} (ln);
 \draw[arr] (ln) -- (act1);
 \draw[arr] (act1) -- (l1);
-\draw[arr] (l1) -- node[w,right,pos=0.6]{12} (act2);
+\draw[arr] (l1) -- node[w,right,pos=0.6]{16} (act2);
 \draw[arr] (act2) -- (z);
 
 % ---------------------------------------------------------------- demand head
-\node[dh, text width=40mm] (dl) at (5.5, -16.0) {\T{Demand head: Linear}{$12 \to 14$}};
-\node[dh, text width=32mm] (logit) at (3.4, -18.0)
+\node[dh, text width=40mm] (dl) at (2.15, -16.2) {\T{Demand head: Linear}{$16 \to 14$}};
+\node[dh, text width=32mm] (logit) at (0, -18.2)
   {\T{Attention logits}{12 $\to$ softmax $\to$ $w_1 \ldots w_{12}$}};
-\node[dh, text width=30mm] (delta) at (7.8, -18.0)
-  {\T{Scale and shift}{$s,\ b$\\$a = e^{s} > 0$, starts at 1}};
-\node[dh, text width=32mm] (wsum) at (3.4, -19.9)
+\node[dh, text width=30mm] (ab) at (4.4, -18.2)
+  {\T{Scale and shift}{$a = e^{s} > 0$, starts at 1\\$b = \tilde b \cdot y_{\text{scale}}$}};
+\node[dh, text width=32mm] (att) at (0, -20.1)
   {\T{Attention}{$\text{att} = \sum_i w_i \cdot \text{hist}_i$}};
-\node[dh, line width=1.5pt, text width=50mm] (yhat) at (5.6, -21.9)
-  {\T{Forecast}{$\hat y = a \cdot \text{att} + b$ \quad ($\times 100$ MW)}};
+\node[dh, line width=1.5pt, text width=50mm] (yhat) at (2.15, -22.1)
+  {\T{Demand forecast}{$\hat y = a \cdot \text{att} + b$ \quad (MW)}};
 
-\draw[arr] (z) -- node[w,right]{12} (dl);
+\draw[arr] (z) -- node[w,right]{16} (dl);
 \draw[arr] ($(dl.south)+(-6mm,0)$) |- ($(logit.north)+(0,4mm)$) -- node[w,right]{12} (logit.north);
-\draw[arr] ($(dl.south)+(6mm,0)$)  |- ($(delta.north)+(0,4mm)$) -- node[w,right]{2} (delta.north);
-\draw[arr] (logit) -- (wsum);
-\draw[arr] (wsum.south) -- (wsum.south |- yhat.north);
-\draw[arr] (delta.south) -- (delta.south |- yhat.north);
-
-% raw history: used only by the attention, never fed to the network
-\draw[arr, draw=inD, line width=1.1pt]
-  (hist.south) -- (hist.south |- wsum) -- node[w,above,text=inD]{12} (wsum.west);
-\node[font=\scriptsize\itshape, text=inD, rotate=90, anchor=south, fill=white, inner sep=1pt]
-  at (hist.south |- l0) {raw history, used only by the attention};
+\draw[arr] ($(dl.south)+(6mm,0)$)  |- ($(ab.north)+(0,4mm)$) -- node[w,right]{2} (ab.north);
+\draw[arr] (logit) -- (att);
+\draw[arr] (att.south) -- (att.south |- yhat.north);
+\draw[arr] (ab.south) -- (ab.south |- yhat.north);
+\draw[raw] (hist.south) -- (hist.south |- att) -- node[w,above,text=inD]{12} (att.west);
 
 % ---------------------------------------------------------------- price head
-\node[ph, text width=36mm] (pl) at (12.2, -16.0)
-  {\T{Price head: Linear}{$12 \to 2$}};
-\node[ph, text width=36mm] (pout) at (12.2, -18.0)
-  {\T{$\log \hat p_o,\ \log \hat p_u$}{(prices\,/\,100)}};
+\node[ph, text width=40mm] (pl) at (10.4, -16.2) {\T{Price head: Linear}{$16 \to 7$}};
 \node[font=\footnotesize\itshape, text=phD, anchor=west, align=left] at ($(pl.east)+(1mm,0)$)
   {cost\\model\\only};
-\draw[arr] (z.east) -| node[w,pos=0.75,right]{12} (pl.north);
-\draw[arr] (pl) -- node[w,right]{2} (pout);
+\node[ph, text width=32mm] (plogit) at (8.6, -18.2)
+  {\T{Attention logits}{4 $\to$ softmax $\to$ $v_1 \ldots v_4$}};
+\node[ph, text width=30mm] (pf) at (12.5, -18.2)
+  {\T{Scale factors}{$s_{da},\ s_o,\ s_u$ \;(3)}};
+\node[ph, text width=32mm] (patt) at (8.6, -20.1)
+  {\T{Attention}{$\text{att}_p = \sum_j v_j \cdot \text{price}_j$}};
+\node[ph, line width=1.5pt, text width=54mm] (pout) at (10.4, -22.3)
+  {\T{Price forecast (ILS/MWh)}{$\hat p_{da} = e^{s_{da}}\,\text{att}_p$ \ (starts at $\times 1$)\\
+   $\hat p_o = e^{s_o}\,\hat p_{da}$, \quad $\hat p_u = e^{s_u}\,\hat p_o$}};
+
+\draw[arr] (z.east) -| node[w,pos=0.8,right]{16} (pl.north);
+\draw[arr] ($(pl.south)+(-6mm,0)$) |- ($(plogit.north)+(0,4mm)$) -- node[w,right]{4} (plogit.north);
+\draw[arr] ($(pl.south)+(6mm,0)$)  |- ($(pf.north)+(0,4mm)$) -- node[w,right]{3} (pf.north);
+\draw[arr] (plogit) -- (patt);
+\draw[arr] (patt.south) -- (patt.south |- pout.north);
+\draw[arr] (pf.south) -- (pf.south |- pout.north);
+\draw[raw] (ph.south) -- (ph.south |- patt) -- node[w,above,text=inD,pos=0.85]{4} (patt.east);
 
 % ---------------------------------------------------------------- training panel
-\node[tn, text width=74mm, anchor=north west] (loss) at (9.7, -4.8)
+\node[tn, text width=62mm, anchor=north west] (loss) at (6.6, -4.4)
   {\textbf{Demand loss} (one per model, on $\hat y$)\\[3pt]
    \footnotesize
    \textbf{cost} (proposed): mean excess cost\\
    \quad $(p_u - p_{da})\,(y-\hat y)^+ \;+\; p_o\,(\hat y - y)^+$\\[3pt]
    baselines: L2, L1, Pinball med / opt / p95\\
-   \quad (constant quantile derived from train prices)};
-\node[tn, text width=74mm, anchor=north west] (ploss) at ($(loss.south west)+(0,-5mm)$)
+   \quad (constant quantile from train prices)\\[3pt]
+   losses use $\hat y / y_{\text{scale}}$ and $p / p_{\text{scale}}$ (train split):\\
+   \quad $y_{\text{scale}}$ = std of $y(t){-}y(t{-}24\text{h})$, $p_{\text{scale}}$ = mean $p_{da}$};
+\node[tn, text width=62mm, anchor=north west] (ploss) at ($(loss.south west)+(0,-5mm)$)
   {\textbf{Price loss} (cost model only)\\[3pt]
    \footnotesize
-   $\text{mean}\big[(\log\hat p - \log(p/100))^2\big]$ over $p_o,\ p_u$\\
+   relative squared error, real prices:\\
+   \quad $\text{mean}\big[((\hat p - p)/p)^2\big]$ over $p_{da},\ p_o,\ p_u$\\
    total loss $=$ demand loss $+\; 1.0 \times$ price loss};
-\node[tn, text width=74mm, anchor=north west] (opt) at ($(ploss.south west)+(0,-5mm)$)
+\node[tn, text width=62mm, anchor=north west] (opt) at ($(ploss.south west)+(0,-5mm)$)
   {\textbf{Optimiser}\\[3pt]
    \footnotesize
-   AdamW, lr $10^{-3}$\\
-   weight decay $0.05$, on Linear weights only\\
+   Adam, lr $10^{-3}$, no weight decay\\
    300 epochs, fixed (no early stopping)\\
    batches of 5\,000 slots, reshuffled every epoch\\
    train 2023-04 \ldots\ 2024-12, \; test 2025};
@@ -150,17 +159,17 @@
 \end{scope}
 
 % ---------------------------------------------------------------- legend
-\node[anchor=north west, font=\footnotesize, draw=black!25, rounded corners=3pt,
-      inner sep=6pt] (leg) at (10.3, -19.6)
-  {\begin{tabular}{@{}l@{\;}l@{\qquad}l@{\;}l@{}}
+\node[anchor=north, font=\footnotesize, draw=black!25, rounded corners=3pt,
+      inner sep=6pt] (leg) at (6.3, -24.0)
+  {\begin{tabular}{@{}l@{\;}l@{\qquad}l@{\;}l@{\qquad}l@{\;}l@{}}
    \tikz\node[inp,swatch]{}; & inputs &
-   \tikz\node[dh,swatch]{}; & demand head\\[3pt]
-   \tikz\node[pre,swatch]{}; & preprocessing &
-   \tikz\node[ph,swatch]{}; & price head\\[3pt]
    \tikz\node[tr,swatch]{}; & shared trunk &
+   \tikz\node[ph,swatch]{}; & price head\\[3pt]
+   \tikz\node[pre,swatch]{}; & preprocessing &
+   \tikz\node[dh,swatch]{}; & demand head &
    \tikz\node[tn,swatch]{}; & training only\\[3pt]
-   \multicolumn{4}{@{}l@{}}{\tikz[baseline=-0.6ex]\draw[arr,draw=inD,line width=1.1pt](0,0)--(6mm,0);
-     \; raw history, attention only (not a network input)}
+   \multicolumn{6}{@{}l@{}}{\tikz[baseline=-0.6ex]\draw[raw](0,0)--(6mm,0);
+     \; raw history ($\geq$ 24 h old), used only by an attention, never a network input}
    \end{tabular}};
 
 \end{tikzpicture}

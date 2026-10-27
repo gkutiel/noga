@@ -20,7 +20,7 @@ uv run -m noga.price
 # Train one model (refuses if tracked files are uncommitted); short names:
 # mse, l1, med, opt, p95, cost. TensorBoard runs: logs/<YYYY-MM-DD-HH-MM>-<sha>-<short>
 # with cost/train, cost/test (every 50 epochs, M₪/yr), loss/<name>,
-# price/{train,test} (cost model only: MSE of predicted log p_o, log p_u).
+# price/{train,test} (cost model only: relative squared error of predicted p_da, p_o, p_u).
 uv run train cost [--seed N] [--price-seed N]
 
 # Train all variants, calibrate, evaluate (writes res/price_*.csv, tex/plot/*)
@@ -55,9 +55,9 @@ data/ims.he.csv ──► data/ims.csv   ──┘
 **Pricing (`noga/price.py`):** `synth()` draws per settlement period `p_o = alpha(1+eps)p_da` and `p_u = r*p_o` with `r in [5,20]` a noisy convex increasing function of `p_da` (`rho > 0`: scarcity variant, noise correlated with the system-wide demand surprise). `PriceParams` holds all generator parameters. A slot's own prices are never model inputs (the SMP is set after procurement decisions; only yesterday's price is an input); they enter only the `cost` loss, the post-hoc adjustments' fitting and the evaluation.
 
 **Model (`noga/model.py`):**
-- PyTorch Lightning `Model`: forecast `a * attention + b` (attention = softmax-weighted average of the `HISTORY_LEN` demand readings 24h earlier; `a = exp(s) > 0`, starts at 1; a, b per slot from the network); embeddings for month, day-of-week, 5-min time-of-day; 9 weather features; the day-ahead price 24h earlier (already public at decision time). The slot's own prices are never inputs. The demand history is used only by the attention (weighted average of the raw readings), not fed to the network. The network sees weather + price divided (not shifted) by their train-split mean, one scale per input group (`INPUT_GROUPS`: temp, wet bulb, humidity, price; `x_scale` buffer saved with the model).
-- The `cost` model (`PRICE_HEADS`) has auxiliary heads predicting log `p_o`, log `p_u` (multi-task loss, weight `PRICE_WEIGHT`); `predict_prices()` returns them.
-- `Data` is batch-indexable (use `dl()`), yields `(month, day, time, X, y, c)` with `c = [p_da, p_o, p_u] / P_SCALE`; `Data.meta` holds per-item context for evaluation.
+- PyTorch Lightning `Model`: forecast `a * attention + b` (attention = softmax-weighted average of the `HISTORY_LEN` demand readings 24h earlier; `a = exp(s) > 0`, starts at 1; a, b per slot from the network); the network's only inputs are embeddings for month, day-of-week, 5-min time-of-day (`max_norm=1`, so they stay on the weather's scale) and the 9 weather features (forecast for t), standardised per column with the train-split mean and std (`x_mean`/`x_std` buffers saved with the model). Plain Adam, no weight decay. All other inputs are ≥24h old and used only by attentions: the demand history (`HISTORY_LEN` readings ending t−24h) and the day-ahead price history (`PRICE_LEN` prices, `PRICE_STEP` rows = 30 min apart, ending t−24h). `X = [demand history | weather | price history]`. The slot's own prices are never inputs.
+- The `cost` model (`PRICE_HEADS`) has a price head on real prices: `p_da = a_p * attention(price history)`, `p_o = exp(s_o) p_da`, `p_u = exp(s_u) p_o` (multi-task loss: relative squared error, weight `PRICE_WEIGHT`); `predict_prices()` returns `(p_da, p_o, p_u)`.
+- `Data` is batch-indexable (use `dl()`), yields `(month, day, time, X, y, c)` in real units (MW, ₪/MWh; `c = [p_da, p_o, p_u]`). No fixed scale constants: the model's buffers `y_scale` (std of y(t)−y(t−24h), scales the shift b and the demand losses) and `p_scale` (mean p_da, scales prices in the losses) are set from the train split by `set_scale`, like `x_mean`/`x_std`; `predict`/`predict_prices` return MW and ₪/MWh; `Data.meta` holds per-item context for evaluation.
 - Splits: train 2023-04..2024-12, test 2025. Every model trains on train for a fixed `EPOCHS` (no early stopping); C1/C2 are fitted on the baselines' train predictions.
 - Models saved as `models/<short name>[-s<seed>][-p<price_seed>]…-<git sha>.pt` (non-default parts only, e.g. `cost-a1b2c3d.pt`, `p95-s1-p2-a1b2c3d.pt`). `train()` skips only if that exact file (same commit) exists; `--force` retrains. `load_model`/`pt.find` take a given `sha`, else the newest file, else the pre-sha name (`cost-s0-p0.pt`, the 42-model matrix). `noga.report` reuses a model of any commit.
 
