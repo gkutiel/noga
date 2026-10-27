@@ -41,7 +41,7 @@ M_EMBD = 2
 D_EMBD = 3
 T_EMBED = 3
 N_LAYERS = 2
-HIDDEN_SIZE = 8
+HIDDEN_SIZE = 12
 Y_SCALE = 100
 P_SCALE = 100
 # Mean scaled excess per slot -> M₪ per year.
@@ -106,7 +106,7 @@ class Model(pl.LightningModule):
             nn.Linear(N + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
             *[
                 nn.Sequential(
-                    # nn.LayerNorm(HIDDEN_SIZE),
+                    nn.LayerNorm(HIDDEN_SIZE),
                     nn.LeakyReLU(),
                     nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
                 ) for _ in range(N_LAYERS)
