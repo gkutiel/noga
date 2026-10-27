@@ -115,13 +115,23 @@ class Model(pl.LightningModule):
         # Shares the hidden representation with the demand forecast.
         self.price = (
             nn.Linear(HIDDEN_SIZE, 2) if name in PRICE_HEADS else None)
+        # Train-split mean/std of X (set by train() via set_scale); the network
+        # sees standardised inputs, the attention averages the raw history.
+        self.x_mean: Tensor
+        self.x_std: Tensor
+        self.register_buffer("x_mean", torch.zeros(N))
+        self.register_buffer("x_std", torch.ones(N))
+
+    def set_scale(self, X: Tensor):
+        self.x_mean.copy_(X.mean(0))
+        self.x_std.copy_(X.std(0).clamp_min(1e-6))
 
     def hidden(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
         f = torch.concat([
             self.month(month),
             self.day(day),
             self.time(time),
-            X
+            (X - self.x_mean) / self.x_std
         ], dim=1)
         return self.net[:-1](f)
 
@@ -391,6 +401,7 @@ def train(
 
     train_ds, test_ds = load_data(price_seed=price_seed, params=params)
     model = Model(name=name, test=test_ds)
+    model.set_scale(train_ds.X)
     logger = TensorBoardLogger(
         "logs", name="",
         version=experiment(name, seed, price_seed, params, sha=sha))
