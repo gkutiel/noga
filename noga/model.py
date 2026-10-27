@@ -45,7 +45,11 @@ COST_PER_YEAR = 8760 / 1e6
 TEST_EVERY = 25  # epochs between cost/test evaluations
 
 DAY_IN_5_MIN = 288
-HISTORY_LEN = 10
+# Demand history: the same slot on each of the last HISTORY_LEN days,
+# HISTORY_STEP rows (one day) apart: t-7d ... t-24h, so the attention picks
+# which past day today resembles (yesterday, or last week after a weekend).
+HISTORY_LEN = 7
+HISTORY_STEP = DAY_IN_5_MIN
 FEATURES = [
     'temp_Haifa',
     'temp_Jerusalem',
@@ -78,10 +82,12 @@ PRICE_STEP = 6
 
 # X = [demand history | weather at t | price history].
 N = HISTORY_LEN + len(FEATURES) + PRICE_LEN
-# The network sees only the weather (plus the calendar embeddings); the demand
-# and price histories enter only through their attentions.
-WEATHER = slice(HISTORY_LEN, HISTORY_LEN + len(FEATURES))
-N_NET = len(FEATURES)
+# Columns of X the network sees (plus the calendar embeddings): the weather and
+# the day-ahead price at t-24h (the last price-history column), so the forecast
+# margin can follow the expected price level. The rest of the demand and price
+# histories enter only through their attentions.
+NET_COLS = [*range(HISTORY_LEN, HISTORY_LEN + len(FEATURES)), N - 1]
+N_NET = len(NET_COLS)
 
 
 class Model(pl.LightningModule):
@@ -131,7 +137,8 @@ class Model(pl.LightningModule):
         # Data is in real units (MW, ₪/MWh); these train-split scales, set by
         # train() via set_scale and saved with the model, keep the network's
         # inputs, outputs and losses ~1:
-        #   x_mean, x_std  weather mean and std per column (standardised)
+        #   x_mean, x_std  mean and std of each network input column (weather,
+        #                  price at t-24h; standardised)
         #   y_scale  std of the day-over-day demand change y(t) - y(t-24h),
         #            the scale of the shift b and of the demand losses
         #   p_scale  mean day-ahead price, the price scale in the losses
@@ -145,8 +152,8 @@ class Model(pl.LightningModule):
         self.register_buffer("p_scale", torch.tensor(1.0))
 
     def set_scale(self, ds: "Data"):
-        self.x_mean.copy_(ds.X[:, WEATHER].mean(0))
-        self.x_std.copy_(ds.X[:, WEATHER].std(0))
+        self.x_mean.copy_(ds.X[:, NET_COLS].mean(0))
+        self.x_std.copy_(ds.X[:, NET_COLS].std(0))
         self.y_scale.fill_((ds.y - ds.X[:, HISTORY_LEN - 1]).std())
         self.p_scale.fill_(ds.c[:, 0].mean())
 
@@ -160,7 +167,7 @@ class Model(pl.LightningModule):
             self.month(month),
             self.day(day),
             self.time(time),
-            (X[:, WEATHER] - self.x_mean) / self.x_std
+            (X[:, NET_COLS] - self.x_mean) / self.x_std
         ], dim=1)
         return self.net[:-1](f)
 
@@ -271,24 +278,26 @@ def with_prices(
 
 class Data(Dataset):
     '''
-    Each item predicts a slot t from data at least 24h old: the HISTORY_LEN
-    demand readings and the PRICE_LEN day-ahead prices ending 24h before t
-    (today's price is set only after the procurement decision), plus the
-    weather forecast for t. The first slots, without a full history, are
-    skipped.
+    Each item predicts a slot t from data at least 24h old: the demand at
+    the same slot on each of the last HISTORY_LEN days and the PRICE_LEN
+    day-ahead prices ending 24h before t (today's price is set only after the
+    procurement decision), plus the weather forecast for t. The first slots,
+    without a full history, are skipped. Both histories run oldest to newest,
+    so their last column is t-24h.
     Indexable by a list of indices, so a BatchSampler yields whole batches.
     '''
 
     def __init__(self, df: pd.DataFrame):
         df = df.reset_index(drop=True)
         start = DAY_IN_5_MIN + max(
-            HISTORY_LEN - 1, (PRICE_LEN - 1) * PRICE_STEP)
+            (HISTORY_LEN - 1) * HISTORY_STEP, (PRICE_LEN - 1) * PRICE_STEP)
         t = np.arange(start, len(df))
         lag = t - DAY_IN_5_MIN  # same slot yesterday
 
         # Real units throughout: MW, ₪/MWh (the model scales, see set_scale).
         y = torch.tensor(df["actual"].to_numpy(), dtype=torch.float32)
-        hist = y.unfold(0, HISTORY_LEN, 1)[lag - HISTORY_LEN + 1]
+        steps = np.arange(HISTORY_LEN - 1, -1, -1) * HISTORY_STEP
+        hist = y[lag[:, None] - steps]
 
         X = torch.tensor(df[FEATURES].to_numpy()[t], dtype=torch.float32)
         steps = np.arange(PRICE_LEN - 1, -1, -1) * PRICE_STEP

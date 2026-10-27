@@ -1,4 +1,4 @@
-% Flow diagram of the demand model (noga/model.py @ d8ddecf+dirty).
+% Flow diagram of the demand model (noga/model.py @ 96709cd+dirty).
 % Regenerate with the /draw-model command.
 \documentclass[tikz,border=8pt]{standalone}
 \usepackage[T1]{fontenc}
@@ -35,11 +35,11 @@
 
 % ---------------------------------------------------------------- title
 \node[font=\large\bfseries, anchor=west] (title) at (-6.2, 1.6)
-  {Demand model \quad{\normalfont\ttfamily\small noga/model.py @ d8ddecf+dirty}};
+  {Demand model \quad{\normalfont\ttfamily\small noga/model.py @ 96709cd+dirty}};
 
 % ---------------------------------------------------------------- inputs
 \node[inp, text width=36mm] (hist) at (-4.3, 0)
-  {\T{Demand history}{12 readings, MW\\$t{-}24\text{h}{-}55\text{m}\;\ldots\;t{-}24\text{h}$}};
+  {\T{Demand history}{same slot, last 7 days, MW\\$t{-}7\text{d}\;\ldots\;t{-}1\text{d}$}};
 \node[inp, text width=34mm] (cal) at (0, 0)
   {\T{Calendar}{month (12) $\cdot$ weekday (7)\\5-min slot of day (288)}};
 \node[inp, text width=36mm] (wx) at (4.3, 0)
@@ -48,28 +48,29 @@
   {\T{Day-ahead price history}{4 prices 30 min apart, ILS/MWh\\$t{-}24\text{h}{-}1.5\text{h}\;\ldots\;t{-}24\text{h}$}};
 \node[font=\footnotesize\itshape, text=phD, anchor=south east]
   at ($(ph.north east)+(0,1mm)$) {not inputs: $p_{da}(t),\ p_o(t),\ p_u(t)$};
-\node[font=\footnotesize\itshape, text=inD, align=center] at (9.2, 0)
-  {network input: calendar + weather only\\histories $\geq$ 24 h old, used only by attention};
+\node[font=\footnotesize\itshape, text=inD, align=center] at (9.7, 0)
+  {network input: calendar, weather,\\and $p_{da}(t{-}24\text{h})$ only};
 
 % ---------------------------------------------------------------- preprocessing
 \node[pre, text width=34mm] (emb) at (0, -2.3)
   {\T{Embeddings}{\texttt{Embedding(12,\,2)} $\to$ 2\\\texttt{Embedding(7,\,2)} $\to$ 2\\\texttt{Embedding(288,\,2)} $\to$ 2\\each vector: norm $\leq 1$}};
 \node[pre, text width=36mm] (scale) at (4.3, -2.3)
-  {\T{Standardise weather}{$(x - \mu) \,/\, \sigma$ per column\\$\mu,\ \sigma$ = train mean, std}};
+  {\T{Standardise}{weather $+$ $p_{da}(t{-}24\text{h})$\\$(x - \mu) \,/\, \sigma$ per column\\train $\mu,\ \sigma$}};
 
 \draw[arr] (cal) -- node[w,right]{3 indices} (emb);
 \draw[arr] (wx) -- node[w,right]{9} (scale);
+\draw[arr, draw=inD] ($(ph.south west)+(4mm,0)$) |- node[w,pos=0.75,above,text=inD]{$p_{da}(t{-}24\text{h})$, 1} (scale.east);
 
 % ---------------------------------------------------------------- concat
 \node[tr, text width=56mm] (cat) at (2.15, -4.5)
-  {\T{Concatenate}{$2 + 2 + 2 + 9 = 15$}};
+  {\T{Concatenate}{$2 + 2 + 2 + 9 + 1 = 16$}};
 \draw[arr] (emb.south) -- node[w,right]{6} (emb.south |- cat.north);
-\draw[arr] (scale.south) -- node[w,right]{9} (scale.south |- cat.north);
+\draw[arr] (scale.south) -- node[w,right]{10} (scale.south |- cat.north);
 
 % ---------------------------------------------------------------- trunk
-\node[tr, text width=40mm] (l0) at (2.15, -6.2) {\T{Linear}{$15 \to 16$}};
+\node[tr, text width=40mm] (l0) at (2.15, -6.2) {\T{Linear}{$16 \to 16$}};
 \node[tr, text width=40mm] (ln) at (2.15, -8.1) {\T{LayerNorm}{16}};
-\node[tr, text width=40mm, minimum height=8mm] (act1) at (2.15, -9.4) {\textbf{LeakyReLU}};
+\node[tr, text width=40mm, minimum height=8mm] (act1) at (2.15, -9.4) {\textbf{LeakyReLU} $\to$ \textbf{Dropout} 0.1};
 \node[tr, text width=40mm] (l1) at (2.15, -10.7) {\T{Linear}{$16 \to 16$}};
 \begin{scope}[on background layer]
   \node[draw=trD, dashed, rounded corners=4pt, fill=trF!40,
@@ -82,7 +83,7 @@
 \node[tr, text width=40mm, line width=1.5pt] (z) at (2.15, -14.2)
   {\T{Shared features $z$}{16}};
 
-\draw[arr] (cat) -- node[w,right]{15} (l0);
+\draw[arr] (cat) -- node[w,right]{16} (l0);
 \draw[arr] (l0) -- node[w,right]{16} (ln);
 \draw[arr] (ln) -- (act1);
 \draw[arr] (act1) -- (l1);
@@ -90,9 +91,9 @@
 \draw[arr] (act2) -- (z);
 
 % ---------------------------------------------------------------- demand head
-\node[dh, text width=40mm] (dl) at (2.15, -16.2) {\T{Demand head: Linear}{$16 \to 14$}};
+\node[dh, text width=40mm] (dl) at (2.15, -16.2) {\T{Demand head: Linear}{$16 \to 9$}};
 \node[dh, text width=32mm] (logit) at (0, -18.2)
-  {\T{Attention logits}{12 $\to$ softmax $\to$ $w_1 \ldots w_{12}$}};
+  {\T{Attention logits}{7 $\to$ softmax $\to$ $w_1 \ldots w_7$}};
 \node[dh, text width=30mm] (ab) at (4.4, -18.2)
   {\T{Scale and shift}{$a = e^{s} > 0$, starts at 1\\$b = \tilde b \cdot y_{\text{scale}}$}};
 \node[dh, text width=32mm] (att) at (0, -20.1)
@@ -101,12 +102,12 @@
   {\T{Demand forecast}{$\hat y = a \cdot \text{att} + b$ \quad (MW)}};
 
 \draw[arr] (z) -- node[w,right]{16} (dl);
-\draw[arr] ($(dl.south)+(-6mm,0)$) |- ($(logit.north)+(0,4mm)$) -- node[w,right]{12} (logit.north);
+\draw[arr] ($(dl.south)+(-6mm,0)$) |- ($(logit.north)+(0,4mm)$) -- node[w,right]{7} (logit.north);
 \draw[arr] ($(dl.south)+(6mm,0)$)  |- ($(ab.north)+(0,4mm)$) -- node[w,right]{2} (ab.north);
 \draw[arr] (logit) -- (att);
 \draw[arr] (att.south) -- (att.south |- yhat.north);
 \draw[arr] (ab.south) -- (ab.south |- yhat.north);
-\draw[raw] (hist.south) -- (hist.south |- att) -- node[w,above,text=inD]{12} (att.west);
+\draw[raw] (hist.south) -- (hist.south |- att) -- node[w,above,text=inD]{7} (att.west);
 
 % ---------------------------------------------------------------- price head
 \node[ph, text width=40mm] (pl) at (10.4, -16.2) {\T{Price head: Linear}{$16 \to 7$}};
@@ -149,7 +150,7 @@
 \node[tn, text width=62mm, anchor=north west] (opt) at ($(ploss.south west)+(0,-5mm)$)
   {\textbf{Optimiser}\\[3pt]
    \footnotesize
-   Adam, lr $10^{-3}$, no weight decay\\
+   Adam, lr $10^{-3}$, no weight decay; dropout 0.1 in the trunk\\
    300 epochs, fixed (no early stopping)\\
    batches of 5\,000 slots, reshuffled every epoch\\
    train 2023-04 \ldots\ 2024-12, \; test 2025};
@@ -169,7 +170,7 @@
    \tikz\node[dh,swatch]{}; & demand head &
    \tikz\node[tn,swatch]{}; & training only\\[3pt]
    \multicolumn{6}{@{}l@{}}{\tikz[baseline=-0.6ex]\draw[raw](0,0)--(6mm,0);
-     \; raw history ($\geq$ 24 h old), used only by an attention, never a network input}
+     \; raw history ($\geq$ 24 h old) into an attention (only $p_{da}(t{-}24\text{h})$ also enters the network)}
    \end{tabular}};
 
 \end{tikzpicture}
