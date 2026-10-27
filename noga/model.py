@@ -239,6 +239,7 @@ class Model(pl.LightningModule):
         if self.test is None or (epoch % TEST_EVERY and epoch != 1):
             return
         t = self.test
+        self.eval()  # no dropout, as in predict()
         with torch.no_grad():
             z = self.hidden(t.month, t.day, t.time, t.X)
             pred = self.demand(z, t.X)
@@ -246,6 +247,7 @@ class Model(pl.LightningModule):
             self.log("cost/test", cost, prog_bar=True)
             if self.price is not None:
                 self.log("price/test", self.price_loss(z, t.X, t.c))
+        self.train()
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=LR)
