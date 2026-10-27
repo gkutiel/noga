@@ -31,7 +31,7 @@ BATCH_SIZE = 5_000
 # or embeddings); each step shrinks them by LR * WEIGHT_DECAY, so small values
 # (1e-2 shrinks ~11% over 3000 epochs) barely act.
 LR = 1e-3
-WEIGHT_DECAY = 0.1
+WEIGHT_DECAY = 0.01
 # First test day; training uses everything before it. 2025-07-01 is the second
 # rolling-origin fold (test 2025-H2). Set with the NOGA_TRAIN_END variable.
 TRAIN_END = os.environ.get("NOGA_TRAIN_END", "2025-01-01")
@@ -79,8 +79,14 @@ PRICE_WEIGHT = 1.0
 AFFINE_HEAD = os.environ.get("NOGA_AFFINE_HEAD") == "1"
 
 
-# + log of the day-ahead price 24h before t (published before the decision).
+# + the day-ahead price 24h before t (published before the decision).
 N = len(FEATURES) + HISTORY_LEN + 1
+# Columns of X sharing one scale: the history, each weather variable over the
+# stations (temp_Haifa, temp_Jerusalem, ... -> temp), yesterday's price.
+INPUT_GROUPS = [list(range(HISTORY_LEN))] + [
+    [HISTORY_LEN + i for i, f in enumerate(FEATURES) if f.rsplit("_", 1)[0] == g]
+    for g in dict.fromkeys(f.rsplit("_", 1)[0] for f in FEATURES)
+] + [[N - 1]]
 
 
 class Model(pl.LightningModule):
@@ -116,13 +122,22 @@ class Model(pl.LightningModule):
         # Shares the hidden representation with the demand forecast.
         self.price = (
             nn.Linear(HIDDEN_SIZE, 2) if name in PRICE_HEADS else None)
+        # The network sees X divided by its train-split mean per input group
+        # (values ~1, no shift, so relative changes are kept); set by train()
+        # via set_scale. The attention averages the raw history.
+        self.x_scale: Tensor
+        self.register_buffer("x_scale", torch.ones(N))
+
+    def set_scale(self, X: Tensor):
+        for g in INPUT_GROUPS:
+            self.x_scale[g] = X[:, g].mean()
 
     def hidden(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
         f = torch.concat([
             self.month(month),
             self.day(day),
             self.time(time),
-            X
+            X / self.x_scale
         ], dim=1)
         return self.net[:-1](f)
 
@@ -235,7 +250,7 @@ class Data(Dataset):
 
         X = torch.tensor(df[FEATURES].to_numpy()[t], dtype=torch.float32)
         lag_p = torch.tensor(
-            np.log(df[P_DA].to_numpy()[t - DAY_IN_5_MIN] / P_SCALE),
+            df[P_DA].to_numpy()[t - DAY_IN_5_MIN] / P_SCALE,
             dtype=torch.float32)
         X = torch.concat([X, lag_p[:, None]], dim=1)
 
@@ -392,6 +407,7 @@ def train(
 
     train_ds, test_ds = load_data(price_seed=price_seed, params=params)
     model = Model(name=name, test=test_ds)
+    model.set_scale(train_ds.X)
     logger = TensorBoardLogger(
         "logs", name="",
         version=experiment(name, seed, price_seed, params, sha=sha))
