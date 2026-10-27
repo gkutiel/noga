@@ -25,8 +25,8 @@ from noga.price import P_DA, P_O, P_U, SURPRISE, PriceParams, synth
 # TRAIN
 # Fixed for every model, no early stopping (the cost on a held-out window is
 # too noisy to select a stopping point).
-EPOCHS = 400
-BATCH_SIZE = 10_000
+EPOCHS = 500
+BATCH_SIZE = 5_000
 # AdamW for every model. Decay applies to the Linear weights only (not biases
 # or embeddings); each step shrinks them by LR * WEIGHT_DECAY, so small values
 # (1e-2 shrinks ~11% over 3000 epochs) barely act.
