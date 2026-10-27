@@ -106,7 +106,7 @@ class Model(pl.LightningModule):
             nn.Linear(N + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
             *[
                 nn.Sequential(
-                    nn.LayerNorm(HIDDEN_SIZE),
+                    # nn.LayerNorm(HIDDEN_SIZE),
                     nn.LeakyReLU(),
                     nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
                 ) for _ in range(N_LAYERS)
