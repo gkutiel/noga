@@ -49,7 +49,7 @@ COST_PER_YEAR = Y_SCALE * P_SCALE * 8760 / 1e6
 TEST_EVERY = 50  # epochs between cost/test evaluations
 
 DAY_IN_5_MIN = 288
-HISTORY_LEN = 10
+HISTORY_LEN = 24
 FEATURES = [
     'temp_Haifa',
     'temp_Jerusalem',
