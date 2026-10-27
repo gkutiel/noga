@@ -84,8 +84,8 @@ PRICE_STEP = 6
 N = HISTORY_LEN + len(FEATURES) + PRICE_LEN
 # Columns of X the network sees (plus the calendar embeddings): the weather and
 # the day-ahead price at t-24h (the last price-history column), so the forecast
-# margin can follow the expected price level. The rest of the demand and price
-# histories enter only through their attentions.
+# margin can follow the expected price level. The rest of the demand history
+# enters only through its attention; the earlier prices are unused.
 NET_COLS = [*range(HISTORY_LEN, HISTORY_LEN + len(FEATURES)), N - 1]
 N_NET = len(NET_COLS)
 
@@ -126,16 +126,17 @@ class Model(pl.LightningModule):
         with torch.no_grad():  # start from a = 1
             head.weight[HISTORY_LEN].zero_()
             head.bias[HISTORY_LEN].zero_()
-        # Shares the hidden representation with the demand forecast.
-        # Attention logits over the price history, log a, log(p_o/p_da),
-        # log(p_u/p_o) (see price_pred).
+        # Predicts the prices from the hidden representation alone (no price
+        # attention), so the features the demand head reads must carry the
+        # price information: log(p / c_mean) for p_da, p_o, p_u (see
+        # price_pred).
         self.price = (
-            nn.Linear(HIDDEN_SIZE, PRICE_LEN + 3)
+            nn.Linear(HIDDEN_SIZE, 3)
             if name in PRICE_HEADS else None)
         if self.price is not None:
-            with torch.no_grad():  # start from a = 1
-                self.price.weight[PRICE_LEN].zero_()
-                self.price.bias[PRICE_LEN].zero_()
+            with torch.no_grad():  # start from the train means
+                self.price.weight.zero_()
+                self.price.bias.zero_()
         # Data is in real units (MW, ₪/MWh); these train-split scales, set by
         # train() via set_scale and saved with the model, keep the network's
         # inputs, outputs and losses ~1:
@@ -144,20 +145,24 @@ class Model(pl.LightningModule):
         #   y_scale  std of the day-over-day demand change y(t) - y(t-24h),
         #            the scale of the shift b and of the demand losses
         #   p_scale  mean day-ahead price, the price scale in the losses
+        #   c_mean   mean p_da, p_o, p_u, the price head's base level
         self.x_mean: Tensor
         self.x_std: Tensor
         self.y_scale: Tensor
         self.p_scale: Tensor
+        self.c_mean: Tensor
         self.register_buffer("x_mean", torch.zeros(N_NET))
         self.register_buffer("x_std", torch.ones(N_NET))
         self.register_buffer("y_scale", torch.tensor(1.0))
         self.register_buffer("p_scale", torch.tensor(1.0))
+        self.register_buffer("c_mean", torch.ones(3))
 
     def set_scale(self, ds: "Data"):
         self.x_mean.copy_(ds.X[:, NET_COLS].mean(0))
         self.x_std.copy_(ds.X[:, NET_COLS].std(0))
         self.y_scale.fill_((ds.y - ds.X[:, HISTORY_LEN - 1]).std())
         self.p_scale.fill_(ds.c[:, 0].mean())
+        self.c_mean.copy_(ds.c.mean(0))
 
     def scaled_loss(self, pred: Tensor, y: Tensor, c: Tensor):
         '''The training loss on scaled demand and prices.'''
@@ -190,25 +195,17 @@ class Model(pl.LightningModule):
     def forward(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
         return self.demand(self.hidden(month, day, time, X), X)
 
-    def price_pred(self, z: Tensor, X: Tensor):
+    def price_pred(self, z: Tensor):
         '''
-        Predicted (p_da, p_o, p_u) in ₪/MWh:
-            p_da = a * attention(price history),  a = exp(s) > 0
-            p_o  = exp(s_o) * p_da,  p_u = exp(s_u) * p_o
-        All positive, since the price history is.
+        Predicted (p_da, p_o, p_u) in ₪/MWh, from the shared features only:
+            p = c_mean * exp(out),  positive, starts at the train means.
         '''
         assert self.price is not None
-        hist = X[:, -PRICE_LEN:]
-        out = self.price(z)
-        att = (hist * torch.softmax(out[:, :PRICE_LEN], dim=1)).sum(dim=1)
-        p_da = torch.exp(out[:, PRICE_LEN]) * att
-        p_o = torch.exp(out[:, PRICE_LEN + 1]) * p_da
-        p_u = torch.exp(out[:, PRICE_LEN + 2]) * p_o
-        return torch.stack([p_da, p_o, p_u], dim=1)
+        return self.c_mean * torch.exp(self.price(z))
 
     def prices(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
         '''Predicted (p_da, p_o, p_u) in ₪/MWh.'''
-        return self.price_pred(self.hidden(month, day, time, X), X)
+        return self.price_pred(self.hidden(month, day, time, X))
 
     def training_step(self, batch, batch_idx):
         month, day, time, X, y, c = batch
@@ -224,18 +221,18 @@ class Model(pl.LightningModule):
         self.log_epoch("cost/train", cost, len(y), prog_bar=True)
 
         if self.price is not None:
-            price_loss = self.price_loss(z, X, c)
+            price_loss = self.price_loss(z, c)
             self.log_epoch("price/train", price_loss, len(y))
             loss = loss + PRICE_WEIGHT * price_loss
 
         return loss
 
-    def price_loss(self, z: Tensor, X: Tensor, c: Tensor):
+    def price_loss(self, z: Tensor, c: Tensor):
         '''
         Relative squared error of (p_da, p_o, p_u): real scale, but p_u's
         spikes don't dominate.
         '''
-        return torch.mean(((self.price_pred(z, X) - c) / c) ** 2)
+        return torch.mean(((self.price_pred(z) - c) / c) ** 2)
 
     def log_epoch(self, name: str, value: Tensor, batch_size: int,
                   prog_bar: bool = False):
@@ -255,7 +252,7 @@ class Model(pl.LightningModule):
             cost = loss_fns["cost"](pred, t.y, t.c) * COST_PER_YEAR
             self.log("cost/test", cost, prog_bar=True)
             if self.price is not None:
-                self.log("price/test", self.price_loss(z, t.X, t.c))
+                self.log("price/test", self.price_loss(z, t.c))
         self.train()
 
     def configure_optimizers(self):
