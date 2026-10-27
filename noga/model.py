@@ -45,11 +45,11 @@ COST_PER_YEAR = 8760 / 1e6
 TEST_EVERY = 25  # epochs between cost/test evaluations
 
 DAY_IN_5_MIN = 288
-# Demand history: the same slot on each of the last HISTORY_LEN days,
-# HISTORY_STEP rows (one day) apart: t-7d ... t-24h, so the attention picks
-# which past day today resembles (yesterday, or last week after a weekend).
-HISTORY_LEN = 3
-HISTORY_STEP = DAY_IN_5_MIN
+# Demand history: HISTORY_LEN readings ending 24h before t, HISTORY_STEP rows
+# (5 min) apart: t-24h-45min ... t-24h. (Same-slot past days, HISTORY_STEP =
+# DAY_IN_5_MIN, were no better in a per-calendar ridge check.)
+HISTORY_LEN = 10
+HISTORY_STEP = 1
 FEATURES = [
     'temp_Haifa',
     'temp_Jerusalem',
@@ -66,6 +66,11 @@ FEATURES = [
     # 'wind_speed_m_s_Jerusalem',
     # 'wind_speed_m_s_TelAviv',
 ]
+N_W = len(FEATURES)
+# Weather features per day: one shared Linear + LeakyReLU maps the weather at
+# t and at t-24h alike, so the trunk can compare the same learned features
+# (e.g. cooling need) today vs yesterday, whose demand the attention reads.
+W_PROJ = 4
 
 # Models whose training depends on the synthetic price draw.
 PRICE_DEPENDENT: set[Name] = {
@@ -74,19 +79,24 @@ PRICE_DEPENDENT: set[Name] = {
 # only; the slot's own prices are targets, never inputs).
 PRICE_HEADS: set[Name] = {"cost"}
 PRICE_WEIGHT = 1.0
+PRICE_TAGS = ["da", "o", "u"]  # TensorBoard price/<tag>/{train,test}, order of c
 # Day-ahead price history: PRICE_LEN prices ending 24h before t, PRICE_STEP
 # rows (30 min, one settlement period) apart: t-24h-1.5h ... t-24h.
 PRICE_LEN = 4
 PRICE_STEP = 6
 
 
-# X = [demand history | weather at t | price history].
-N = HISTORY_LEN + len(FEATURES) + PRICE_LEN
-# Columns of X the network sees (plus the calendar embeddings): the weather and
-# the day-ahead price at t-24h (the last price-history column), so the forecast
-# margin can follow the expected price level. The rest of the demand history
-# enters only through its attention; the earlier prices are unused.
-NET_COLS = [*range(HISTORY_LEN, HISTORY_LEN + len(FEATURES)), N - 1]
+# X = [demand history | weather at t | weather at t-24h | price history].
+N = HISTORY_LEN + 2 * N_W + PRICE_LEN
+W_COLS = [*range(HISTORY_LEN, HISTORY_LEN + N_W)]
+W_PREV_COLS = [*range(HISTORY_LEN + N_W, HISTORY_LEN + 2 * N_W)]
+# Columns of X with their own train mean/std: the weather at t and the
+# day-ahead price at t-24h (the last price-history column, a network input so
+# the forecast margin can follow the expected price level). The weather at
+# t-24h uses the weather at t's statistics, so equal weather maps equal. The
+# rest of the demand history enters only through its attention; the earlier
+# prices are unused.
+NET_COLS = [*W_COLS, N - 1]
 N_NET = len(NET_COLS)
 
 
@@ -104,9 +114,11 @@ class Model(pl.LightningModule):
         self.day = nn.Embedding(7, D_EMBD, max_norm=1)
         self.month = nn.Embedding(12, M_EMBD, max_norm=1)
         self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED, max_norm=1)
+        # Shared by the weather at t and at t-24h (see W_PROJ).
+        self.weather = nn.Sequential(nn.Linear(N_W, W_PROJ), nn.LeakyReLU())
 
         self.net = nn.Sequential(
-            nn.Linear(N_NET + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
+            nn.Linear(D_EMBD + M_EMBD + T_EMBED + 2 * W_PROJ + 1, HIDDEN_SIZE),
             nn.LeakyReLU(),
             nn.LayerNorm(HIDDEN_SIZE),
             nn.Dropout(DROPOUT),
@@ -140,8 +152,9 @@ class Model(pl.LightningModule):
         # Data is in real units (MW, ₪/MWh); these train-split scales, set by
         # train() via set_scale and saved with the model, keep the network's
         # inputs, outputs and losses ~1:
-        #   x_mean, x_std  mean and std of each network input column (weather,
-        #                  price at t-24h; standardised)
+        #   x_mean, x_std  mean and std of each NET_COLS column (weather at t,
+        #                  price at t-24h; standardised); the weather at t-24h
+        #                  reuses the weather's
         #   y_scale  std of the day-over-day demand change y(t) - y(t-24h),
         #            the scale of the shift b and of the demand losses
         #   p_scale  mean day-ahead price, the price scale in the losses
@@ -170,11 +183,15 @@ class Model(pl.LightningModule):
             pred / self.y_scale, y / self.y_scale, c / self.p_scale)
 
     def hidden(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
+        x = (X[:, NET_COLS] - self.x_mean) / self.x_std
+        w_prev = (X[:, W_PREV_COLS] - self.x_mean[:N_W]) / self.x_std[:N_W]
         f = torch.concat([
             self.month(month),
             self.day(day),
             self.time(time),
-            (X[:, NET_COLS] - self.x_mean) / self.x_std
+            self.weather(x[:, :N_W]),
+            self.weather(w_prev),
+            x[:, N_W:],  # price at t-24h
         ], dim=1)
         return self.net[:-1](f)
 
@@ -221,18 +238,21 @@ class Model(pl.LightningModule):
         self.log_epoch("cost/train", cost, len(y), prog_bar=True)
 
         if self.price is not None:
-            price_loss = self.price_loss(z, c)
+            errors = self.price_errors(z, c)
+            price_loss = errors.mean()
             self.log_epoch("price/train", price_loss, len(y))
+            for p, e in zip(PRICE_TAGS, errors):
+                self.log_epoch(f"price/{p}/train", e, len(y))
             loss = loss + PRICE_WEIGHT * price_loss
 
         return loss
 
-    def price_loss(self, z: Tensor, c: Tensor):
+    def price_errors(self, z: Tensor, c: Tensor):
         '''
-        Relative squared error of (p_da, p_o, p_u): real scale, but p_u's
-        spikes don't dominate.
+        Relative squared error of each of (p_da, p_o, p_u), shape (3,): real
+        scale, but p_u's spikes don't dominate. The price loss is their mean.
         '''
-        return torch.mean(((self.price_pred(z) - c) / c) ** 2)
+        return torch.mean(((self.price_pred(z) - c) / c) ** 2, dim=0)
 
     def log_epoch(self, name: str, value: Tensor, batch_size: int,
                   prog_bar: bool = False):
@@ -252,7 +272,10 @@ class Model(pl.LightningModule):
             cost = loss_fns["cost"](pred, t.y, t.c) * COST_PER_YEAR
             self.log("cost/test", cost, prog_bar=True)
             if self.price is not None:
-                self.log("price/test", self.price_loss(z, t.c))
+                errors = self.price_errors(z, t.c)
+                self.log("price/test", errors.mean())
+                for p, e in zip(PRICE_TAGS, errors):
+                    self.log(f"price/{p}/test", e)
         self.train()
 
     def configure_optimizers(self):
@@ -277,10 +300,11 @@ def with_prices(
 
 class Data(Dataset):
     '''
-    Each item predicts a slot t from data at least 24h old: the demand at
-    the same slot on each of the last HISTORY_LEN days and the PRICE_LEN
+    Each item predicts a slot t from data at least 24h old: the HISTORY_LEN
+    demand readings ending 24h before t (HISTORY_STEP apart) and the PRICE_LEN
     day-ahead prices ending 24h before t (today's price is set only after the
-    procurement decision), plus the weather forecast for t. The first slots,
+    procurement decision), plus the weather forecast for t and the weather
+    at t-24h. The first slots,
     without a full history, are skipped. Both histories run oldest to newest,
     so their last column is t-24h.
     Indexable by a list of indices, so a BatchSampler yields whole batches.
@@ -298,7 +322,9 @@ class Data(Dataset):
         steps = np.arange(HISTORY_LEN - 1, -1, -1) * HISTORY_STEP
         hist = y[lag[:, None] - steps]
 
-        X = torch.tensor(df[FEATURES].to_numpy()[t], dtype=torch.float32)
+        weather = df[FEATURES].to_numpy()
+        X = torch.tensor(
+            np.hstack([weather[t], weather[lag]]), dtype=torch.float32)
         steps = np.arange(PRICE_LEN - 1, -1, -1) * PRICE_STEP
         p_hist = torch.tensor(
             df[P_DA].to_numpy()[lag[:, None] - steps], dtype=torch.float32)
