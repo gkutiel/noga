@@ -38,10 +38,10 @@ TRAIN_END = os.environ.get("NOGA_TRAIN_END", "2025-01-01")
 
 # MODEL
 M_EMBD = 2
-D_EMBD = 3
-T_EMBED = 3
+D_EMBD = 2
+T_EMBED = 2
 N_LAYERS = 2
-HIDDEN_SIZE = 12
+HIDDEN_SIZE = 16
 Y_SCALE = 100
 P_SCALE = 100
 # Mean scaled excess per slot -> M₪ per year.
@@ -74,20 +74,19 @@ PRICE_DEPENDENT: set[Name] = {
 # training only; the slot's own prices are targets, never inputs).
 PRICE_HEADS: set[Name] = {"cost"}
 PRICE_WEIGHT = 1.0
-# Forecast = a * attention + b (a = exp(s) > 0, per slot) instead of
-# attention + b. Models get an "-ab" file suffix. Set NOGA_AFFINE_HEAD=1.
-AFFINE_HEAD = os.environ.get("NOGA_AFFINE_HEAD") == "1"
 
 
 # + the day-ahead price 24h before t (published before the decision).
 N = len(FEATURES) + HISTORY_LEN + 1
-# Columns of X sharing one scale: the history, each weather variable over the
-# stations (temp_Haifa, temp_Jerusalem, ... -> temp), yesterday's price.
-INPUT_GROUPS = [list(range(HISTORY_LEN))] + [
-    [HISTORY_LEN + i for i,
-        f in enumerate(FEATURES) if f.rsplit("_", 1)[0] == g]
+# The network sees X[:, HISTORY_LEN:] (weather + price); the history enters
+# only through the attention.
+N_NET = N - HISTORY_LEN
+# Columns of X[:, HISTORY_LEN:] sharing one scale: each weather variable over
+# the stations (temp_Haifa, temp_Jerusalem, ... -> temp), yesterday's price.
+INPUT_GROUPS = [
+    [i for i, f in enumerate(FEATURES) if f.rsplit("_", 1)[0] == g]
     for g in dict.fromkeys(f.rsplit("_", 1)[0] for f in FEATURES)
-] + [[N - 1]]
+] + [[N_NET - 1]]
 
 
 class Model(pl.LightningModule):
@@ -103,7 +102,7 @@ class Model(pl.LightningModule):
         self.time = nn.Embedding(DAY_IN_5_MIN, T_EMBED)
 
         self.net = nn.Sequential(
-            nn.Linear(N + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
+            nn.Linear(N_NET + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
             *[
                 nn.Sequential(
                     nn.LayerNorm(HIDDEN_SIZE),
@@ -112,46 +111,46 @@ class Model(pl.LightningModule):
                 ) for _ in range(N_LAYERS)
             ],
             nn.LeakyReLU(),
-            nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 1 + AFFINE_HEAD),
+            # Attention logits, log a, b (see demand).
+            nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 2),
         )
         # Created last so the seeded init matches earlier commits.
         head = cast(nn.Linear, self.net[-1])
-        if AFFINE_HEAD:  # start from a = 1
-            with torch.no_grad():
-                head.weight[HISTORY_LEN].zero_()
-                head.bias[HISTORY_LEN].zero_()
+        with torch.no_grad():  # start from a = 1
+            head.weight[HISTORY_LEN].zero_()
+            head.bias[HISTORY_LEN].zero_()
         # Shares the hidden representation with the demand forecast.
         self.price = (
             nn.Linear(HIDDEN_SIZE, 2) if name in PRICE_HEADS else None)
-        # The network sees X divided by its train-split mean per input group
-        # (values ~1, no shift, so relative changes are kept); set by train()
-        # via set_scale. The attention averages the raw history.
+        # The network sees weather + price divided by their train-split mean
+        # per input group (values ~1, no shift, so relative changes are kept);
+        # set by train() via set_scale.
         self.x_scale: Tensor
-        self.register_buffer("x_scale", torch.ones(N))
+        self.register_buffer("x_scale", torch.ones(N_NET))
 
     def set_scale(self, X: Tensor):
         for g in INPUT_GROUPS:
-            self.x_scale[g] = X[:, g].mean()
+            self.x_scale[g] = X[:, HISTORY_LEN:][:, g].mean()
 
     def hidden(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
         f = torch.concat([
             self.month(month),
             self.day(day),
             self.time(time),
-            X / self.x_scale
+            X[:, HISTORY_LEN:] / self.x_scale
         ], dim=1)
         return self.net[:-1](f)
 
     def demand(self, z: Tensor, X: Tensor):
+        '''Forecast = a * attention + b, a = exp(s) > 0, both per slot.'''
         hist = X[:, :HISTORY_LEN]
 
         out = self.net[-1](z)
 
-        hist = (hist * torch.softmax(out[:, :HISTORY_LEN], dim=1)).sum(dim=1)
-
-        if AFFINE_HEAD:
-            return torch.exp(out[:, HISTORY_LEN]) * hist + out[:, HISTORY_LEN + 1]
-        return hist + out[:, HISTORY_LEN]
+        att = (hist * torch.softmax(out[:, :HISTORY_LEN], dim=1)).sum(dim=1)
+        a = torch.exp(out[:, HISTORY_LEN])
+        b = out[:, HISTORY_LEN + 1]
+        return a * att + b
 
     def forward(self, month: Tensor, day: Tensor, time: Tensor, X: Tensor):
         return self.demand(self.hidden(month, day, time, X), X)
@@ -325,7 +324,6 @@ class pt:
             params: PriceParams = PriceParams()):
         # Non-default cut-offs get their own files (rolling-origin folds).
         end = "" if TRAIN_END == "2025-01-01" else f"-t{TRAIN_END[:7]}"
-        end += "-ab" if AFFINE_HEAD else ""
         if name not in PRICE_DEPENDENT:
             return f"{name}-s{seed}{end}"
         return f"{name}-s{seed}-p{price_seed}{params_tag(params)}{end}"
