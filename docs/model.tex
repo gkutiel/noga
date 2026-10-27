@@ -1,0 +1,169 @@
+% Flow diagram of the demand model (noga/model.py @ 159f742).
+% Regenerate with the /draw-model command.
+\documentclass[tikz,border=8pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usetikzlibrary{positioning,fit,arrows.meta,calc,backgrounds}
+
+% One colour per role (light fill, darker border).
+\definecolor{inF}{HTML}{E3F0FB}\definecolor{inD}{HTML}{2F6FA8}
+\definecolor{prF}{HTML}{EAF6EA}\definecolor{prD}{HTML}{3C8A3C}
+\definecolor{trF}{HTML}{F1ECF8}\definecolor{trD}{HTML}{6A4C9C}
+\definecolor{dhF}{HTML}{FDF0E1}\definecolor{dhD}{HTML}{C0711B}
+\definecolor{phF}{HTML}{FBE8EC}\definecolor{phD}{HTML}{B03A55}
+\definecolor{tnF}{HTML}{F2F2F2}\definecolor{tnD}{HTML}{6B6B6B}
+
+\tikzset{
+  box/.style={draw, rounded corners=3pt, line width=0.8pt, align=center,
+    inner sep=4pt, minimum height=11mm, font=\small},
+  inp/.style={box, fill=inF, draw=inD},
+  pre/.style={box, fill=prF, draw=prD},
+  tr/.style={box, fill=trF, draw=trD},
+  dh/.style={box, fill=dhF, draw=dhD},
+  ph/.style={box, fill=phF, draw=phD},
+  tn/.style={box, fill=tnF, draw=tnD, align=left, minimum height=0pt},
+  arr/.style={-{Stealth[length=2.4mm]}, line width=0.8pt, draw=black!70},
+  w/.style={font=\scriptsize, fill=white, inner sep=1.2pt},
+  swatch/.style={minimum height=3mm, minimum width=5mm, inner sep=0pt},
+}
+\newcommand{\T}[2]{\textbf{#1}\\[-1pt]{\footnotesize #2}}
+
+\begin{document}
+\begin{tikzpicture}
+
+% ---------------------------------------------------------------- title
+\node[font=\large\bfseries, anchor=west] (title) at (-2.6, 1.6)
+  {Demand model \quad{\normalfont\ttfamily\small noga/model.py @ 159f742}};
+
+% ---------------------------------------------------------------- inputs
+\node[inp, text width=34mm] (cal) at (0, 0)
+  {\T{Calendar}{month (12) $\cdot$ weekday (7)\\5-min slot of day (288)}};
+\node[inp, text width=36mm] (hist) at (4.3, 0)
+  {\T{Demand history}{12 readings, MW\,/\,100\\$t{-}24\text{h}{-}55\text{m}\;\ldots\;t{-}24\text{h}$}};
+\node[inp, text width=36mm] (wx) at (8.5, 0)
+  {\T{Weather at $t$}{3 vars $\times$ 3 stations $=$ 9\\temp, wet bulb, humidity}};
+\node[inp, text width=36mm] (lp) at (12.7, 0)
+  {\T{Yesterday's price}{$p_{da}(t{-}24\text{h})\,/\,100$\\1 input, already public}};
+\node[font=\footnotesize\itshape, text=phD, anchor=south east]
+  at ($(lp.north east)+(0,1mm)$) {not inputs: $p_{da}(t),\ p_o(t),\ p_u(t)$};
+
+% ---------------------------------------------------------------- preprocessing
+\node[pre, text width=34mm] (emb) at (0, -2.3)
+  {\T{Embeddings}{\texttt{Embedding(12,\,2)} $\to$ 2\\\texttt{Embedding(7,\,3)} $\to$ 3\\\texttt{Embedding(288,\,3)} $\to$ 3}};
+\path (hist.west |- emb) coordinate (sl) (lp.east |- emb) coordinate (sr);
+\node[pre, minimum width=0pt, text width=118mm] (scale) at ($(sl)!0.5!(sr)$)
+  {\T{Input scaling (divide, no shift)}{$x \,/\, \bar{x}_g$, \ $\bar{x}_g$ = train-split mean of group $g$, inputs $\approx 1$\\
+   5 groups: history $\cdot$ temp $\cdot$ wet bulb $\cdot$ humidity $\cdot$ price}};
+
+\draw[arr] (cal) -- node[w,right]{3 indices} (emb);
+\draw[arr] (hist.south) -- node[w,right]{12} (hist.south |- scale.north);
+\draw[arr] (wx.south)   -- node[w,right]{9}  (wx.south |- scale.north);
+\draw[arr] (lp.south)   -- node[w,right]{1}  (lp.south |- scale.north);
+
+% ---------------------------------------------------------------- concat
+\node[tr, text width=56mm] (cat) at (5.5, -4.3)
+  {\T{Concatenate}{embeddings $+$ scaled inputs\\$2 + 3 + 3 + 22 = 30$}};
+\draw[arr] (emb.south) |- node[w,pos=0.3,right]{8} (cat.west);
+\draw[arr] (scale.south -| 7.4,0) -- node[w,right]{22} (cat.north -| 7.4,0);
+
+% ---------------------------------------------------------------- trunk
+\node[tr, text width=40mm] (l0) at (5.5, -6.0) {\T{Linear}{$30 \to 12$}};
+\node[tr, text width=40mm] (ln) at (5.5, -7.9) {\T{LayerNorm}{12}};
+\node[tr, text width=40mm, minimum height=8mm] (act1) at (5.5, -9.2) {\textbf{LeakyReLU}};
+\node[tr, text width=40mm] (l1) at (5.5, -10.5) {\T{Linear}{$12 \to 12$}};
+\begin{scope}[on background layer]
+  \node[draw=trD, dashed, rounded corners=4pt, fill=trF!40,
+        fit=(ln)(act1)(l1), inner sep=4mm] (blk) {};
+\end{scope}
+\node[font=\bfseries\large, text=trD, anchor=west] at ($(blk.east)+(1mm,0)$) {$\times\,2$};
+\node[font=\scriptsize\itshape, text=trD, anchor=north east, inner sep=2pt]
+  at (blk.north east) {repeated block};
+\node[tr, text width=40mm, minimum height=8mm] (act2) at (5.5, -12.5) {\textbf{LeakyReLU}};
+\node[tr, text width=40mm, line width=1.5pt] (z) at (5.5, -14.0)
+  {\T{Shared features $z$}{12}};
+
+\draw[arr] (cat) -- node[w,right]{30} (l0);
+\draw[arr] (l0) -- node[w,right]{12} (blk.north -| ln.north) -- (ln);
+\draw[arr] (ln) -- (act1);
+\draw[arr] (act1) -- (l1);
+\draw[arr] (l1) -- node[w,right,pos=0.6]{12} (act2);
+\draw[arr] (act2) -- (z);
+
+% ---------------------------------------------------------------- demand head
+\node[dh, text width=40mm] (dl) at (5.5, -16.0) {\T{Demand head: Linear}{$12 \to 13$}};
+\node[dh, text width=32mm] (logit) at (3.4, -18.0)
+  {\T{Attention logits}{12 $\to$ softmax $\to$ $w_1 \ldots w_{12}$}};
+\node[dh, text width=26mm] (delta) at (7.8, -18.0)
+  {\T{Correction $\delta$}{1}};
+\node[dh, text width=32mm] (wsum) at (3.4, -19.9)
+  {\T{Weighted sum}{$\sum_i w_i \cdot \text{hist}_i$}};
+\node[dh, line width=1.5pt, text width=50mm] (yhat) at (5.6, -21.9)
+  {\T{Forecast}{$\hat y = \sum_i w_i\,\text{hist}_i + \delta$ \quad ($\times 100$ MW)}};
+
+\draw[arr] (z) -- node[w,right]{12} (dl);
+\draw[arr] ($(dl.south)+(-6mm,0)$) |- ($(logit.north)+(0,4mm)$) -- node[w,right]{12} (logit.north);
+\draw[arr] ($(dl.south)+(6mm,0)$)  |- ($(delta.north)+(0,4mm)$) -- node[w,right]{1} (delta.north);
+\draw[arr] (logit) -- (wsum);
+\draw[arr] (wsum.south) -- (wsum.south |- yhat.north);
+\draw[arr] (delta.south) -- (delta.south |- yhat.north);
+
+% raw history bypass (left side, not scaled)
+\coordinate (bx) at (-2.6, 0);
+\draw[arr, draw=inD, dashed]
+  (hist.north) -- ++(0,3mm) -| (bx |- wsum) -- (wsum.west);
+\node[font=\scriptsize\itshape, text=inD, rotate=90, anchor=south, fill=white, inner sep=1pt]
+  at (bx |- l0) {raw (unscaled) history, 12 readings};
+
+% ---------------------------------------------------------------- price head
+\node[ph, text width=36mm] (pl) at (12.2, -16.0)
+  {\T{Price head: Linear}{$12 \to 2$}};
+\node[ph, text width=36mm] (pout) at (12.2, -18.0)
+  {\T{$\log \hat p_o,\ \log \hat p_u$}{(prices\,/\,100)}};
+\node[font=\footnotesize\itshape, text=phD, anchor=west, align=left] at ($(pl.east)+(1mm,0)$)
+  {cost\\model\\only};
+\draw[arr] (z.east) -| node[w,pos=0.75,right]{12} (pl.north);
+\draw[arr] (pl) -- node[w,right]{2} (pout);
+
+% ---------------------------------------------------------------- training panel
+\node[tn, text width=74mm, anchor=north west] (loss) at (9.7, -4.8)
+  {\textbf{Demand loss} (one per model, on $\hat y$)\\[3pt]
+   \footnotesize
+   \textbf{cost} (proposed): mean excess cost\\
+   \quad $(p_u - p_{da})\,(y-\hat y)^+ \;+\; p_o\,(\hat y - y)^+$\\[3pt]
+   baselines: L2, L1, Pinball med / opt / p95\\
+   \quad (constant quantile derived from train prices)};
+\node[tn, text width=74mm, anchor=north west] (ploss) at ($(loss.south west)+(0,-5mm)$)
+  {\textbf{Price loss} (cost model only)\\[3pt]
+   \footnotesize
+   $\text{mean}\big[(\log\hat p - \log(p/100))^2\big]$ over $p_o,\ p_u$\\
+   total loss $=$ demand loss $+\; 1.0 \times$ price loss};
+\node[tn, text width=74mm, anchor=north west] (opt) at ($(ploss.south west)+(0,-5mm)$)
+  {\textbf{Optimiser}\\[3pt]
+   \footnotesize
+   AdamW, lr $10^{-3}$\\
+   weight decay $0.05$, on Linear weights only\\
+   300 epochs, fixed (no early stopping)\\
+   batches of 5\,000 slots, reshuffled every epoch\\
+   train 2023-04 \ldots\ 2024-12, \; test 2025};
+\begin{scope}[on background layer]
+  \node[draw=tnD, rounded corners=5pt, fill=white, fit=(loss)(ploss)(opt),
+        inner sep=3mm, label={[font=\bfseries, text=tnD]north:Training}] (trainp) {};
+\end{scope}
+
+% ---------------------------------------------------------------- legend
+\node[anchor=north west, font=\footnotesize, draw=black!25, rounded corners=3pt,
+      inner sep=6pt] (leg) at (10.3, -19.6)
+  {\begin{tabular}{@{}l@{\;}l@{\qquad}l@{\;}l@{}}
+   \tikz\node[inp,swatch]{}; & inputs &
+   \tikz\node[dh,swatch]{}; & demand head\\[3pt]
+   \tikz\node[pre,swatch]{}; & preprocessing &
+   \tikz\node[ph,swatch]{}; & price head\\[3pt]
+   \tikz\node[tr,swatch]{}; & shared trunk &
+   \tikz\node[tn,swatch]{}; & training only\\[3pt]
+   \multicolumn{4}{@{}l@{}}{\tikz[baseline=-0.6ex]\draw[arr,draw=inD,dashed](0,0)--(6mm,0);
+     \; raw history, bypasses the network}
+   \end{tabular}};
+
+\end{tikzpicture}
+\end{document}

@@ -38,3 +38,4 @@ pred
 
 .vscode/
 tmp.txt
+!docs/model.pdf
