@@ -79,8 +79,10 @@ PRICE_WEIGHT = 1.0
 AFFINE_HEAD = os.environ.get("NOGA_AFFINE_HEAD") == "1"
 
 
-# + log of the day-ahead price 24h before t (published before the decision).
-N = len(FEATURES) + HISTORY_LEN + 1
+# Weather at t and 24h before t (the demand history is 24h old, so the model
+# can relate the demand change to the weather change), + log of the day-ahead
+# price 24h before t (published before the decision).
+N = 2 * len(FEATURES) + HISTORY_LEN + 1
 
 
 class Model(pl.LightningModule):
@@ -217,8 +219,8 @@ def with_prices(
 class Data(Dataset):
     '''
     Item j predicts slot t = j + DAY_IN_5_MIN + HISTORY_LEN - 1 from the
-    HISTORY_LEN demand readings ending 24h before t, the features at t and
-    the day-ahead price 24h before t (today's price is set only after the
+    HISTORY_LEN demand readings ending 24h before t, the weather at t and 24h
+    before t, and the day-ahead price 24h before t (today's price is set only after the
     procurement decision, yesterday's is already public).
     Indexable by a list of indices, so a BatchSampler yields whole batches.
     '''
@@ -232,11 +234,13 @@ class Data(Dataset):
         y = y / Y_SCALE
         hist = y.unfold(0, HISTORY_LEN, 1)[:n]
 
-        X = torch.tensor(df[FEATURES].to_numpy()[t], dtype=torch.float32)
+        weather = df[FEATURES].to_numpy()
+        X = torch.tensor(weather[t], dtype=torch.float32)
+        lag_w = torch.tensor(weather[t - DAY_IN_5_MIN], dtype=torch.float32)
         lag_p = torch.tensor(
             np.log(df[P_DA].to_numpy()[t - DAY_IN_5_MIN] / P_SCALE),
             dtype=torch.float32)
-        X = torch.concat([X, lag_p[:, None]], dim=1)
+        X = torch.concat([X, lag_w, lag_p[:, None]], dim=1)
 
         self.month = torch.tensor(df["month"].to_numpy()[t].astype(int))
         self.day = torch.tensor(df["day"].to_numpy()[t].astype(int))
