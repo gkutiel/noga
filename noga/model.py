@@ -107,15 +107,17 @@ class Model(pl.LightningModule):
 
         self.net = nn.Sequential(
             nn.Linear(N_NET + D_EMBD + M_EMBD + T_EMBED, HIDDEN_SIZE),
+            nn.LeakyReLU(),
+            nn.LayerNorm(HIDDEN_SIZE),
+            nn.Dropout(DROPOUT),
             *[
                 nn.Sequential(
-                    nn.LayerNorm(HIDDEN_SIZE),
-                    nn.LeakyReLU(),
-                    nn.Dropout(DROPOUT),
                     nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
+                    nn.LeakyReLU(),
+                    nn.LayerNorm(HIDDEN_SIZE),
+                    nn.Dropout(DROPOUT),
                 ) for _ in range(N_LAYERS)
             ],
-            nn.LeakyReLU(),
             # Attention logits, log a, b (see demand).
             nn.Linear(HIDDEN_SIZE, HISTORY_LEN + 2),
         )
