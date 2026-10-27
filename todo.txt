@@ -1,10 +1,6 @@
-I want to simplify the baselines, here is my suggestion:
-
-Baseline 1:
-Train on MSE then fix using a linear transformation that minimize excess cost.
-
-Baseline 2:
-Use the predicted prices from our pre-trained model, then train a model that minimizes the excess cost using these predicted prices as inputs.
-
-
-Tell me what do you think about this suggestion, are these strong enough baselines to make a strong case for our model?
+Overall the paper is well written so no need for major changes.
+The only two missing things are:
+-   High chance that the reviewer is not familiar with the Israeli geography and electricity market:
+    add short introduction about Israel geography and electricity market (a short version of the introduction that we had in a previous version of the paper), in particular include the map figure that we used.
+-   Also, in a previous version, we had the error histogram of the Noga model, demonstrating the MSE trained, add this figure to demonstrating our claim about MSE trained.
+-   Consider, also add a short discussion about the uncertainty (the heatmap we had in a previous version of the paper) if you think it strengthens the paper.

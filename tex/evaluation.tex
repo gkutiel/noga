@@ -1,105 +1,203 @@
-Table~\ref{tab:eval} reports the average test-set cost of each model under
-each evaluation cost function, before and after post-hoc calibration.
+\subsection{Main Results}
+\label{sec:main-results}
 
-\begin{table}[ht]
+Table~\ref{tab:main} reports the test-year cost of every model.  The unified
+model is the cheapest, at \$49.5$\pm$1.4 million per year, and its advantage
+over every alternative is statistically significant.  Each of its three seeds
+(\$48.0, 50.7 and 49.9 million) is cheaper than every run of every baseline;
+the closest is a Joint MSE~+~C2 run at \$52.2 million.
+
+\begin{table}[t]
     \centering
-    \caption{Test-set cost under three evaluation metrics.  Lower is better.
-             Bold marks the best value in each column.
-             \emph{Top block:} raw predictions; \emph{bottom block:}
-             after post-hoc affine calibration.}
-    \label{tab:eval}
-    \begin{tabular}{lrrr}
+    \small
+    \setlength{\tabcolsep}{4pt}
+    \caption{Excess cost on the test year 2025 (million US\$ per year; mean
+             $\pm$ standard deviation over three seeds), split into
+             under- and over-prediction.  MAE and RMSE in MW; coverage
+             $=P(y_t\le p_t)$.  $\Delta$: cost of the unified model minus that
+             of the row, with the Diebold--Mariano $p$-value.}
+    \label{tab:main}
+    \resizebox{\linewidth}{!}{%
+    \begin{tabular}{lrrrrrrrr}
         \toprule
-        \textbf{Model} & \textbf{L1} & \textbf{Pinball 5:1} & \textbf{Pinball 20:1} \\
+        \textbf{Model} & \textbf{Cost} & \textbf{Under} & \textbf{Over} &
+        \textbf{MAE} & \textbf{RMSE} & \textbf{Cov.} & $\boldsymbol{\Delta}$ &
+        $\boldsymbol{p}$ \\
         \midrule
-        \multicolumn{4}{l}{\textit{Without post-hoc calibration}} \\
+        \multicolumn{9}{l}{\textit{Operator's forecast}} \\
+        Noga                & 76.5 & 61.0 & 15.5 & 294 & 416 & 0.51 & $-27.0$ & $<$0.001 \\
+        Noga + C1           & 62.4 & 20.2 & 42.3 & 446 & 544 & 0.86 & $-12.9$ & 0.002 \\
+        Noga + C2           & 61.1 & 20.8 & 40.4 & 434 & 536 & 0.86 & $-11.6$ & 0.008 \\
         \midrule
-        L1           & \textbf{2.704} & 3.045          & 3.167 \\
-        Pinball 5:1  & 3.652          & \textbf{1.820} & 1.166 \\
-        Pinball 20:1 & 6.175          & 2.245          & \textbf{0.841} \\
+        \multicolumn{9}{l}{\textit{Demand only, trained for accuracy}} \\
+        MSE                 & $100.9\pm9.3$ & 90.8 & 10.1 & 265 & 398 & 0.44 & & \\
+        MSE + C1            & $59.0\pm2.1$ & 32.3 & 26.7 & 334 & 454 & 0.78 & $-9.5$ & $<$0.001 \\
+        MSE + C2            & $56.2\pm2.6$ & 30.3 & 25.9 & 323 & 447 & 0.76 & $-6.7$ & $<$0.001 \\
         \midrule
-        \multicolumn{4}{l}{\textit{With post-hoc affine calibration}} \\
+        \multicolumn{9}{l}{\textit{Demand only, fixed cost asymmetry}} \\
+        Pinball opt         & $54.8\pm2.1$ & 21.9 & 32.9 & 379 & 518 & 0.85 & $-5.2$ & $<$0.001 \\
         \midrule
-        L1 + calibration           & \textbf{2.704} & 1.979          & 1.022 \\
-        Pinball 5:1 + calibration  & 2.915          & \textbf{1.820} & 0.851 \\
-        Pinball 20:1 + calibration & 3.424          & 1.964          & \textbf{0.841} \\
+        \multicolumn{9}{l}{\textit{Joint demand and price, trained for accuracy}} \\
+        Joint MSE                    & $96.0\pm15.3$ & 86.4 & 9.6 & 259 & 384 & 0.42 & & \\
+        Joint MSE + $\hat\tau$ shift & $54.3\pm0.6$ & 29.9 & 24.4 & 307 & 422 & 0.74 & $-4.8$ & $<$0.001 \\
+        Joint MSE + C2               & $52.6\pm0.3$ & 27.6 & 25.0 & 310 & 430 & 0.75 & $-3.1$ & 0.004 \\
+        \midrule
+        \multicolumn{9}{l}{\textit{Joint demand and price, trained on the cost (proposed)}} \\
+        \textbf{Unified cost model} & $\mathbf{49.5\pm1.4}$ & 20.1 & 29.4 & 333 & 461 & 0.81 & & \\
+        \bottomrule
+    \end{tabular}}
+\end{table}
+
+\paragraph*{Accuracy is not value.}  The accuracy-trained models are the most
+accurate---Joint MSE has the lowest MAE (259~MW), and even plain MSE beats the
+operator (265 vs.\ 294~MW)---but, used as they are, the most expensive
+(\$96--101 million), because they fall short 56--58\% of the time while a
+shortfall costs about six times more than a surplus.  The same holds for the
+operator, whose forecast is centred like an accuracy-trained one
+(Figure~\ref{fig:noga-errors}): 80\% of its cost comes from shortfalls.
+
+\paragraph*{Post-hoc correction is not enough.}  Correcting the forecasts
+after training removes most of the shortfall cost, but the unified model is
+still 12\% cheaper than MSE~+~C2 and 19\% cheaper than Noga~+~C2.  A
+correction that depends only on the hour cannot tell an expensive afternoon
+from a cheap one.
+
+\paragraph*{A fixed asymmetry is not enough.}  Pinball opt knows that
+shortfalls are expensive and has the lowest shortfall cost of the learned baselines,
+but it buys the same 86\% cover in every slot, pays for it with the highest
+surplus cost, and stays 10\% more expensive than the unified model.
+
+\paragraph*{Joint forecasting for accuracy is not enough.}  The strongest
+alternative is the joint load-and-price network trained for accuracy and then
+corrected, either by its own price forecasts ($\hat\tau$ shift) or per hour
+(C2).  With the \emph{same} network, inputs and price head, the unified model
+is 6\% cheaper ($p=0.004$).  The only difference is that its demand head is
+trained on the price-weighted cost: knowing the price is not enough; the
+model must also learn how much cover each price buys, given how uncertain the
+demand is in that slot.
+
+\subsection{Why It Works: the Margin Follows the Price}
+\label{sec:mechanism}
+
+The cost-optimal margin should grow with the price
+(Section~\ref{sec:newsvendor}).  Table~\ref{tab:price-thirds} shows that the
+unified model's margin does, from 212~MW in the cheapest third of the slots to
+281~MW in the most expensive third.  The fixed-asymmetry model does the
+opposite, and the corrected accuracy models barely move.  The unified model is
+the cheapest in every third, and it saves the most where it matters most: in
+the most expensive third, \$7--15 million per year over the learned baselines
+and \$24 million over Noga~+~C2.
+
+\begin{table}[t]
+    \centering
+    \small
+    \caption{Mean safety margin (forecast minus demand, MW) and cost
+             (million US\$ per year) by thirds of the test slots sorted by
+             day-ahead price (mean over seeds).}
+    \label{tab:price-thirds}
+    \begin{tabular}{lrrrrrr}
+        \toprule
+        & \multicolumn{3}{c}{\textbf{Margin (MW)}} &
+          \multicolumn{3}{c}{\textbf{Cost (M\$/year)}} \\
+        \cmidrule(lr){2-4}\cmidrule(lr){5-7}
+        \textbf{Model} & Low & Mid & High & Low & Mid & High \\
+        \midrule
+        Noga                & $-141$ & $-9$ & 115 & 38.3 & 52.5 & 138.8 \\
+        Noga + C2           & 264 & 362 & 421 & 31.4 & 46.1 & 105.9 \\
+        MSE + C2            & 181 & 195 & 212 & 28.8 & 42.0 &  97.7 \\
+        Pinball opt         & 352 & 296 & 260 & 31.3 & 43.2 &  89.8 \\
+        Joint MSE + C2      & 179 & 181 & 208 & 27.0 & 41.2 &  89.6 \\
+        \textbf{Unified cost model} & 212 & 241 & 281 & \textbf{25.4} & \textbf{40.8} & \textbf{82.4} \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-Figure~\ref{fig:confusion-matrix} visualises the same results as a colour-coded
-model~$\times$~loss matrix, making it easy to see at a glance which model wins
-on each metric and how calibration shifts the ranking.
+\paragraph*{Price forecasts.}  Table~\ref{tab:price} compares the unified
+model's price forecasts with those of Joint MSE and with a naive forecast,
+yesterday's day-ahead price (scaled by the typical training-set ratios for the
+surplus and shortfall prices).  On the relative squared error it is trained
+on, the unified model beats both on all three prices, and its forecast of the
+cost-optimal quantile correlates with the realised one at 0.71, where the
+naive forecast carries no information (0.00).  On MAPE, yesterday's price
+remains slightly better for the day-ahead price itself (13.5\% vs.\ 14.5\%);
+the price head is a single linear layer meant to inform the demand decision,
+not to compete with dedicated price models.  A price head that starts from the
+naive forecast and learns only a correction lowered the MAPE by about one
+point but weakened the quantile forecast (correlation 0.62) and left the cost
+unchanged (\$50.0 vs.\ \$49.5 million, $p=0.60$), so we keep the simpler head.
 
-\begin{figure}[H]
+\begin{table}[t]
     \centering
-    \includegraphics[width=\linewidth]{plot/confusion_matrix.png}
-    \caption{Train-loss~$\times$~evaluation-metric matrix for the three models
-             (L1, Pinball~5:1, Pinball~20:1), before calibration (left) and
-             after post-hoc affine calibration (right).  Each cell shows the
-             test-set cost; green marks the best value in each column and red
-             the worst.  The diagonal tendency --- each model achieving its
-             lowest cost on the metric it was trained with --- is clearly
-             visible.  Calibration reduces off-diagonal costs substantially
-             (e.g.\ L1 model under Pinball~20:1 drops from 3.167 to 1.022)
-             while leaving the diagonal unchanged.}
-    \label{fig:confusion-matrix}
-\end{figure}
+    \small
+    \caption{Price forecasts on the test year: MAPE, mean relative squared
+             error (RSE, the price head's training loss) and the correlation
+             between the predicted and realised cost-optimal quantile
+             (mean over three seeds).}
+    \label{tab:price}
+    \resizebox{\linewidth}{!}{%
+    \begin{tabular}{lrrrrrrr}
+        \toprule
+        & \multicolumn{3}{c}{\textbf{MAPE} (\%)} & \multicolumn{3}{c}{\textbf{RSE}} & \\
+        \cmidrule(lr){2-4}\cmidrule(lr){5-7}
+        \textbf{Model} & $\pi^{\mathrm{DA}}$ & $\pi^{o}$ & $\pi^{u}$ &
+        $\pi^{\mathrm{DA}}$ & $\pi^{o}$ & $\pi^{u}$ &
+        \textbf{corr}$(\hat\tau,\tau)$ \\
+        \midrule
+        Naive (yesterday's price)   & \textbf{13.5} & \textbf{14.1} & 43.0 & 0.044 & 0.046 & 0.281 & 0.00 \\
+        Joint MSE                   & 15.6 & 15.8 & 30.7 & 0.040 & 0.041 & 0.149 & 0.70 \\
+        \textbf{Unified cost model} & 14.5 & 14.8 & \textbf{29.6} & \textbf{0.036} & \textbf{0.037} & \textbf{0.147} & \textbf{0.71} \\
+        \bottomrule
+    \end{tabular}}
+\end{table}
 
-\paragraph*{Each model excels on its own training metric}
-Without calibration, a clear diagonal dominance is visible in
-Figure~\ref{fig:confusion-matrix}: each model achieves its lowest cost on
-the metric it was trained to minimise.
-The L1 model produces the lowest L1 cost ($2.704$), the Pinball~5:1 model
-the lowest Pinball~5:1 cost ($1.820$), and the Pinball~20:1 model the lowest
-Pinball~20:1 cost ($0.841$).
-This confirms that the training objective directly shapes the cost profile
-of the resulting forecast.
+\subsection{Savings: Israel and a US-Scale Projection}
+\label{sec:savings}
 
-\paragraph*{Asymmetric training substantially outperforms the symmetric baseline}
-The advantage of cost-aware training grows with the asymmetry ratio.
-Under the Pinball~5:1 metric, the Pinball~5:1 model ($1.820$) outperforms
-the L1 baseline ($3.045$) by $40\%$.
-Under the more demanding Pinball~20:1 metric, the Pinball~20:1 model
-($0.841$) outperforms L1 ($3.167$) by $73\%$.
-Figure~\ref{fig:error_histograms} shows the mechanism: the Pinball~20:1
-model produces a heavily right-skewed error distribution, deliberately
-over-predicting to avoid costly under-procurement events, while the L1
-model is symmetric and centred near zero.
+Table~\ref{tab:savings} translates the cost differences into annual savings.
+Replacing the operator's published forecast with the unified model would save
+about \$27 million per year in Israel: \$41 million of avoided shortfall cost,
+in exchange for \$14 million of extra surplus.  This is 35\% of the excess
+cost, 0.86\% of the \$3.1 billion day-ahead energy bill, \$0.33 per MWh
+consumed and \$2.65 per resident.  Even against the operator's forecast after
+the best correction (Noga~+~C2) the saving is \$11.6 million per year, now
+mainly from buying less unnecessary surplus.
 
-\paragraph*{Post-hoc calibration narrows but does not close the gap}
-Affine calibration substantially improves the L1 model on asymmetric metrics
-(Pinball~20:1: $3.167 \to 1.022$; Pinball~5:1: $3.045 \to 1.979$),
-confirming that a global bias correction captures much of the asymmetric
-signal.
-However, calibrated L1 still falls short of the dedicated pinball models
-(Pinball~5:1: $0.851$; Pinball~20:1: $0.841$), because a single affine
-shift cannot replicate the input-conditional upward bias that end-to-end
-cost-aware training achieves.
-Figure~\ref{fig:error-heatmap} (Section~\ref{sec:forecast-error-dist})
-illustrates exactly why: forecast error magnitude varies substantially by
-hour of the day and day of the week.
-A uniform global correction applies the same rescaling to every prediction
-regardless of context; only a model that conditions its output on time
-features can adapt its bias to each slot individually.
-
-\paragraph*{Error distributions reflect the targeted quantile}
-Figure~\ref{fig:error_histograms} shows the prediction error distributions
-on the test set for each model.
-The L1 model is symmetric and centred near zero, as expected for a
-mean-unbiased estimator.
-The Pinball~5:1 model is modestly right-shifted, and the Pinball~20:1 model
-exhibits a pronounced positive tail --- each distribution directly reflecting
-the quantile targeted by its respective asymmetric loss.
-
-\begin{figure}[H]
+\begin{table}[t]
     \centering
-    \includegraphics[width=\linewidth]{plot/error_histograms.png}
-    \caption{Distribution of test-set prediction errors (forecast minus
-             actual, MW) for each model.  The L1 model is symmetric and
-             centred near zero.  The Pinball~5:1 model shows a modest
-             rightward shift, and the Pinball~20:1 model a pronounced
-             positive tail, reflecting the increasingly aggressive upward
-             bias required to minimise the cost under higher asymmetry ratios.}
-    \label{fig:error_histograms}
-\end{figure}
+    \small
+    \caption{Annual savings of the unified model on the test year (positive:
+             the unified model is cheaper), split into under- and
+             over-prediction, and normalised per MWh consumed (81~TWh) and per
+             resident (10.2~million).  The last column projects the saving per
+             MWh to US consumption (about 4{,}100~TWh per year).}
+    \label{tab:savings}
+    \resizebox{\linewidth}{!}{%
+    \begin{tabular}{lrrrrrrr}
+        \toprule
+        \textbf{Compared with} & \textbf{M\$/year} & \textbf{Under} &
+        \textbf{Over} & \textbf{\% of DA bill} & \textbf{\$/MWh} &
+        \textbf{\$/resident} & \textbf{US, B\$/year} \\
+        \midrule
+        Noga (as published) & 27.0 & 40.8 & $-13.9$ & 0.86\% & 0.33 & 2.65 & 1.4 \\
+        Noga + C2           & 11.6 &  0.6 &  11.0   & 0.37\% & 0.14 & 1.14 & 0.6 \\
+        MSE + C2            &  6.7 & 10.1 &  $-3.5$ & 0.21\% & 0.08 & 0.65 & 0.3 \\
+        Pinball opt         &  5.2 &  1.7 &   3.5   & 0.17\% & 0.06 & 0.52 & 0.3 \\
+        Joint MSE + C2      &  3.1 &  7.5 &  $-4.4$ & 0.10\% & 0.04 & 0.30 & 0.2 \\
+        \bottomrule
+    \end{tabular}}
+\end{table}
+
+\paragraph*{A US-scale projection.}  Israel is a small market.  The excess
+cost scales with the energy traded and with the price level, and the average
+US wholesale price, about \$40/MWh in 2025~\parencite{eia_wholesale2025}, is
+close to the Israeli \$39.9/MWh.  Scaling the saving per MWh to US consumption
+of about 4{,}100~TWh per year~\parencite{eia_steo} gives roughly \$1.4 billion
+per year against an uncorrected operator-style forecast and \$0.6 billion
+against a corrected one; scaling per resident instead (about 340~million)
+gives \$0.9 and \$0.4 billion.  The US market is fragmented into regional
+markets with their own designs, so these numbers only illustrate the order
+of magnitude: \emph{hundreds of millions to over a billion dollars per year}.
+
+All savings depend on the level of the synthetic imbalance prices
+(Section~\ref{sec:synthetic-prices}) and should be read as estimates under
+the stated cost model rather than measurements.

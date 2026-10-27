@@ -1,248 +1,69 @@
-The modern electricity grid operates through wholesale markets in which
-producers and large consumers interact---directly or through a central
-operator---to determine how much power is generated and consumed.  In a
-stylised day-ahead market, producers submit offers specifying the quantities of
-electricity they are willing to supply at various price points, while suppliers
-(and possibly a handful of very large consumers) submit corresponding demand
-bids.  A system operator then clears the system by finding the price at which
-aggregate supply equals aggregate demand, setting a single clearing price for
-each settlement period (typically one hour).  This mechanism promotes economic
-efficiency by rewarding low-cost producers and incentivising demand
-response~\parencite{stoft2002power, kirschen2018fundamentals}.
+Electricity for the next day is bought before the demand is known.  Energy
+committed in the day-ahead market is paid at the day-ahead price; any
+shortfall must be bought in real time at a higher price, and any surplus is
+sold back at a lower one~\parencite{stoft2002power, kirschen2018fundamentals}.
+A megawatt-hour short typically costs five to twenty times more than a
+megawatt-hour too much~\parencite{zhang2022costoriented}, and the ratio is
+itself driven by the price: shortfalls are most expensive exactly when the
+system is tight and the day-ahead price is high.  The cost-optimal forecast is
+therefore not the expected demand but a quantile of it, and the right quantile
+\emph{moves with the price} from one settlement period to the next
+(Section~\ref{sec:modeling}).
 
-Real markets differ considerably in how centralised this process is.  The
-Israeli market, which is the setting of this study, is comparatively
-centralised: the system operator (Noga) forecasts national demand for each hour
-of the following day, and this day-ahead forecast---together with the resulting
-price signal---determines how much electricity producers are scheduled to
-deliver in each settlement period.  The process is therefore less the
-continuously cleared double auction of textbook descriptions and more a
-coordinated, forecast-driven dispatch.  Regardless of the precise market design,
-however, the day-ahead demand forecast is the pivotal quantity: it is fixed
-before real-time demand is known, and its accuracy propagates directly into
-generation scheduling and price.
+Forecasting practice does not reflect this.  Demand forecasts, including the
+operational forecast of the Israeli system operator studied here, are built
+for accuracy and are close to unbiased, so they fall short about half of the
+time.  Price forecasts are also built for accuracy, separately.  The
+cost-oriented load-forecasting literature trains demand models on an
+asymmetric loss, but with a \emph{fixed} cost ratio that ignores prices; and
+the models that forecast load and price jointly are again trained only for
+accuracy (Section~\ref{sec:related}).  No existing model lets the demand
+forecast follow the price.
 
-A central challenge in this architecture is that procurement decisions must be
-finalised a day in advance, before actual real-time demand is known.  The
-accuracy of demand forecasts therefore directly affects the operational
-decisions and financial outcomes of all market participants.  It remains an open
-question to what extent individual suppliers maintain their own demand models.  A
-plausible account of current practice is that, once the operator publishes its
-day-ahead demand forecast, each supplier simply draws its own share from that
-forecast based on experience, and the market settles on a relatively stable price
-that is reasonable on average but may embed sizeable, systematic error margins.
-If so, more sophisticated forecasting---whether by the suppliers or by the system
-operator---could translate into lower retail prices, which is part of what
-motivates the present work.
+We close this gap with a \emph{unified} price-and-demand model.  One small
+neural network reads only information available a day ahead---calendar,
+weather, yesterday's demand and yesterday's price---and computes a shared
+representation from which two heads forecast the demand and the three prices
+of the slot (day-ahead, shortfall and surplus).  The demand forecast is trained
+on the realised procurement cost, priced at the realised prices, while the
+price head is trained to predict those prices.  Because both heads read the
+same features, the demand head learns its safety margin from features that
+encode when prices---and hence shortfalls---will be expensive.
 
-A system operator that accurately anticipates demand can procure the right
-amount of energy at competitive prices.  Inaccurate forecasts, by contrast,
-force participants into costly corrective actions in the balancing or real-time
-markets, where prices can be dramatically different from day-ahead levels.  It is
-worth stressing that these price differences arise from two distinct sources of
-uncertainty: errors in predicting \emph{demand}, and errors in predicting
-available \emph{production capacity}---the latter being especially pronounced in
-systems that rely heavily on variable renewable generation such as solar and
-wind~\parencite{morales2014integrating}.  This paper is concerned exclusively
-with the first source of differences, uncertainty in day-ahead demand; production-side
-uncertainty, while important, is outside our scope.
-
-\subsection{Asymmetric Costs in Electricity Markets}
-
-A critical and often overlooked aspect of electricity demand forecasting is the
-\emph{asymmetry} of the costs associated with forecast errors.  When demand is
-\emph{overestimated}, the system operator or retailer procures more electricity
-than is ultimately needed.  The excess supply can typically be sold back into the
-balancing market, curtailed, or stored (if storage is available), resulting in a
-relatively modest financial loss.  In deregulated markets with well-functioning
-balancing mechanisms, the per-unit cost of over-procurement is generally bounded
-and predictable.
-
-When demand is \emph{underestimated}, the cost of error is usually much higher.
-The system operator must source additional electricity in the real-time market at
-short notice to prevent blackouts.  Real-time prices are typically highly
-volatile and can spike to several multiples of the day-ahead price during periods
-of scarcity.  In extreme cases, the system may lack sufficient reserve capacity
-to meet demand, triggering involuntary load shedding, emergency imports, or the
-activation of expensive peaking units.  Beyond the direct financial costs, supply
-shortfalls carry significant reliability and regulatory
-implications~\parencite{stoft2002power, kirschen2018fundamentals}.
-
-Empirical studies in various electricity markets suggest that the ratio of
-under-procurement costs to over-procurement costs, $c_u / c_o$, typically lies in
-the range $[5,\,20]$, depending on market structure, regulatory context, and the
-availability of real-time resources~\parencite{zhang2022costoriented}.  This
-asymmetry fundamentally changes the optimal forecasting problem: rather than
-seeking a prediction that minimises expected squared error, a rational market
-participant should seek a prediction that minimises expected asymmetric cost.
-
-This decision-theoretic view has developed alongside a substantial body of work
-on electricity forecasting more broadly.  \textcite{weron2014electricity}
-provides a comprehensive review of the state of the art in electricity price
-forecasting, surveying statistical, machine-learning, and hybrid approaches.
-While its focus is on price rather than demand, the review highlights the central
-role of model selection, loss-function choice, and benchmark comparisons that
-also apply in the load-forecasting context.
-
-\textcite{hong2016probabilistic} offer a tutorial review of probabilistic
-electric load forecasting, covering methods ranging from regression-based
-quantile estimation to ensemble and Bayesian approaches.  Crucially, they argue
-that point forecasts are insufficient for operational decision-making and
-advocate for full predictive distributions or at least prediction intervals---a
-view consistent with the quantile-forecasting objective we adopt.
-
-The practical importance of probabilistic evaluation metrics, and of the pinball
-loss in particular, was cemented by the Global Energy Forecasting Competition
-2014~\parencite{hong2016gefcom2014}.  GEFCom2014 was the first major forecasting
-competition to use pinball loss as its primary scoring rule across the
-electricity load, price, wind, and solar tracks.  It established pinball loss as a
-community standard and demonstrated that models explicitly optimised for quantile
-accuracy substantially outperform those adjusted only post-hoc.
-
-Despite the theoretical clarity of this framing, most practical
-forecasting systems in electricity markets continue to use symmetric loss
-functions---most commonly mean squared error (MSE) or mean absolute error (MAE)---both for training
-predictive models and for evaluating their performance.  This disconnect between
-training objective and operational cost constitutes a systematic source of
-suboptimality that has received growing attention in the academic
-literature~\parencite{wang2019pinball, lin2020asymmetric, wu2021svr,
-zhang2022costoriented} but has yet to see widespread adoption in practice.
-
-\subsection{Cost-Oriented and Asymmetric Learning for Load Forecasting}
-
-The theoretical foundation for prediction under asymmetric costs was laid by
-\textcite{koenker1978regression}, who introduced \emph{regression quantiles} as a
-natural generalisation of sample quantiles to the linear model.  They showed that
-minimising the asymmetric pinball loss (equivalently, the ``check function'')
-yields an estimator of the conditional $\tau$-quantile of the response, and
-established its asymptotic properties.  This result directly underpins our
-training objective, which is a pinball loss whose slopes are the
-(time-varying) market prices of under- and over-prediction.
-
-\textcite{christoffersen1997optimal} provided the corresponding
-decision-theoretic foundation.  They showed that under a general asymmetric loss
-function the optimal point forecast is \emph{biased}, and that the optimal amount
-of bias is time-varying and depends on higher-order conditional moments such as
-conditional variance.  In particular, their analysis implies that any forecast
-trained with a symmetric objective (e.g.\ MSE) will be systematically suboptimal
-when the true cost structure is asymmetric, even if the conditional mean is
-estimated perfectly.
-
-Building on these foundations, a more recent line of work addresses the mismatch
-between symmetric training objectives and asymmetric operational costs directly
-in the electricity setting, embedding the cost asymmetry into the learning
-objective itself rather than correcting for it after the fact.
-
-\textcite{wang2019pinball} trained a Long Short-Term Memory (LSTM) network directly
-with the pinball loss to produce probabilistic individual load forecasts.  By
-guiding the network to minimise $\mathbb{E}[\mathcal{L}_\tau]$ rather than MSE,
-their approach yields calibrated quantile predictions without requiring post-hoc
-quantile regression on the residuals.  Their results show improved reliability and
-sharpness compared to symmetric-loss baselines.
-
-\textcite{lin2020asymmetric} addressed the related problem of contract-capacity
-optimisation for high-voltage consumers, where the electricity pricing structure
-is inherently asymmetric: underestimating demand triggers penalty charges at a
-higher per-unit rate than overestimating.  They proposed several asymmetric loss
-functions derived directly from the Taiwan Power Company's pricing formula, and
-demonstrate that LSTM models trained with these loss functions reduce electricity
-costs by 0.88\%--2.42\% over symmetric MSE baselines.
-
-\textcite{wu2021svr} extended this idea to support vector regression (SVR),
-developing a cost-oriented asymmetric SVR (AsySVR) framework based on a
-linear-linear loss function with an insensitivity parameter to improve
-generalisation.  Evaluated on New South Wales load data, their asymmetric
-framework achieved daily economic cost reductions of 42\%--57\% relative to
-standard SVR, underscoring that the choice of loss function can have a large
-practical impact on operational outcomes.
-
-\textcite{zhang2022costoriented} further formalised the decision-oriented
-perspective on load forecasting, framing the problem explicitly in terms of the
-downstream cost incurred by the system operator.  Their cost-oriented framework
-bridges the gap between forecast-accuracy metrics and operational objectives, and
-provides theoretical justification for replacing standard point-forecast losses
-with cost-aware alternatives.
-
-Taken together, this recent body of work establishes that asymmetric, cost-sensitive
-training objectives are both theoretically motivated and empirically superior to
-symmetric alternatives in electricity applications.  There are, by now, many
-works that target asymmetric costs in electricity demand forecasting.  To the
-best of our knowledge, however, none of them integrates \emph{both} consumption
-and price information into a unified model: the asymmetry is encoded as a
-\emph{fixed} cost ratio (a single pinball quantile, or the slopes of one
-tariff), and prices play no role either as model inputs or as time-varying
-weights in the loss.  In real markets the cost of a forecast error is a
-\emph{price}, and the relative cost of under- and over-prediction moves with the
-day-ahead price itself, so the cost-minimising quantile changes from one
-settlement period to the next (Section~\ref{sec:modeling}).
-
-A related line of \emph{decision-focused} or \emph{value-oriented} learning
-trains predictors against the downstream decision cost rather than a
-statistical error~\parencite{donti2017taskbased, elmachtoub2022spo}.  In power
-systems this idea has mainly been applied to renewable generation, where
-forecasts of wind or solar output are trained against day-ahead and
-real-time market costs~\parencite{stratigakos2022prescriptive,
-zhang2024valueoriented}.  Donti et al.\ also include a grid-scheduling task
-driven by load forecasts.  These works establish that market costs can be
-optimised end-to-end, but they do not address national demand forecasting with
-real market prices, nor do they benchmark against the forecast an experienced
-system operator actually deploys.  More practically, cost-aware load forecasting
-methods are typically compared with statistical baselines rather than with such
-an operational forecast, which leaves open whether cost-aware training improves
-upon a strong, real-world forecast.
-
-\subsection{Contributions}
-
-Our work addresses these gaps.  We formulate day-ahead demand forecasting as the
-minimisation of the realised procurement cost, where committed energy is paid at
-the \emph{real} day-ahead market price and imbalances are settled at
-under- and over-prediction prices that depend on it.  We train a single
-\emph{price-aware} neural network to minimise this cost end-to-end.  Because
-the day-ahead price is set only after suppliers commit, prices are not model
-inputs; they enter only through the training loss, from which the model learns
-when shortfall tends to be expensive.  We then compare it with symmetric (MSE) models,
-fixed-ratio asymmetric models, and post-hoc cost adjustments of both,
-including adjustments of the \emph{real} day-ahead forecast published by the
-Israeli system operator Noga.  The contributions of this paper are as follows:
-
+\paragraph*{Contributions.}
 \begin{enumerate}
-    \item \textbf{A unified price-aware forecasting model.}  To the best of our
-          knowledge, this is the first work on national electricity demand
-          forecasting that integrates \emph{real} day-ahead market prices into
-          the model's training objective, as the time-varying slopes of the
-          loss, so that a single model learns the cost-optimal forecast from
-          consumption and price data jointly, without requiring prices at
-          decision time.
+    \item \textbf{The first unified price-and-demand model.}  To the best of
+          our knowledge, this is the first model that forecasts electricity
+          demand and prices together \emph{and} trains the demand forecast on
+          the price-weighted procurement cost.  On the Israeli test year it
+          has the lowest cost of all models we tested, \$49.5 million: 6\%
+          below the strongest alternative, a joint load-and-price network with
+          the same architecture trained for accuracy and corrected to the cost
+          afterwards, and 19\% below the operator's forecast after the best
+          correction ($p\le0.008$ in every comparison).  Its safety margin
+          rises with the price, as theory demands; the margin of a
+          fixed-asymmetry model falls.
 
-    \item \textbf{A novel open dataset.}  We assemble and release a new dataset
-          for the Israeli market that combines 5-minute national demand, the
-          operator's real day-ahead demand forecast, real half-hourly day-ahead
-          market prices (SMP), and hourly weather from three stations, covering
-          April~2023 to December~2025.
+    \item \textbf{Real money.}  Replacing the operator's published forecast
+          would save about \$27 million per year in Israel---\$2.65 per
+          resident and 0.86\% of the day-ahead energy bill---mostly by
+          avoiding shortfalls.  Projected to a market the size of the United
+          States, the same improvement is worth roughly \$1 billion per year.
 
-    \item \textbf{A price-dependent imbalance-cost model.}  We propose a
-          generator of synthetic under- and over-prediction prices that is
-          anchored on real day-ahead prices and reproduces the stylised facts
-          of electricity imbalance settlement (a cost ratio between 5 and 20
-          that increases with the price), and we use it to study the
-          sensitivity of our conclusions.
+    \item \textbf{Small and cheap.}  The model has fewer than 2{,}000
+          parameters, trains in about five minutes on a standard laptop
+          without a GPU, and needs only 21 months of training data.
 
-    % TODO: state the outcome once the final experiments are in.
-    \item \textbf{Strong baselines, including the operator's forecast.}  We
-          compare the unified model with models trained to minimise MSE,
-          fixed-ratio asymmetric models, and models that are adjusted to the
-          cost after training (a global affine correction and a price-aware
-          newsvendor correction), as well as the Noga day-ahead forecast with
-          the same adjustments.
-
-    \item \textbf{An estimate of the potential savings in Israel.}  We translate
-          the cost reductions into an estimate of the annual saving for the
-          Israeli market, in shekels and as a share of the day-ahead energy
-          bill, together with its sensitivity to the imbalance-price
-          assumptions.
-
-    \item \textbf{An open-source implementation.}  We release our complete code
-          and data pipeline, from raw data ingestion through model training and
-          evaluation, as open source,\footnote{\url{https://github.com/gkutiel/noga}}
-          so that our results can be reproduced and extended.
+    \item \textbf{An open dataset and benchmark.}  We release a new dataset of
+          the Israeli market that aligns 5-minute national demand, the
+          operator's \emph{real} day-ahead forecast, real half-hourly
+          day-ahead prices and weather (April~2023--December~2025), a
+          generator of price-dependent imbalance prices, and the complete
+          code.\footnote{\url{https://github.com/gkutiel/noga}}
 \end{enumerate}
+
+Section~\ref{sec:related} reviews related work, Section~\ref{sec:modeling}
+formulates the problem, Section~\ref{sec:architecture} presents the unified
+model, Section~\ref{sec:dataset} describes the Israeli market, the data and the baselines,
+Section~\ref{sec:evaluation} reports the results and the savings, and
+Section~\ref{sec:conclusion} concludes.

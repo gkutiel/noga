@@ -1,154 +1,69 @@
-The objective of this study was to determine whether a single demand forecaster
-trained end-to-end on the realised procurement cost, with prices used only in
-the training loss (Section~\ref{sec:modeling}) can outperform models
-trained to minimise MSE, models trained with a fixed cost asymmetry, post-hoc
-cost adjustments of both, and the real operational forecast of the Israeli
-system operator.  This section describes the dataset
-(Section~\ref{sec:dataset}), the neural architecture and the training
-objectives we compare, the post-hoc cost adjustments, and the protocol
-under which they are evaluated (Section~\ref{sec:model-training}).
+Figure~\ref{fig:model} shows the model.  It forecasts the demand of a
+5-minute slot $t$ of the next day, together with the slot's three prices, from
+information available a day in advance.
 
-\subsection{Dataset}
-\label{sec:dataset}
-\input{dataset}
+\paragraph*{Inputs.}  (i)~The \emph{demand history}: the ten 5-minute
+readings ending exactly 24~hours before $t$.  (ii)~The \emph{calendar}: month,
+day of week and 5-minute slot of the day, each a learned two-dimensional
+embedding with norm at most~1.  (iii)~The \emph{weather}: temperature,
+wet-bulb temperature and relative humidity at Haifa, Jerusalem and Tel~Aviv,
+for slot $t$ and for the same slot of the previous day.  (iv)~\emph{Yesterday's
+day-ahead price} of the same slot, $\pi^{\mathrm{DA}}_{t-24\text{h}}$, which is
+public when the forecast is made.  Weather and price are standardised with
+training-set statistics.
 
-\subsection{Model Training}
-\label{sec:model-training}
+\paragraph*{Shared representation.}  One projection,
+$\mathrm{Linear}(9\to4)$ with a LeakyReLU, maps today's and yesterday's weather
+with the same weights, so the network can compare the same learned weather
+features on both days---which explains the change in demand since yesterday.
+The embeddings, both projected weather vectors and yesterday's price (15
+values) pass through three layers of width 16, each followed by a LeakyReLU,
+layer normalisation and dropout (0.1).  The result is a vector of shared
+features $\mathbf{z}\in\mathbb{R}^{16}$, read by two heads.
 
-All model variants share the same architecture: the prediction is expressed as
-a \emph{soft attention} over a short window of recent historical demand values
-plus a learned additive correction.  Weather conditions (air temperature, wet-bulb
-temperature, and relative humidity --- all raw fields reported directly by the
-IMS --- at three meteorological stations),
-and temporal patterns (time of day, day of week, month of year) jointly
-determine both the attention weights and the correction term.  Temporal
-features are encoded via learned embeddings; weather features enter as
-continuous inputs.  Prices are never model inputs: the day-ahead price is set
-only after the procurement decision, so prices are used only in the training
-loss and in the evaluation.  The model
-operates at 5-minute granularity and produces a day-ahead forecast.  The
-variants differ \emph{only} in their training objective, so that any
-difference in cost can be attributed to it.
-
-\subsubsection{Data Splitting}
-
-The dataset is partitioned chronologically:
-
-\begin{itemize}
-    \item \textbf{Training set:} April~2023 -- December~2024.
-    \item \textbf{Test set:} January -- December~2025, held out for final
-          evaluation.
-\end{itemize}
-
-All models are trained on the training set, and the post-hoc cost adjustments
-of the baselines (Section~\ref{sec:posthoc}) are fitted on the baselines'
-predictions for the training set.  The chronological split ensures that no
-future information leaks into training or adjustment.
-
-\subsubsection{Neural Network Architecture}
-
-For each target 5-minute slot $t$, the model receives the following inputs:
-
-\begin{itemize}
-    \item \textbf{Historical demand.}  A window of $H = 10$ consecutive
-          5-minute demand readings $\mathbf{h} = (h_1,\ldots,h_H)$ ending
-          exactly 24~hours before $t$ (i.e.\ the same time-of-day window
-          from the previous day).
-
-    \item \textbf{Weather features.}  Nine continuous variables measured at
-          time $t$: air temperature, wet-bulb temperature, and relative humidity
-          for three stations (Haifa, Jerusalem, Tel~Aviv).
-
-    \item \textbf{Temporal embeddings.}  Learned embeddings for time of day
-          (288 positions, dimension~16), day of week (7~positions,
-          dimension~3), and month of year (12~positions, dimension~2).
-\end{itemize}
-
-These are concatenated and passed through a small MLP with two hidden layers of
-width~32 and LeakyReLU activations, producing an output vector
-$\mathbf{o} \in \mathbb{R}^{H+1}$.
-The first $H$ outputs are treated as attention logits over the history window;
-the last output is an additive correction scalar~$\delta$.  The forecast is:
-
+\paragraph*{Demand head.}  A linear layer maps $\mathbf{z}$ to ten attention
+logits $\mathbf{o}$, a log-scale $s$ and a shift $\tilde b$:
 \begin{equation}
-    \hat{y} \;=\; \sum_{k=1}^{H} \mathrm{softmax}(\mathbf{o}_{1:H})_k\,h_k
-             \;+\; \delta,
+    \hat{y}_t \;=\; a\sum_{k=1}^{10} \mathrm{softmax}(\mathbf{o})_k\,h_k
+              \;+\; b, \qquad a=e^{s},\quad b=\tilde b\,\sigma_y,
     \label{eq:forecast}
 \end{equation}
+where $h_k$ are the history readings and $\sigma_y$ is the training-set
+standard deviation of the day-over-day demand change.  The attention picks the
+starting point from yesterday's demand; $a$ and $b$ set the level, including
+the safety margin.
 
-where demand values and prices are normalised by a constant scale factor of
-$100$ during training and rescaled at inference time.  All models are trained
-with the Adam optimiser~\parencite{kingma2014adam} at a learning rate
-$2\times10^{-4}$ and batch size~10\,000 for a fixed budget of 1\,500 epochs.
-We use a fixed budget, identical for all models, rather than early stopping,
-because the cost on a held-out window of a few months is dominated by a
-handful of price spikes and is too noisy to select a stopping point.
+\paragraph*{Price head.}  A second linear layer maps the \emph{same}
+features to the three prices,
+$(\hat\pi^{\mathrm{DA}}_t,\hat\pi^{o}_t,\hat\pi^{u}_t) =
+\bar{\boldsymbol{\pi}} \odot \exp(\mathbf{W}\mathbf{z}+\mathbf{c})$, with
+$\bar{\boldsymbol{\pi}}$ the training-set mean prices.  It has no other input:
+to predict the prices, $\mathbf{z}$ itself must encode when prices---and hence
+shortfalls---will be expensive, and the demand head reads exactly these
+features.  This is what makes the model \emph{unified}.
 
-\subsubsection{Training Objectives}
+\paragraph*{Training.}  The loss is the mean excess cost of the demand
+forecast (Equation~\eqref{eq:excess}) at the realised prices plus the mean
+relative squared error of the three price forecasts,
+$\tfrac13\sum_j((\hat\pi^j_t-\pi^j_t)/\pi^j_t)^2$, with equal weight.  We use
+Adam~\parencite{kingma2014adam} with learning rate $2\times10^{-3}$, batches of
+5{,}000 slots and a fixed budget of 500 epochs (the held-out cost is
+dominated by a few price spikes and is too noisy for early stopping).
 
-We compare the following training objectives:
+\paragraph*{Small and efficient.}  The model has \nParams{} parameters.  On a
+standard laptop (Intel Core i5-1135G7, no GPU) a full training run over the
+\nTrain{} training slots takes about five minutes, and forecasting a year
+takes a fraction of a second, so the model can be retrained daily without
+special hardware.
 
-\begin{itemize}
-    \item \textbf{MSE} (L2) and \textbf{L1} --- symmetric baselines targeting
-          the conditional mean and median.
-    \item \textbf{Pinball $r\!:\!1$} for $r\in\{5,10,20\}$ --- fixed-ratio
-          asymmetric baselines targeting the constant quantile $r/(r+1)$.
-    \item \textbf{Price-aware cost (proposed)} --- the mean excess cost
-          (Equation~\eqref{eq:excess}) with the \emph{realised} historical
-          prices as the loss.  The inputs are the same as for every other
-          model.
-\end{itemize}
-
-Because the loss is differentiable almost everywhere, the price-aware
-objective adds no computational overhead compared to L1 training.
-
-\subsubsection{Post-Hoc Cost Adjustment}
-\label{sec:posthoc}
-
-To test whether the benefit of the unified model could be obtained more
-cheaply, we adjust the outputs of the MSE, L1, pinball and Noga forecasts
-\emph{after} training so that they target the cost rather than the error.
-The purpose of the adjustment is to correct a model for having been trained on
-the wrong loss, so both adjustments are fitted on the baseline's predictions
-for the training set, using the realised historical prices.  At prediction
-time they use only information available at decision time.
-
-\begin{itemize}
-    \item \textbf{C1 --- global affine.}  $g(\hat y)=a\hat y + b$, with $(a,b)$
-          minimising the mean excess cost on the training set.  This is the
-          adjustment used in earlier work and in the previous version of this
-          study.  It is price-blind: the same correction applies to every slot.
-    \item \textbf{C2 --- hourly newsvendor (predict-then-optimise).}
-          $g(\hat y_t) = \hat y_t + s_{h(t)}$, where for each hour of the day
-          $h$ the shift $s_h$ minimises the realised excess cost of the
-          shifted training-set forecasts:
-          \[
-              s_h = \arg\min_s \sum_{i:\,h(i)=h}
-                    c^u_i\,(e_i - s)^+ + c^o_i\,(s - e_i)^+,
-              \qquad e_i = y_i - \hat y_i .
-          \]
-          The solution is the cost-weighted quantile of the hour's errors,
-          the empirical counterpart of
-          Equation~\eqref{eq:weighted_quantile}.  This is the textbook
-          two-stage approach: first forecast, then shift the forecast to the
-          cost-optimal quantile.
-\end{itemize}
-
-Like the proposed model, C2 uses historical prices only for fitting.  It
-differs from it in that the cost information enters \emph{after} a model has
-been trained on a price-blind objective, so it can only shift the forecast by
-hour of the day, not according to how the cost asymmetry interacts with the
-weather, the calendar and the recent demand.
-
-\subsubsection{Evaluation Protocol}
-\label{sec:eval-protocol}
-
-The primary metric is the \textbf{excess cost} (Equation~\eqref{eq:excess})
-on the test year, in \textsc{nis} per year, i.e.\ the cost above that of a
-perfect forecast.  We also report the MAE, the RMSE and the empirical coverage
-$P(y_t\le p_t)$.  Each configuration is repeated for three training seeds and
-three independent draws of the synthetic imbalance prices; we report the mean
-and standard deviation over these nine runs.  Statistical significance of the
-difference in daily excess cost between the proposed model and each baseline is
-assessed with the Diebold--Mariano test~\parencite{diebold1995comparing} with a
-Newey--West variance estimate (lag~7 days).
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=\linewidth,height=0.85\textheight,keepaspectratio]{plot/model.pdf}
+    \caption{The unified model.  Inputs (blue) are at least 24~hours old,
+             except the weather forecast for $t$; the slot's own prices are
+             never inputs.  A shared trunk produces features $\mathbf{z}$ from
+             which a demand head (orange) and a price head (red) are
+             computed.  The raw demand history enters only through the
+             attention.  The right panel lists the losses and the optimiser.}
+    \label{fig:model}
+\end{figure}

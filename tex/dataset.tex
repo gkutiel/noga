@@ -1,236 +1,171 @@
-The dataset is collected from the Israeli electricity market.
-Israel is a small country in the Middle East, covering an area of approximately
-20{,}770~km\textsuperscript{2} with a population of roughly 10~million people as of 2026.
-The population geographic distribution is highly concentrated: the vast majority
-of Israelis live along the narrow Mediterranean coastal plain, a strip
-approximately 150~km long stretching from Haifa in the north through the
-greater Tel~Aviv metropolitan area and on to Ashdod in the south.
-Figure~\ref{fig:pop-density} illustrates this concentration and directly
-motivates our choice of weather stations: Tel~Aviv, Jerusalem, and Haifa are
-the three largest urban centres and together capture the climatic conditions
-experienced by the bulk of the population, whose electricity use drives the
-national demand signal.
+\subsection{The Israeli Electricity Market}
+\label{sec:israel}
 
-\begin{figure}[H]
+Israel is a small country (about 20{,}770~km\textsuperscript{2}, 10.2~million
+people) whose population is highly concentrated: most of it lives on the
+narrow Mediterranean coastal plain, a strip of about 150~km from Haifa through
+the Tel~Aviv metropolitan area to Ashdod, with Jerusalem the main inland
+centre (Figure~\ref{fig:pop-density}).  The weather at Haifa, Tel~Aviv and
+Jerusalem therefore describes the conditions under which most of the
+electricity is consumed.  The climate is hot in summer and mild in winter,
+and 96.5\% of households have air conditioning, so demand is driven by
+cooling and, to a lesser extent, heating: it peaks in July--August, with a
+secondary peak in January--February.  The working week runs from Sunday to
+Thursday; Friday and Saturday are the weekend.
+
+The grid is an \emph{electricity island}, with no significant interconnection
+to neighbouring countries, so every shortfall must be covered by domestic
+reserves.  The market is centralised.  The independent system operator, Noga,
+forecasts the national demand for every period of the next day; this
+day-ahead forecast, together with the resulting system marginal price (SMP),
+determines how much each producer is scheduled to generate.  The day-ahead
+demand forecast is thus the pivotal quantity: it is fixed before the demand is
+known, and its errors are corrected in real time at a premium.  With about
+80~TWh per year and an average load of 9.2~GW, the market is small: a few
+percent of the US market.
+
+\begin{figure}[t]
     \centering
-    \includegraphics[width=0.6\textwidth]{plot/Israel_population_density_2018.png}
-    \caption{Population density of Israel (2018).  The coastal plain, running
-    approximately 150~km from Haifa to Ashdod, concentrates the overwhelming
-    majority of the population.  This spatial clustering justifies using weather
-    observations from Tel~Aviv, Haifa, and Jerusalem as the primary climatic
-    features for demand forecasting.  Population density is per 1 square kilometre.}
+    \includegraphics[height=0.42\textheight]{plot/Israel_population_density_2018.png}
+    \caption{Population density of Israel (2018, people per km\textsuperscript{2}).
+             The coastal plain from Haifa to Ashdod holds most of the
+             population; we use the weather at Haifa, Tel~Aviv and
+             Jerusalem.}
     \label{fig:pop-density}
 \end{figure}
 
-The dataset consists of three complementary sources: electricity consumption
-data and day-ahead market prices obtained from the Israeli electricity system
-operator Noga~\parencite{noga, noga_smp}, and weather data sourced from the
-Israeli Meteorological Service~\parencite{ims}.  To the best of our knowledge,
-this is the first public dataset for the Israeli market that aligns national
-demand, the operator's real day-ahead forecast, real market prices and weather
-at a common 5-minute resolution, and we release it together with our
-code.
-Electricity consumption data includes readings of power usage at 5-minute intervals.
-Crucially, it also includes the \emph{real day-ahead forecasts} published by Noga as part of the
-market clearing process.  These are the actual forecasts used by the system operator in the
-day-ahead market, not post-hoc reconstructions.  Their inclusion in our dataset
-provides two important opportunities: (i)~we can directly compare the performance
-of our learned models against the operational forecasts actually used in the market,
-serving as a strong real-world baseline; and (ii)~we can analyze the
-distribution of real-world prediction errors produced by an experienced operator,
-which motivates and contextualizes the cost asymmetries studied in this paper.
-In Israel, where the percentage of households with air conditioning systems is currently 96.5\% (ranging from 89\% in the lower decile to 98.3\% in the upper decile) according to data from Israel's Central Bureau of Statistics, there is a strong correlation between electricity consumption levels and building cooling and heating loads resulting from changing weather conditions and building occupancy trends.
-The weather data includes air temperature and relative humidity, whose combined effect controls building cooling loads, alongside wind speed measurements taken every three hours in the three major cities of Israel: Tel Aviv, Jerusalem, and Haifa.
+\subsection{The Dataset}
 
-\paragraph*{Day-ahead prices.}  The price data is the half-hourly day-ahead
-system marginal price (SMP) published by Noga, in \textsc{nis}/MWh, from
-1~April~2023 to 31~December~2025.  Noga publishes both a constrained SMP, which
-accounts for transmission constraints, and an unconstrained one; we use the
-constrained SMP, which is the price actually applied, and treat it as the
-market-clearing price.  Over the study period the SMP has a mean of
-$165.8$~\textsc{nis}/MWh (median $143.0$, standard deviation $98.9$), ranging
-from $39.2$ in low-demand night hours to $1{,}667$ during scarcity events.  Each
-5-minute demand slot is assigned the price of its 30-minute settlement period.
-Noga does not publish real-time imbalance prices for this period (the
-corresponding columns are empty), which is why the under- and over-prediction
-prices are generated synthetically (Section~\ref{sec:synthetic-prices}).
-% Table~\ref{tab:electricity-fields} summarizes the fields present in the electricity consumption data,
-% and Table~\ref{tab:weather-fields} summarizes the fields present in the weather data. 
-% The dataset covers the period from March 2023 to February 2026, 
-% providing a comprehensive view of electricity consumption patterns 
-% and their relationship with weather conditions over the course of almost three years.
+We combine three sources at a common 5-minute resolution, from 1~April~2023
+to 31~December~2025; to our knowledge this is the first public dataset of the
+Israeli market that aligns them.
 
-% \begin{table}[ht]
-%     \centering
-%     \begin{tabular}{ll}
-%         \hline
-%         \textbf{Field} & \textbf{Description} \\
-%         \hline
-%         \texttt{date} & Calendar date (DD-MM-YYYY). \\
-%         \texttt{total\_demand} & Total daily electricity demand (MWh). \\
-%         \texttt{total\_day\_ahead\_forecast} & Operator's day-ahead forecast (MWh). \\
-%         \hline
-%     \end{tabular}
-%     \caption{Electricity consumption data fields (daily aggregated from hourly source data).}
-%     \label{tab:electricity-fields}
-% \end{table}
+\begin{itemize}
+    \item \textbf{Demand and the operator's forecast} (Noga, the Israeli
+          system operator~\parencite{noga}): national demand every 5~minutes
+          and the \emph{real} day-ahead forecast Noga publishes and uses in
+          the market---a strong, operational baseline.
+    \item \textbf{Day-ahead prices} (Noga~\parencite{noga_smp}): the
+          half-hourly unconstrained system marginal price (SMP), the
+          market-clearing price $\pi^{\mathrm{DA}}_t$; each 5-minute slot gets
+          the price of its settlement period.  (The constrained SMP adds
+          redispatch spikes caused by local transmission limits, which a
+          national forecast does not affect.)  It averages
+          137.5~\textsc{nis}/MWh (\$39.9/MWh) and ranges from 41 to 505.
+    \item \textbf{Weather} (Israel Meteorological Service~\parencite{ims}):
+          temperature, wet-bulb temperature and relative humidity at Haifa,
+          Jerusalem and Tel~Aviv (Figure~\ref{fig:pop-density}).
+\end{itemize}
 
-% \begin{table}[ht]
-%     \centering
-%     \begin{tabular}{ll}
-%         \hline
-%         \textbf{Field} & \textbf{Description} \\
-%         \hline
-%         \texttt{temperature\_Haifa} & Daily mean temperature, Haifa ($^\circ$C). \\
-%         \texttt{temperature\_Jerusalem} & Daily mean temperature, Jerusalem ($^\circ$C). \\
-%         \texttt{temperature\_Tel\_Aviv} & Daily mean temperature, Tel~Aviv ($^\circ$C). \\
-%         \hline
-%     \end{tabular}
-%     \caption{Weather data fields (daily means aggregated from tri-hourly station observations).}
-%     \label{tab:weather-fields}
-% \end{table}
+Table~\ref{tab:dataset-stats} summarises the data.  The average load is
+9{,}167~MW (about 80~TWh per year).
 
-\subsubsection{Data Analysis}
-To better understand the dataset, we performed an exploratory data analysis (EDA) to identify patterns and relationships between the electricity consumption and weather data.
-Figure~\ref{fig:daily-demand} shows daily electricity consumption over the dataset period (1 March 2023 to 28 February 2026) alongside the daily average air temperature in Tel Aviv.
+\paragraph*{The operator's forecast is built for accuracy.}  Noga's forecast
+is accurate ($R^2\approx0.98$) and, like a model trained on the squared error,
+unbiased and nearly symmetric (Figure~\ref{fig:noga-errors}): the mean error
+is $+25$~MW against a standard deviation of 436~MW, and demand exceeds the
+forecast in 53\% of the slots.  For accuracy this is ideal; for cost it is
+not.  With shortfalls several times more expensive than surpluses, the
+cost-optimal forecast is a high quantile (Section~\ref{sec:newsvendor}), and a
+forecast centred on the mean falls short about half of the time.
 
-\begin{figure}[H]
+\paragraph*{The uncertainty is not uniform.}  The cost-optimal margin
+$F_t^{-1}(\tau_t)-\mathbb{E}[y_t]$ grows with the spread of the demand as
+well as with the price.  This spread varies widely: the operator's error
+ranges from 1.8\% to 4.8\% MAPE across the hours of the week (standard
+deviation 181 to 658~MW, Figure~\ref{fig:error-heatmap}).  It is highest on
+the weekend mornings, Friday and Saturday 8:00--15:00, and lowest at night.
+A single margin cannot fit both, and a correction per hour of the day (C2,
+Section~\ref{sec:compared}) cannot tell a Friday from a Tuesday.  A model
+that sees the calendar, the weather and yesterday's price can set its margin
+from both the uncertainty and the price.
+
+\begin{figure}[t]
     \centering
-    \includegraphics[width=\textwidth]{plot/daily_demand_by_time.png}
-    \caption{Daily electricity consumption (MWh) and observed air temperature over the dataset period
-    (1 March 2023 to 28 February 2026).  Clear seasonal patterns are visible, with
-    a summer peak (July--August) driven by air-conditioning loads and a secondary
-    winter peak (January--February) driven by heating.}
-    \label{fig:daily-demand}
+    \includegraphics[width=0.85\linewidth]{plot/demand_vs_forecast_kde_histogram.png}
+    \caption{Error of the operator's day-ahead forecast (actual minus
+             forecast, 5-minute slots, April 2023--December 2025, shown
+             within $\pm$1{,}500~MW).  Like a forecast trained on the squared
+             error, it is centred near zero and falls short in about half of
+             the slots, far from the high quantile that the asymmetric cost
+             calls for.}
+    \label{fig:noga-errors}
 \end{figure}
 
-Figure~\ref{fig:daily-demand-vs-temp} shows the relationship between daily electricity consumption and the daily average air temperature in Tel Aviv.
-
-\begin{figure}[H]
+\begin{figure}[t]
     \centering
-    \includegraphics[width=\textwidth]{plot/daily_demand_vs_avg_temp_Tel_Aviv.png}
-    \caption{Daily electricity consumption vs.\ daily mean air temperature in
-    Tel~Aviv.  The characteristic U-shaped relationship is visible, with
-    high demand at both high air temperatures (cooling loads) and low air temperatures
-    (heating loads).  The balance-point air temperature is approximately
-    20\,$^\circ$C.}
-    \label{fig:daily-demand-vs-temp}
+    \includegraphics[width=0.9\linewidth]{plot/error_heatmap_percent.png}
+    \caption{Mean absolute percentage error of the operator's day-ahead
+             forecast by day of week and hour of day.  The uncertainty, and
+             with it the cost-optimal margin, varies with the calendar: it is
+             highest on the weekend (Friday--Saturday) mornings.}
+    \label{fig:error-heatmap}
 \end{figure}
 
-% Figure~\ref{fig:daily-demand-vs-forecast-time} depicts the relationship between daily electricity consumption and the operator's day-ahead forecast over time.
-
-% \begin{figure}[H]
-%     \centering
-%     \includegraphics[width=\textwidth]{plot/daily_demand_vs_forecast_time.png}
-%     \caption{Daily electricity consumption (solid blue) vs.\ operator day-ahead
-%     forecast (dashed orange) over time.  The forecast tracks actual demand
-%     closely, with visible errors during demand spikes.}
-%     \label{fig:daily-demand-vs-forecast-time}
-% \end{figure}
-
-Figure~\ref{fig:demand-vs-forecast-kde} shows the KDE histogram of the forecast error, i.e., the difference between the actual demand and the day-ahead forecast.
-
-\begin{figure}[H]
+\begin{table}[t]
     \centering
-    \includegraphics[width=\textwidth]{plot/demand_vs_forecast_kde_histogram.png}
-    \caption{KDE histogram of the forecast error (actual demand minus
-    day-ahead forecast).  The distribution is approximately zero-mean with
-    slightly heavier right tails, suggesting that large under-forecasts are
-    marginally more frequent than large over-forecasts.}
-    \label{fig:demand-vs-forecast-kde}
-\end{figure}
-
-% \subsection{Dataset Statistics}
-
-Table~\ref{tab:dataset-stats} reports summary statistics for the key variables in
-the daily dataset.  The data span 1{,}006~days from 1~April~2023 to
-31~December~2025.  The average load is $9{,}167$~MW (about $80$~TWh per year)
-with a peak of $17{,}265$~MW.
-
-\begin{table}[ht]
-    \centering
+    \small
+    \caption{Daily summary statistics (1{,}006 days).  $^{*}$Three days with
+    an anomalous published forecast (17--19 June 2024) are excluded.}
+    \label{tab:dataset-stats}
     \begin{tabular}{lrrrrr}
         \toprule
         \textbf{Variable} & \textbf{Mean} & \textbf{Std} &
         \textbf{Min} & \textbf{Median} & \textbf{Max} \\
         \midrule
-        Total demand (MWh) & 219\,929 & 37\,427 & 147\,762 & 211\,805 & 342\,359 \\
-        Day-ahead forecast (MWh)$^{*}$ & 219\,309 & 38\,168 & 142\,517 & 210\,569 & 347\,322 \\
-        Forecast error (MWh)$^{*}$ & $+620$ & 6\,334 & $-40\,070$ & $+632$ & $+31\,364$ \\
-        Mean day-ahead price (\textsc{nis}/MWh) & 166 & 61 & 77 & 150 & 656 \\
-        Air Temp.\ Tel~Aviv ($^\circ$C)    & 23.2 & 4.8 &  9.6 & 23.7 & 32.1 \\
-        Air Temp.\ Jerusalem ($^\circ$C)   & 19.5 & 6.3 &  2.3 & 20.7 & 36.5 \\
-        Air Temp.\ Haifa ($^\circ$C)       & 19.7 & 5.2 &  4.4 & 20.8 & 31.3 \\
+        Demand (GWh/day)                       & 219.9 & 37.4 & 147.8 & 211.8 & 342.4 \\
+        Operator forecast error (GWh/day)$^{*}$ & $+0.6$ & 6.3 & $-40.1$ & $+0.6$ & $+31.4$ \\
+        Day-ahead price (\textsc{nis}/MWh)     & 138 & 26 & 85 & 133 & 245 \\
+        Temperature, Tel~Aviv ($^\circ$C)      & 23.2 & 4.8 & 9.6 & 23.7 & 32.1 \\
         \bottomrule
     \end{tabular}
-    \caption{Summary statistics for daily variables ($N = 1{,}006$ days,
-    1 April 2023 to 31 December 2025).
-    $^{*}$Three days (17--19 June 2024) with an anomalous published
-    forecast are excluded.}
-    \label{tab:dataset-stats}
 \end{table}
 
-\subsubsection{Forecast Error Distribution}%
-\label{sec:forecast-error-dist}
+\subsection{Compared Models}
+\label{sec:compared}
 
-As shown in Figure~\ref{fig:demand-vs-forecast-kde}, the Noga day-ahead forecast
-errors (actual minus forecast) are strikingly close to zero-mean and nearly
-symmetric: the mean daily error is only $+620$~MWh against a standard deviation
-of $6{,}334$~MWh, and the KDE is approximately bell-shaped with modest skewness.
-In other words, the operational forecast is essentially unbiased, under-predicting
-and over-predicting with roughly equal frequency and magnitude.
+The data are split chronologically: training on April~2023--December~2024
+(\nTrain{} slots) and testing on 2025 (\nTest{} slots).  All learned models
+share the network of Figure~\ref{fig:model}, so differences come from how
+demand and prices enter training, not from the architecture:
 
-From a pure accuracy standpoint this is a desirable property.  From a
-cost-sensitive standpoint, however, it is a warning sign.  As established in
-Section~\ref{sec:modeling}, when the costs of under-prediction substantially
-exceed those of over-prediction the cost-minimising forecast is \emph{not} the
-conditional mean but a higher quantile --- a deliberate upward bias proportional
-to the cost asymmetry.  An approximately symmetric, zero-mean forecast therefore
-fails to account for the asymmetric cost structure of the market, and will
-systematically incur higher expected operational cost than a cost-aware
-alternative.  This observation is central to the motivation of our approach and
-is quantified empirically in Section~\ref{sec:evaluation}.
+\begin{itemize}
+    \item \textbf{MSE}: demand only, trained on the squared error---the
+          conventional accuracy-oriented forecaster.
+    \item \textbf{Pinball opt}: demand only, trained on the pinball loss at
+          the single best constant quantile,
+          $\tau^*=\mathbb{E}[c^u]/(\mathbb{E}[c^u]+\mathbb{E}[c^o])=0.864$
+          from the training prices---the fixed-asymmetry approach of the
+          cost-oriented literature.
+    \item \textbf{Joint MSE}: the full network, with the price head, but with
+          the demand trained on the squared error---a joint load-and-price
+          forecaster trained for accuracy~\parencite{shayeghi2015simultaneous,
+          li2024joint}.
+    \item \textbf{Unified cost model} (proposed): the full network trained on
+          the excess cost and the price loss.
+    \item \textbf{Noga}: the operator's published forecast.
+\end{itemize}
 
-Figure~\ref{fig:error-heatmap} breaks down the Noga forecast error magnitude by
-hour of the day and day of the week.  Each cell shows the mean \emph{percentage}
-absolute error ($|actual - forecast| / actual$) for that hour-of-week slot over
-the entire dataset.  The heatmap reveals that forecast accuracy varies
-substantially across the week: certain hour-of-day and day-of-week combinations
-are consistently harder to forecast than others, with notable differences between
-weekdays, Friday, and Saturday.  This structured, non-uniform pattern has an
-important implication for post-hoc calibration: a global affine correction
-cannot account for the fact that errors are large in some slots and small in
-others.  We return to this point in Section~\ref{sec:evaluation}.
+\paragraph*{Post-hoc corrections.}  To test whether the benefit can be had
+more cheaply, we correct the accuracy-trained forecasts to the cost after
+training, fitting each correction on the model's own training-set forecasts
+at the realised prices: \textbf{C1}, a global affine map $a\hat y+b$;
+\textbf{C2}, an affine map per hour of the day, started from the exact
+cost-optimal shift of each hour (a cost-weighted quantile of its errors,
+Equation~\eqref{eq:weighted_quantile}); and, for Joint MSE, a
+\textbf{$\hat\tau$ shift}, which uses the model's own price forecasts: the
+training slots are split into deciles of the predicted quantile
+$\hat\tau_t$ (Equation~\eqref{eq:optimal_threshold}), and each decile gets its
+own cost-optimal shift.  This last baseline is the textbook
+\emph{forecast-then-optimise} use of a joint load-and-price forecast.  The
+proposed model is never corrected.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{plot/error_heatmap_percent.png}
-    \caption{Heatmap of mean percentage absolute error
-    ($|actual - forecast| / actual$) for Noga day-ahead forecasts,
-    broken down by hour of the day (rows) and day of the week (columns).
-    Each cell represents a specific hour-of-week slot.
-    The non-uniform pattern demonstrates that forecast difficulty varies
-    systematically across hours and days, and cannot be corrected by a
-    single global offset.}
-    \label{fig:error-heatmap}
-\end{figure}
-
-\subsubsection{Comparison with the Noga Operational Forecast}
-
-A distinctive feature of our dataset is the availability of the \emph{real}
-day-ahead forecasts produced by Noga and used in the actual electricity market.
-This allows us to evaluate our learned models not merely against simple
-statistical baselines but against the operational forecast of an experienced
-system operator with access to proprietary data and domain expertise.
-
-The Noga forecast achieves $R^2\approx 0.98$ against actual demand, confirming it is a strong accuracy baseline.  
-Its error distribution is, as discussed in Section~\ref{sec:forecast-error-dist}, nearly zero-mean and approximately symmetric.  
-While this is impressive from an accuracy standpoint, it also
-reveals a limitation: the Noga forecast behaves as a conditional-mean estimator, making no explicit adjustment for cost asymmetry.  
-A symmetric, unbiased forecast minimises mean squared error but, as we show empirically in
-Section~\ref{sec:evaluation}, it does \emph{not} minimize expected operational
-cost when under-prediction is substantially more costly than over-prediction.
-Its high $R^2$ is therefore a misleading indicator of operational performance
-under asymmetric costs --- a point that motivates the cost-sensitive approach
-developed in this paper.
-
+\paragraph*{Evaluation.}  The metric is the excess cost
+(Equation~\eqref{eq:excess}) on the test year, split into its under- and
+over-prediction parts, in million US dollars per year at
+3.45~\textsc{nis}/\$ (the 2025 average).  We also report MAE, RMSE and
+coverage $P(y_t\le p_t)$.  Each learned model is trained with three seeds
+(mean $\pm$ standard deviation), with one draw of the imbalance prices.
+Differences in daily cost (averaged over seeds) are tested with the
+Diebold--Mariano test~\parencite{diebold1995comparing} with a Newey--West
+variance (lag 7 days).

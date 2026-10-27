@@ -1,4 +1,4 @@
-% Flow diagram of the demand model (noga/model.py @ d79d200+dirty).
+% Flow diagram of the demand model (noga/model.py @ 78033fe).
 % Regenerate with the /draw-model command.
 \documentclass[tikz,border=8pt]{standalone}
 \usepackage[T1]{fontenc}
@@ -35,7 +35,7 @@
 
 % ---------------------------------------------------------------- title
 \node[font=\large\bfseries, anchor=west] (title) at (-6.2, 1.6)
-  {Demand model \quad{\normalfont\ttfamily\small noga/model.py @ d79d200+dirty}};
+  {Demand model \quad{\normalfont\ttfamily\small noga/model.py @ 78033fe}};
 
 % ---------------------------------------------------------------- inputs
 \node[inp, text width=36mm] (hist) at (-4.3, 0)
@@ -147,8 +147,8 @@
 \node[tn, text width=62mm, anchor=north west] (opt) at ($(ploss.south west)+(0,-5mm)$)
   {\textbf{Optimiser}\\[3pt]
    \footnotesize
-   Adam, lr $10^{-3}$, no weight decay; dropout 0.1 in the trunk\\
-   300 epochs, fixed (no early stopping)\\
+   Adam, lr $2 \cdot 10^{-3}$, no weight decay; dropout 0.1 in the trunk\\
+   500 epochs, fixed (no early stopping)\\
    batches of 5\,000 slots, reshuffled every epoch\\
    train 2023-04 \ldots\ 2024-12, \; test 2025};
 \begin{scope}[on background layer]

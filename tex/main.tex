@@ -20,75 +20,84 @@
 
 \emergencystretch=1em
 
+% Numbers used in the text (from the experiments).
+\newcommand{\nTrain}{184{,}268}
+\newcommand{\nTest}{104{,}854}
+\newcommand{\nParams}{1{,}805}
+
 \addbibresource{ref.bib}
 
 \onehalfspacing
 
-\title{\textbf{Cost-Sensitive Electricity Demand Forecasting\\
-via Asymmetric Loss Optimisation}\\[0.6em]
-\large Beyond the Linear Newsvendor Framework}
+\title{\textbf{A Unified Price-and-Demand Model for\\
+Cost-Optimal Day-Ahead Electricity Demand Forecasting}\\[0.6em]
+\large Evidence from the Israeli Market}
 \author{Gilad Kutiel \quad Or Aleksandrowicz \quad Avigdor Gal  \\[0.6em]
 \normalsize Technion --- Israel Institute of Technology \\[0.3em]
 \footnotesize\ttfamily gilad.kutiel@gmail.com \quad oraleks@technion.ac.il \quad avigal@technion.ac.il}
-\date{March 2026}
+\date{October 2026}
 
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-Accurate electricity demand forecasting is critical for market participants in
-deregulated power markets, where procurement decisions must be made before
-actual demand is observed.  
-Traditional forecasting approaches minimise symmetric
-loss functions such as mean squared error (MSE), which implicitly treat over- and
-under-prediction as equally costly.  In practice, the costs of under-predicting
-demand --- triggering emergency reserve activation, load shedding, or costly
-real-time purchases --- substantially exceed those of over-prediction.
-We formalise this asymmetry through an explicit cost function and incorporate it
-directly into the training objective, replacing symmetric loss functions with a
-cost-sensitive alternative.  Concretely, we train a feedforward neural network with an asymmetric loss function that directly targets
-the cost-minimising prediction under the prevailing cost structure.  Using a dataset of daily electricity demand in
-Israel spanning March~2023 to February~2026, augmented with meteorological data
-from three major cities, we evaluate our approach against MSE-trained baseline models.  We then generate synthetic asymmetric cost functions
-to assess performance across a range of cost scenarios.  Our results
-demonstrate that cost-aware training leads to statistically significant
-reductions in operational cost compared to symmetric baselines, and that MSE is a
-poor surrogate for operational cost under asymmetric loss.
-We benchmark against the \emph{real} day-ahead forecasts published by the Israeli
-system operator Noga: although predictive accuracy was not our objective, our
-practical, open-source model improves on this operational forecast even under
-symmetric error metrics, while additionally delivering an economic benefit we
-argue is realistic to adopt.
+Day-ahead electricity is bought before demand is known: committed energy is
+paid at the day-ahead price, and any shortfall or surplus is settled later at
+imbalance prices.  A shortfall costs several times more than a surplus, and
+\emph{how much} more depends on the price of the hour, so the cost-optimal
+forecast is a quantile of demand that moves with the price.  Forecasting
+practice nevertheless keeps demand and price apart: demand models and price
+models are each trained for accuracy, and cost-oriented demand models use a
+fixed cost ratio that ignores prices.  We propose, to our knowledge, the first
+\emph{unified} model: one small neural network that forecasts the demand and
+the prices of every slot from a shared representation and trains the demand
+forecast on the price-weighted procurement cost, so that its safety margin
+follows its own expectation of when shortfalls will be expensive.  On a new
+open dataset of the Israeli market---5-minute national demand, the system
+operator's real day-ahead forecast, real day-ahead prices and weather---with
+imbalance prices generated from the real day-ahead price, the unified model
+lowers the excess procurement cost of the 2025 test year to \$49.5 million,
+significantly below demand-only models trained for accuracy or with a fixed
+cost asymmetry, 6\% below a joint demand-and-price network trained for
+accuracy and corrected to the cost afterwards, and 19\% below the operator's
+forecast after the best correction.  Replacing the operator's published
+forecast would save about \$27 million per year in Israel (\$2.65 per
+resident, 0.86\% of the day-ahead energy bill), which projects to roughly
+\$1 billion per year for a market the size of the United States.  The model has
+fewer than 2{,}000 parameters and trains in five minutes on a laptop.
 \end{abstract}
 
-\noindent\textbf{Keywords:} electricity demand forecasting; asymmetric loss functions; cost-sensitive learning; newsvendor model; pinball loss; day-ahead markets
-
-\setcounter{tocdepth}{2}
-\tableofcontents
-\newpage
+\noindent\textbf{Keywords:} electricity demand forecasting; electricity price
+forecasting; unified model; cost-sensitive learning; decision-focused
+learning; newsvendor model; imbalance cost; day-ahead markets
 
 \section{Introduction}\label{sec:intro}
 \input{intro}
 
-\section{Cost-Sensitive Forecasting: Problem Formulation and Asymmetric Loss}%
-\label{sec:modeling}
+\section{Related Work}\label{sec:related}
+\input{related}
+
+\section{Problem Formulation}\label{sec:modeling}
 \input{modeling}
 
-\section{Methods}\label{sec:method}
+\section{The Unified Model}\label{sec:architecture}
 \input{method}
+\clearpage  % flush the full-page model figure before the next section
 
-\section{Results and Discussion}\label{sec:evaluation}
+\section{Data and Experimental Setup}\label{sec:dataset}
+\input{dataset}
+
+\section{Results}\label{sec:evaluation}
 \input{evaluation}
 
-\section{Conclusion and Future Work}\label{sec:conclusion}
+\section{Conclusion}\label{sec:conclusion}
 \input{conclusion}
 
 \section*{Funding}
 This work was funded by Israel's Ministry of Energy and Infrastructure, grant number 223-11-056.
 
 \FloatBarrier
-\newpage
 \printbibliography
 
 \end{document}

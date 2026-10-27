@@ -1,59 +1,41 @@
-\subsection{Problem Formulation}
+\subsection{Procurement Cost}
 
-In day-ahead electricity procurement, a market participant must commit to a
-quantity $p_t$ for every settlement slot $t$ of the following day before
-observing the actual demand $y_t$.  Committed energy is paid at the day-ahead
-price; any mismatch is settled after the fact at less favourable prices.  We
-model $y_t$ as a random variable whose conditional distribution is
-\emph{unknown} and must be learned from data; we make no parametric assumption
-about its form.
-
-\paragraph*{Price-based cost.}  Let $\pi^{\mathrm{DA}}_t$ denote the day-ahead
-price, $\pi^{u}_t$ the price paid for each unit of shortfall (under-prediction),
-and $\pi^{o}_t$ the cost of each unit of surplus (over-prediction), with
+A market participant commits to a quantity $p_t$ for every slot $t$ of the
+next day before observing the demand $y_t$.  Let $\pi^{\mathrm{DA}}_t$ be the
+day-ahead price, $\pi^u_t$ the price of each unit of shortfall and $\pi^o_t$
+the value lost on each unit of surplus, with
 \begin{equation}
     \pi^{u}_t \;>\; \pi^{\mathrm{DA}}_t \;>\; \pi^{o}_t \;>\; 0.
     \label{eq:price-order}
 \end{equation}
-The total realised cost of procuring $p_t$ when demand turns out to be $y_t$ is
+The realised cost is
+$C_t = \pi^{\mathrm{DA}}_t \min(y_t, p_t) + \pi^{u}_t (y_t - p_t)^{+} +
+\pi^{o}_t (p_t - y_t)^{+}$.  The consumed energy $\pi^{\mathrm{DA}}_t y_t$ is
+paid whatever the forecast, so we work with the \emph{excess cost} above a
+perfect forecast,
 \begin{equation}
-    C_t(p_t, y_t) =
-        \pi^{\mathrm{DA}}_t \min(y_t, p_t)
-        + \pi^{u}_t \,(y_t - p_t)^{+}
-        + \pi^{o}_t \,(p_t - y_t)^{+},
-    \label{eq:cost}
-\end{equation}
-where $(z)^{+}=\max(0,z)$.  Since the consumed energy $\pi^{\mathrm{DA}}_t y_t$
-must be paid regardless of the forecast, it is convenient to work with the
-\emph{excess cost} above a perfect forecast,
-\begin{equation}
-    E_t(p_t, y_t) = C_t(p_t,y_t) - \pi^{\mathrm{DA}}_t y_t
+    E_t(p_t, y_t) = C_t - \pi^{\mathrm{DA}}_t y_t
     = \underbrace{(\pi^{u}_t - \pi^{\mathrm{DA}}_t)}_{c^{u}_t}\,(y_t - p_t)^{+}
-    + \underbrace{\pi^{o}_t}_{c^{o}_t}\,(p_t - y_t)^{+}.
+    + \underbrace{\pi^{o}_t}_{c^{o}_t}\,(p_t - y_t)^{+},
     \label{eq:excess}
 \end{equation}
-Equation~\eqref{eq:excess} is a pinball loss whose two slopes, $c^u_t$ and
-$c^o_t$, are \emph{prices} that vary from slot to slot.
+a pinball loss whose two slopes are \emph{prices} that change from slot to
+slot.  We consider the uncertainty of demand only; production-side
+uncertainty, e.g.\ from renewables~\parencite{morales2014integrating}, is
+outside our scope.
 
-\paragraph*{Information structure.}  The day-ahead price is the
-market-clearing price (the Israeli system marginal price, SMP).  It is set
-\emph{after} suppliers decide how much electricity to buy, so none of the
-prices $\pi^{\mathrm{DA}}_t$, $\pi^u_t$, $\pi^o_t$ is known when $p_t$ is
-chosen.  The forecaster observes only the information $\mathcal{I}_t$ that our
-models use as inputs: recent demand, weather and the calendar.  Prices are
-observed after the fact, so historical prices \emph{are} available for
-training.
+\paragraph*{Information.}  The day-ahead price is set by the market
+\emph{after} the purchase decision, so none of the slot's prices
+$\pi^{\mathrm{DA}}_t,\pi^u_t,\pi^o_t$ is known when $p_t$ is chosen.  The
+forecaster sees only what is available a day ahead: demand and prices up to
+24~hours before $t$, the weather forecast and the calendar.  Historical prices
+are known after the fact and can be used for training.
 
-\paragraph*{Goal.}  The objective is to choose $p_t$ that minimises the
-\emph{expected total cost} $\mathbb{E}[C_t \mid \mathcal{I}_t]$ given the
-information available at decision time---not the expected prediction error.
-
-\subsection{Optimal Decision: a Cost-Weighted Quantile}%
+\subsection{The Optimal Forecast Is a Price-Dependent Quantile}
 \label{sec:newsvendor}
 
-For fixed, known prices, Equation~\eqref{eq:excess} is the classical
-\emph{newsvendor} problem~\parencite{arrow1951optimal}, whose solution is the
-critical fractile
+For known prices, minimising Equation~\eqref{eq:excess} is the newsvendor
+problem~\parencite{arrow1951optimal}, whose solution is the critical fractile
 \begin{equation}
     p^*_t = F_t^{-1}(\tau_t), \qquad
     \tau_t = \frac{c^{u}_t}{c^{u}_t + c^{o}_t}
@@ -62,106 +44,56 @@ critical fractile
     \label{eq:optimal_threshold}
 \end{equation}
 where $F_t$ is the conditional distribution of demand.  When the prices are
-themselves unknown, setting the derivative of
-$\mathbb{E}[E_t(p,y_t)\mid\mathcal{I}_t]$ to zero gives the condition
+unknown, the optimum satisfies
 \begin{equation}
     \mathbb{E}\big[c^u_t\,\mathbb{1}\{y_t > p^*_t\} \,\big|\, \mathcal{I}_t\big]
-    = \mathbb{E}\big[c^o_t\,\mathbb{1}\{y_t < p^*_t\} \,\big|\, \mathcal{I}_t\big]:
+    = \mathbb{E}\big[c^o_t\,\mathbb{1}\{y_t < p^*_t\} \,\big|\, \mathcal{I}_t\big],
     \label{eq:weighted_quantile}
 \end{equation}
-the optimal forecast is a \emph{cost-weighted} quantile of demand, in which
-each possible outcome is weighted by the price it would be settled at.  Three
-consequences motivate this paper:
-\begin{enumerate}
-    \item \textbf{The target quantile is not constant.}  The cost asymmetry
-          $c^u_t/c^o_t$ varies with the market price, so the cost-optimal
-          quantile varies across slots.  A model trained with a symmetric loss
-          (targeting the mean or median) or with a fixed-ratio pinball loss
-          (targeting a constant quantile) cannot track it.
-    \item \textbf{Prices and demand are correlated.}  High demand is what
-          drives high prices, so the scenarios in which the forecast falls
-          short are also those in which shortfall is most expensive.
-          Equation~\eqref{eq:weighted_quantile} accounts for this joint
-          behaviour; a forecast that is first trained without prices and then
-          shifted cannot.
-    \item \textbf{Errors in expensive slots matter more.}  The slopes of
-          Equation~\eqref{eq:excess} scale with the price level, so a
-          megawatt-hour of error during a price spike costs many times more
-          than one at night.  A cost-trained model allocates its capacity
-          accordingly; an MSE-trained model weighs all slots equally.
-\end{enumerate}
-The prices cannot be model inputs, but they can be used in the training loss.
-A \emph{unified} model trained on Equation~\eqref{eq:excess} with the
-realised historical prices learns, from the observable features, when prices
-and hence the cost asymmetry tend to be high, and targets the cost-weighted
-quantile of Equation~\eqref{eq:weighted_quantile} directly.
+where $\mathcal{I}_t$ is the information available a day ahead: a
+\emph{cost-weighted} quantile of demand, in which each outcome is weighted by
+the price it would be settled at.  Three consequences motivate the unified
+model.  (i)~The target quantile moves with the price, so no model that
+targets the mean or a fixed quantile can be optimal.  (ii)~High demand drives
+high prices, so shortfalls tend to happen when they are most expensive;
+Equation~\eqref{eq:weighted_quantile} accounts for this joint behaviour, a
+forecast shifted after training does not.  (iii)~A megawatt-hour of error
+during a price spike costs many times more than one at night, so a model
+should spend its capacity where prices are high.  A model that predicts the
+prices and the demand from shared features and is trained on
+Equation~\eqref{eq:excess} with the realised prices can learn all three.
 
-\subsection{Synthetic Imbalance Prices}
+\subsection{Imbalance Prices}
 \label{sec:synthetic-prices}
 
-The day-ahead prices in our study are the \emph{real} Israeli SMP values
-(Section~\ref{sec:dataset}).  Real imbalance prices, however, are not
-published for the Israeli market, so we generate synthetic over- and
-under-prediction prices that satisfy Equation~\eqref{eq:price-order} and the
-following stylised facts:
-\begin{itemize}
-    \item the cost of surplus is roughly a fixed fraction of the day-ahead
-          price;
-    \item the price of shortfall is a non-linear, convex and noisy function of
-          the day-ahead price---scarcity is expensive exactly when the system
-          is already tight;
-    \item the under/over price ratio $\pi^u_t/\pi^o_t$ lies in $[5, 20]$ and is
-          roughly increasing in the day-ahead price, in line with the cost
-          asymmetries reported for electricity
-          procurement~\parencite{zhang2022costoriented, weron2014electricity}.
-\end{itemize}
-Concretely, for each 30-minute settlement period we draw
-\begin{align}
-    \pi^{o}_t &= \alpha\,(1+\varepsilon_t)\,\pi^{\mathrm{DA}}_t,
-        & \varepsilon_t &\sim \mathcal{N}(0, \sigma_o^2), \\
-    r_t &= \operatorname{clip}\!\Big(
+The day-ahead prices in our study are the real Israeli market prices
+(Section~\ref{sec:dataset}); imbalance prices are not published for the study
+period, so we generate them.  Per 30-minute settlement period,
+\begin{gather}
+    \pi^{o}_t = \alpha\,(1+\varepsilon_t)\,\pi^{\mathrm{DA}}_t, \qquad
+    \pi^{u}_t = r_t\,\pi^{o}_t, \\
+    r_t = \operatorname{clip}\!\Big(
         \big(r_{\min} + (r_{\max}-r_{\min})\,u_t^{\gamma}\big)\,e^{\eta_t},\;
         r_{\min},\, r_{\max}\Big),
-        & \eta_t &\sim \mathcal{N}(0, \sigma_u^2), \\
-    \pi^{u}_t &= r_t\,\pi^{o}_t,
-\end{align}
-where $u_t\in[0,1]$ is the position of $\log\pi^{\mathrm{DA}}_t$ between its
-5th and 99th percentiles.  We use $\alpha=0.3$, $\gamma=2$, $\sigma_o=0.03$,
-$\sigma_u=0.15$, $r_{\min}=5$ and $r_{\max}=20$.  Because $\alpha r_{\min}>1$,
-the ordering~\eqref{eq:price-order} holds in every slot, and $\pi^u_t =
-\alpha(1+\varepsilon_t)\,r_t\,\pi^{\mathrm{DA}}_t$ is the day-ahead price times
-an increasing convex multiplier.  None of these prices is a model input; they
-enter only the training loss and the evaluation.  Figure~\ref{fig:tau-vs-price} shows the resulting
-cost-optimal quantile: it ranges from about $0.6$ in cheap night-time slots to
-about $0.94$ during price spikes.  Section~\ref{sec:sensitivity} varies all
-generator parameters.
+\end{gather}
+with $\varepsilon_t \sim \mathcal{N}(0, \sigma_o^2)$,
+$\eta_t \sim \mathcal{N}(0, \sigma_u^2)$, and $u_t\in[0,1]$ the position of
+$\log\pi^{\mathrm{DA}}_t$ between its 5th and 99th percentiles.  The surplus
+price is thus a fixed fraction of the day-ahead price, and the
+shortfall-to-surplus ratio lies in $[5,20]$ and rises convexly with
+it~\parencite{zhang2022costoriented}.  We use $\alpha=0.3$, $\gamma=2$,
+$\sigma_o=0.03$, $\sigma_u=0.15$, $r_{\min}=5$ and $r_{\max}=20$;
+$\alpha r_{\min}>1$ guarantees the ordering~\eqref{eq:price-order}.  The
+resulting cost-optimal quantile (Figure~\ref{fig:tau-vs-price}) has a median of
+$0.78$ on the training set, $0.66$ in the cheapest fifth of the slots and
+$0.92$ in the most expensive fifth.
 
-\paragraph*{Scarcity variant.}  In the base generator the imbalance price
-depends on the day-ahead price only.  In real balancing markets, however, the
-price of shortfall is highest when the \emph{whole system} is short.  For a
-national-scale forecaster this matters: its own under-prediction tends to
-coincide with a system-wide shortfall.  As a robustness check we therefore
-correlate the noise $\eta_t$ with the system-wide demand surprise
-$s_t = (y_t - \hat y^{\mathrm{Noga}}_t)/\hat y^{\mathrm{Noga}}_t$, averaged over
-the settlement period, while keeping its variance:
-\begin{equation}
-    \eta_t = \sigma_u\left(\rho\, z_t + \sqrt{1-\rho^2}\,\xi_t\right),
-    \qquad \xi_t\sim\mathcal{N}(0,1),
-\end{equation}
-where $z_t$ is the robustly standardised surprise (median and median
-absolute deviation, clipped at $\pm4$).  Since $s_t$ depends on the realised
-demand, the scarcity premium couples the price of shortfall with the
-forecast error itself.  For $\rho=0.6$, the under/over ratio in periods when
-the system is short is 8--15\% higher than in periods with the same day-ahead
-price when it is long.  We report $\rho\in\{0.3,0.6,0.9\}$.
-
-\begin{figure}[H]
+\begin{figure}[t]
     \centering
-    \includegraphics[width=0.8\linewidth]{plot/tau_vs_price.png}
-    \caption{Cost-optimal quantile $\tau_t$
-             (Equation~\eqref{eq:optimal_threshold}) against the real
-             day-ahead price on the test year.  Points are realised values
-             (including the noise in $\pi^u_t$); the line is the mean
-             $\tau_t$ within each of 20 price bins.}
+    \includegraphics[width=0.75\linewidth]{plot/tau_vs_price.png}
+    \caption{The cost-optimal quantile $\tau_t$
+             (Equation~\eqref{eq:optimal_threshold}) rises with the real
+             day-ahead price (test year).  Points are realised values; the
+             line is the mean in each of 20 price bins.}
     \label{fig:tau-vs-price}
 \end{figure}

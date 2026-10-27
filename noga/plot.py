@@ -230,49 +230,48 @@ def daily_demand_vs_forecast():
     plt.close()
 
 
-def demand_vs_forecast_kde_histogram():
+# Days with an anomalous published forecast (17-19 June 2024), as date_ord.
+ANOMALOUS = (pd.Timestamp("2024-06-17") - pd.Timestamp("2023-01-01")).days + np.arange(3)
+
+
+def noga_errors() -> pd.DataFrame:
+    """5-min rows of data.csv with the operator's error, anomalous days removed."""
     data = pd.read_csv("data/data.csv")
-    data["actual-demand"] = pd.to_numeric(
-        data["actual-demand"], errors="coerce")
-    data["day-ahead-forecast"] = pd.to_numeric(
-        data["day-ahead-forecast"], errors="coerce")
-    data = data.dropna(subset=["actual-demand", "day-ahead-forecast"])
+    data = data[~data["date_ord"].isin(ANOMALOUS)].copy()
+    data["err"] = data["actual"] - data["forecast"]
+    data["hour"] = data["time"] // 60
+    return data
 
-    errors = data["actual-demand"] - data["day-ahead-forecast"]
-    errors = errors[(errors >= -1000) & (errors <= 1000)]
 
-    kde = gaussian_kde(errors, bw_method="scott")
-    x = np.linspace(errors.min(), errors.max(), 500)
+def demand_vs_forecast_kde_histogram():
+    # Paper figure: the operator's error is centred near zero.
+    err = noga_errors()["err"]
+    lim = 1500
+    shown = err[err.abs() <= lim]
+    under = (err > 0).mean()
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    ax.hist(
-        errors,
-        bins=60,
-        density=True,
-        color="#3b82f6",
-        alpha=0.5,
-        label="Histogram",
-    )
-    ax.plot(
-        x,
-        kde(x),
-        color="#1d4ed8",
-        linewidth=2,
-        label="KDE",
-    )
-    ax.axvline(0, color="#ef4444", linewidth=1.5,
-               linestyle="--", label="Zero error")
-    ax.axvline(errors.mean(), color="#f97316", linewidth=1.5,
-               linestyle="--", label=f"Mean ({errors.mean():,.0f} MW)")
-
-    ax.set_title(
-        "Distribution of Forecast Errors (Actual Demand − Day-Ahead Forecast)")
-    ax.set_xlabel("Error (MW)")
+    fig, ax = plt.subplots(figsize=(7, 3.6))
+    ax.hist(shown, bins=75, density=True, color="#3b82f6", alpha=0.5,
+            label="Histogram")
+    x = np.linspace(-lim, lim, 500)
+    ax.plot(x, gaussian_kde(shown)(x), color="#1d4ed8", linewidth=2,
+            label="KDE")
+    ax.axvline(0, color="#374151", linewidth=1, linestyle="--",
+               label="Zero error")
+    ax.axvline(err.mean(), color="#f97316", linewidth=1.5, linestyle="--",
+               label=f"Mean ({err.mean():+,.0f} MW)")
+    ax.text(0.98, 0.6,
+            f"under-prediction (actual > forecast): {under:.0%} of slots\n"
+            f"std {err.std():,.0f} MW",
+            transform=ax.transAxes, ha="right", va="top", fontsize=9)
+    ax.set_xlabel("Actual demand − day-ahead forecast (MW)")
     ax.set_ylabel("Density")
-    ax.legend(fontsize=8)
+    ax.set_xlim(-lim, lim)
+    ax.legend(fontsize=8, loc="upper left")
     fig.tight_layout()
-    plt.savefig(PLOTS_DIR / "demand_vs_forecast_kde_histogram.png", dpi=150)
+    out = Path("tex/plot/demand_vs_forecast_kde_histogram.png")
+    print("Saving plot to:", out)
+    plt.savefig(out, dpi=200)
     plt.close()
 
 
@@ -422,42 +421,29 @@ def plot_confusion_matrix():
 
 
 def plot_error_heatmap_percent():
-    data = pd.read_csv("data/data.csv")
-    data["abs_err_pct"] = (data["forecast"] - data["actual"]
-                           ).abs() / data["actual"] * 100
-    data["hour"] = data["time"] // 60
+    # Paper figure: the operator's error by weekday and hour.
+    data = noga_errors()
+    data["abs_err_pct"] = data["err"].abs() / data["actual"] * 100
 
-    # pivot: rows = day-of-week (0–6), cols = hour (0–23)
-    pivot = (
-        data.groupby(["day", "hour"])["abs_err_pct"]
-        .mean()
-        .unstack("hour")
-    )
+    # pivot: rows = day-of-week (0 = Sunday), cols = hour (0–23)
+    pivot = data.groupby(["day", "hour"])["abs_err_pct"].mean().unstack("hour")
+    print(f"MAPE by weekday-hour: {pivot.values.min():.1f}-{pivot.values.max():.1f}%")
 
-    n_days = len(pivot)   # 7
-    n_hours = len(pivot.columns)  # 24
-
-    fig, ax = plt.subplots(figsize=(n_hours * 0.8, n_days * 1.5))
+    fig, ax = plt.subplots(figsize=(8, 3.2))
     im = ax.imshow(pivot.values, aspect="auto", cmap="YlOrRd",
                    origin="upper", interpolation="nearest")
 
-    # y-axis: day of week labels
     day_labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    ax.set_yticks(range(n_days))
+    ax.set_yticks(range(len(pivot)))
     ax.set_yticklabels([day_labels[d] for d in pivot.index])
+    ax.set_xticks(range(0, 24, 2))
+    ax.set_xticklabels([f"{h:02d}" for h in range(0, 24, 2)], fontsize=8)
 
-    # x-axis: one label per hour
-    ax.set_xticks(range(n_hours))
-    ax.set_xticklabels(
-        [f"{h:02d}:00" for h in pivot.columns], rotation=90, fontsize=8)
-
-    plt.colorbar(im, ax=ax, label="Mean Absolute Error (%)")
-    ax.set_title("Day-Ahead Forecast Error % by Day of Week and Time of Day")
-    ax.set_ylabel("Day of Week")
-    ax.set_xlabel("Time of Day")
+    plt.colorbar(im, ax=ax, label="MAPE (%)")
+    ax.set_xlabel("Hour of day")
     fig.tight_layout()
 
-    out = PLOTS_DIR / "error_heatmap_percent.png"
+    out = Path("tex/plot/error_heatmap_percent.png")
     print("Saving plot to:", out)
     plt.savefig(out, dpi=150)
     plt.close()

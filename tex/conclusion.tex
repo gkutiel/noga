@@ -1,180 +1,26 @@
-\subsection{Summary of Findings}
+When forecast errors are settled at market prices, the cost-optimal demand
+forecast is a quantile that moves with the price.  We proposed the first
+unified model that forecasts demand and prices from one shared representation
+and trains the demand forecast on the price-weighted procurement cost.  On a
+new open dataset of the Israeli market it beats demand-only models trained for
+accuracy or with a fixed asymmetry, a joint demand-and-price network trained
+for accuracy, post-hoc corrections of all of them, and the operator's own
+forecast---because its safety margin rises with the price.  It would save
+about \$27 million per year in Israel against the published operator
+forecast, roughly a billion dollars per year at US scale, and it does so with
+fewer than 2{,}000 parameters trained in five minutes on a laptop.
 
-This paper addressed day-ahead electricity demand forecasting under asymmetric
-operational costs using a 3-year national-scale, high-resolution dataset of
-electricity use prediction and actual consumption.  Our main findings are:
+\paragraph*{Limitations.}  (i)~The imbalance prices are synthetic, anchored on
+the real day-ahead price; the savings depend on their level.  (ii)~All
+results use one draw of these prices.  (iii)~The post-hoc corrections are
+fitted on training-set forecasts, whose errors are smaller than on the test
+set, so their margins may be slightly too small.  (iv)~We assume a price
+taker and ignore the effect of the forecast on the prices.  (v)~The model
+produces a point forecast, not a full predictive distribution.
 
-\begin{enumerate}
-    \item \textbf{Asymmetric costs are pervasive and substantial.}  In
-          electricity markets, the costs of under-predicting demand substantially
-          exceed those of over-prediction.  Empirically plausible cost ratios
-          $c_u/c_o\in[5,20]$ have a large impact on the optimal forecasting
-          strategy.
-
-    \item \textbf{The newsvendor framework provides a principled optimality
-          condition.}  The cost-minimising procurement level corresponds to a
-          specific quantile $\tau^*=c_u/(c_u+c_o)$ of the conditional demand
-          distribution.  For a cost ratio of~5, this yields $\tau^*\approx 0.833$,
-          i.e.\ the 83.3rd percentile of demand --- a systematic upward shift
-          that is normatively \emph{desirable} under asymmetric costs.
-
-    \item \textbf{Asymmetric loss training effectively targets the cost-minimising
-          quantile.}  A feedforward neural network trained with a cost-sensitive asymmetric loss
-          function (specifically, a non-linear variant of the pinball loss) at
-          the appropriate quantile achieves lower expected operational cost than
-          an L1-trained neural network baseline.  The cost
-          reduction is consistent across a wide range of synthetic cost function
-          parameters.
-
-    \item \textbf{Symmetric loss is a misleading evaluation metric under asymmetric costs.}
-          The L1-trained neural network achieves lower MAE than the asymmetric-loss model
-          yet incurs higher expected operational cost.  Practitioners should adopt
-          cost-sensitive metrics such as asymmetric loss or expected operational
-          cost for model selection and evaluation.
-
-    \item \textbf{Post-hoc calibration helps but does not substitute for
-          cost-aware training.}  A global affine correction fitted to the
-          operational cost recovers much of the gap on asymmetric metrics, but
-          cannot match a model trained end-to-end, because it cannot adapt the
-          upward bias to the input-conditional structure of forecast error.
-
-    \item \textbf{The approach is practical and improves on the operational
-          forecast.}  Our model is a small, open-source feedforward network that
-          trains in minutes on commodity hardware.  Even though predictive
-          accuracy was not an objective of this work, it improves on the Noga
-          operational forecast not only on cost-sensitive metrics but also under
-          symmetric error metrics such as MSE; we believe substantial
-          further gains in this aspect are readily achievable.  Together with a demonstrated
-          economic benefit, this makes the method realistic to adopt in practice.
-\end{enumerate}
-
-\subsection{Implications for Market Participants and Policymakers}
-
-\textbf{For market participants} (electricity retailers, large consumers,
-aggregators), the key takeaway is that standard forecasting tools optimised for
-MSE are likely to systematically under-procure electricity, exposing them to
-avoidable real-time market risk.  Incorporating asymmetric cost modelling ---
-through direct asymmetric-loss training or post-hoc quantile adjustment --- can
-yield meaningful reductions in procurement costs with negligible additional
-computational overhead.
-
-\textbf{For grid operators} (transmission system operators, independent system
-operators), the implication is that incentivising cost-sensitive forecasting
-among market participants could improve overall system reliability.  If all
-participants systematically under-forecast demand, the system operator faces
-persistent shortfalls in committed reserves.  Regulatory frameworks that reward
-forecast accuracy measured by cost-sensitive metrics, rather than MSE, would
-align private incentives with system reliability objectives.
-
-\textbf{For policymakers}, our results support the inclusion of cost-sensitive
-forecasting requirements in market design rules.  For example, mandatory reporting of asymmetric (pinball) loss at relevant
-quantiles, alongside MSE, would provide a richer picture of forecast quality
-that better reflects operational costs.
-
-\subsection{Limitations}
-
-Along with these positive findings, this work also has several limitations, as follows:
-
-\begin{itemize}
-    \item \textbf{Synthetic imbalance prices.}  The day-ahead prices are real,
-          but Noga does not publish real-time imbalance prices for the study
-          period, so the under- and over-prediction prices are generated
-          synthetically.  Although the generator is anchored on the real
-          day-ahead price and our conclusions are robust to its parameters
-          (Section~\ref{sec:sensitivity}), the absolute savings depend on the
-          assumed imbalance-price level and should be read as an estimate under
-          the stated cost model.
-
-    \item \textbf{No price information at decision time.}  Since the SMP is
-          set only after procurement decisions are made, our models use
-          prices only during training.  Forecasts of the day-ahead price, if
-          available, could be added as inputs and would likely improve the
-          cost further.
-
-    \item \textbf{Price-taker assumption.}  We evaluate the cost of a single
-          procurement decision at given prices and ignore the feedback of a
-          changed forecast on the prices themselves.  For the system operator,
-          whose forecast drives the schedule, this feedback is not negligible.
-
-    \item \textbf{Point forecasts only.}  Our neural network produces a single scalar
-          forecast at the (price-dependent) target quantile.  A richer approach
-          would estimate the full predictive distribution, enabling uncertainty
-          quantification.
-\end{itemize}
-
-\subsection{Directions for Future Research}
-
-\begin{enumerate}
-    \item \textbf{Distributional forecasting.}  Training models to output full
-          predictive distributions (via normalising flows, conformal prediction,
-          or Bayesian deep learning) would enable the optimal quantile to be
-          selected adaptively as a function of current cost parameters.  We regard
-          this, rather than training against a fixed cost function, as the proper
-          long-term formulation of the problem, for the reasons set out in the
-          concluding remarks below.
-
-    \item \textbf{Nonlinear and non-smooth cost functions.}  Step-function or
-          tiered cost structures require optimisation approaches beyond the
-          pinball loss, such as distributionally robust optimisation or stochastic
-          programming.
-
-    \item \textbf{Online and adaptive learning.}  Adaptive algorithms that update
-          the forecasting model in real time as market conditions change would be
-          valuable for practical deployment.
-
-    \item \textbf{Richer temporal modelling.}
-          Our model already operates at fine (5-minute) granularity but treats
-          each target slot largely independently.  Explicitly modelling
-          intra-day and cross-day demand dynamics, for example with Transformer
-          architectures~\parencite{vaswani2017attention} or temporal
-          convolutional networks, could better exploit the structured
-          hour-of-week error pattern documented in
-          Section~\ref{sec:forecast-error-dist}.
-
-    \item \textbf{Joint price and demand forecasting.}  Relaxing the
-          price-blind setting by forecasting the day-ahead price jointly with
-          demand and feeding the price forecast to the model, and modelling the dependence of imbalance prices on the
-          system-wide forecast error (scarcity pricing), are natural next
-          steps.
-
-    \item \textbf{Multi-product forecasting.}  In practice, electricity retailers
-          must manage procurement across multiple products (day-ahead energy,
-          reserves, ancillary services) with correlated costs and demands.  A
-          joint cost-sensitive forecasting framework would be a substantial
-          extension.
-
-    \item \textbf{Real imbalance prices.}  Collaboration with market
-          participants or the operator to obtain actual imbalance settlement
-          prices would remove the need for synthetic under- and
-          over-prediction prices.
-\end{enumerate}
-
-\subsection{Concluding Remarks}
-
-Electricity demand forecasting sits at the intersection of time series analysis,
-optimisation under uncertainty, and energy economics.  As markets become more
-complex, driven by variable renewable energy, demand response, and distributed
-storage, the costs of forecast errors are likely to increase, making
-cost-sensitive forecasting ever more important.
-
-This work demonstrates that a conceptually simple modification --- giving the
-forecaster the market prices it will be settled at, and training it on the
-resulting procurement cost instead of MSE --- leads to meaningful improvements in
-operational cost without sacrificing computational tractability.  Because the
-prices enter as inputs, a single model serves the whole range of cost
-asymmetries that the market produces, rather than one fixed ratio chosen in
-advance.
-
-A complementary formulation is to \emph{decouple estimation from
-decision-making}: first predict the full \emph{conditional distribution} of
-demand, and then optimise the procurement quantity at decision time against the
-prevailing prices.  Our price-aware newsvendor baseline (C2) is a simple
-instance of this idea; our results suggest that, with the data available, the
-unified model exploits the interaction between prices and the other features
-better than such a two-stage approach.  Combining the two --- distributional
-models that are themselves trained on price-weighted objectives --- is a
-promising direction for future work.
-We hope these findings contribute to a broader shift
-towards cost-aware forecasting practices in the electricity industry and stimulate
-further research at the intersection of machine learning and energy systems
-optimisation.
+\paragraph*{Future work.}  Real imbalance prices, from the operator or market
+participants, would turn the savings estimate into a measurement.  Further
+directions are a scarcity variant of the price generator in which shortfalls are most expensive when
+the whole system is short, richer price inputs (fuel prices, renewable
+forecasts), distributional forecasts trained on price-weighted objectives,
+and applying the unified model to larger markets.

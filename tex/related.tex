@@ -1,8 +1,45 @@
-% The former stand-alone "Related Work" section has been dissolved into the
-% Introduction (Section 1) following reviewer feedback:
-%   - Koenker & Bassett (1978) and Christoffersen & Diebold (1997) now open
-%     Section 1.2 "Cost-Oriented and Asymmetric Learning for Load Forecasting".
-%   - Weron (2014), Hong & Fan (2016) and GEFCom2014 moved into Section 1.1.
-%   - The cost-oriented learning literature (Wang, Lin, Wu, Zhang) forms the
-%     body of Section 1.2.
-% This file is intentionally left empty and is no longer \input from main.tex.
+\paragraph*{Cost-oriented load forecasting.}  Quantile
+regression~\parencite{koenker1978regression} minimises the asymmetric pinball
+loss and estimates a conditional quantile, and under an asymmetric loss the
+optimal point forecast is biased~\parencite{christoffersen1997optimal}.  The
+pinball loss became a standard in energy forecasting with
+GEFCom2014~\parencite{hong2016gefcom2014, hong2016probabilistic}.  Several
+works train load forecasters directly on an asymmetric cost: an LSTM trained
+on the pinball loss~\parencite{wang2019pinball}, LSTMs trained on losses
+derived from an asymmetric tariff, which cut electricity costs by
+0.9--2.4\%~\parencite{lin2020asymmetric}, an asymmetric support vector
+regression~\parencite{wu2021svr}, and a cost-oriented formulation of load
+forecasting~\parencite{zhang2022costoriented}.  In all of them the asymmetry
+is \emph{fixed}---one quantile, or the slopes of one tariff---and prices play
+no role in the model.
+
+\paragraph*{Joint forecasting of load and price.}  Load and price are
+strongly coupled, and several models forecast them together:
+\textcite{shayeghi2015simultaneous} with a multi-output least-squares SVM on
+the NYISO, NSW and PJM markets, and \textcite{li2024joint} with a multi-task
+network that shares layers across source, load and price.  These models are
+trained for statistical accuracy: their demand forecast targets the
+conditional mean, and the predicted price plays no role in how the forecast
+trades shortfall against surplus.  Price forecasting on its own has a large
+literature~\parencite{weron2014electricity}, likewise accuracy-oriented.
+
+\paragraph*{Decision-focused learning.}  Decision-focused or value-oriented
+learning trains predictors against the cost of a downstream decision rather
+than a statistical error~\parencite{donti2017taskbased, elmachtoub2022spo};
+the feature-based newsvendor~\parencite{ban2019bignewsvendor} learns an order
+quantity directly from features under fixed costs.  In power systems the idea
+has been applied to wind and solar forecasts traded in
+markets~\parencite{stratigakos2022prescriptive, zhang2024valueoriented} and to
+load forecasts for a downstream dispatch~\parencite{donti2017taskbased,
+han2020lfednet}.  These works treat the cost parameters as given rather than
+predicting them, and none addresses national demand with real market prices
+or benchmarks against the forecast an operator actually uses.
+
+\paragraph*{The gap.}  After a search of these three literatures we found no
+model that \emph{unifies} them: one that forecasts the prices together with
+the demand and trains the demand forecast on the price-weighted cost, so that
+the decision follows the model's own price expectations.  We therefore
+compare against the strongest representative of each line: a joint
+load-and-price network trained for accuracy whose own price forecasts then set
+the margin, a fixed-asymmetry (pinball) model, and accuracy-trained models
+corrected to the cost after training.
