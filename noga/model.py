@@ -48,7 +48,7 @@ DAY_IN_5_MIN = 288
 # Demand history: the same slot on each of the last HISTORY_LEN days,
 # HISTORY_STEP rows (one day) apart: t-7d ... t-24h, so the attention picks
 # which past day today resembles (yesterday, or last week after a weekend).
-HISTORY_LEN = 7
+HISTORY_LEN = 3
 HISTORY_STEP = DAY_IN_5_MIN
 FEATURES = [
     'temp_Haifa',
