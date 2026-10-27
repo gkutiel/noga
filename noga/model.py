@@ -28,7 +28,7 @@ from noga.price import P_DA, P_O, P_U, SURPRISE, PriceParams, synth
 EPOCHS = 500
 BATCH_SIZE = 5_000
 # Adam for every model, no weight decay.
-LR = 1e-3
+LR = 2e-3
 # First test day; training uses everything before it. 2025-07-01 is the second
 # rolling-origin fold (test 2025-H2). Set with the NOGA_TRAIN_END variable.
 TRAIN_END = os.environ.get("NOGA_TRAIN_END", "2025-01-01")
