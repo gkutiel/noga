@@ -41,3 +41,4 @@ tmp.txt
 !docs/model.pdf
 # IJF supplement (built by tex/ijf_supplement.sh)
 tex/ijf_supplement.zip
+tex/ijf_figures/

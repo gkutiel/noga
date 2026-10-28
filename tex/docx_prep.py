@@ -1,7 +1,8 @@
 """Prepare a copy of the paper's .tex files for pandoc -> docx.
 
-Usage: python docx_prep.py <tex dir> <out dir>
-Resolves \\ref/\\eqref from main.aux, numbers display equations with \\tag,
+Usage: python docx_prep.py <tex dir> <out dir> [master, default main]
+Writes the master and the section files to <out dir>.
+Resolves \\ref/\\eqref from <master>.aux, numbers display equations with \\tag,
 and uses the PNG of the model diagram (Word cannot embed PDF).
 """
 import re
@@ -9,8 +10,9 @@ import sys
 from pathlib import Path
 
 src, out = Path(sys.argv[1]), Path(sys.argv[2])
+master = sys.argv[3] if len(sys.argv) > 3 else "main"
 labels = dict(re.findall(r"\\newlabel\{([^}]*)\}\{\{([^}]*)\}",
-                         (src / "main.aux").read_text()))
+                         (src / f"{master}.aux").read_text()))
 
 FILES = ["intro", "related", "modeling", "method", "dataset", "evaluation",
          "conclusion"]
@@ -66,5 +68,13 @@ for name in FILES:
     t = re.sub(r"\\eqref\{([^}]*)\}", lambda m: f"({labels[m.group(1)]})", t)
     t = re.sub(r"~?\\ref\{([^}]*)\}", lambda m: f"~{labels[m.group(1)]}", t)
     (out / f"{name}.tex").write_text(t)
+
+# elsarticle front matter (ijf.tex): pandoc drops the keyword environment.
+t = (src / f"{master}.tex").read_text()
+t = re.sub(r"\\begin\{keyword\}(.*?)\\end\{keyword\}",
+           lambda m: r"\noindent\textbf{Keywords:} "
+           + re.sub(r"\s*\\sep", ";", m.group(1)).strip(), t, flags=re.S)
+t = re.sub(r"\\(begin|end)\{frontmatter\}|\\linenumbers", "", t)
+(out / f"{master}.tex").write_text(t)
 
 print("equations:", n_eq)

@@ -1,24 +1,32 @@
 #!/usr/bin/env bash
 # Build the anonymised code-and-data supplement for the IJF submission:
-# tex/ijf_supplement.zip with the code, the raw sources and data/data.csv.
+# tex/ijf_supplement.zip with the code, data/data.csv and its own README.
 # Fails if any file in it names the authors.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 out=tex/ijf_supplement.zip
 files=(
-    README.md CLAUDE.md Taskfile.yml pyproject.toml uv.lock .python-version
+    pyproject.toml uv.lock .python-version
     noga/*.py
-    data/noga.xlsx data/ims.he.csv data/Smp_01_04_2023-01_01_2026_he-IL.xlsx
     data/data.csv
 )
 
-if grep -l -i -E "kutiel|aleksandrowicz|avigal|technion|gilad" "${files[@]}"; then
+stage=$(mktemp -d)
+trap 'rm -rf "$stage"' EXIT
+cp --parents "${files[@]}" "$stage"
+cp tex/ijf_supplement_README.md "$stage/README.md"
+# report.py writes its figures to tex/plot/.
+mkdir -p "$stage/tex/plot"
+
+cd "$stage"
+if grep -r -l -i -E "kutiel|aleksandrowicz|avigal|technion|gilad" .; then
     echo "identifying text in the files above" >&2
     exit 1
 fi
 
-rm -f "$out"
+rm -f "$OLDPWD/$out"
 # -X: no extra file attributes (owner ids) in the archive.
-zip -q -X "$out" "${files[@]}"
+zip -q -r -X "$OLDPWD/$out" .
+cd "$OLDPWD"
 ls -la "$out"

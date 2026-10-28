@@ -13,13 +13,28 @@ tasks:
     cmds:
       - for f in ijf ijf_title ijf_cover; do latexmk -pdf -interaction=nonstopmode -halt-on-error $f.tex; done
       - ./ijf_supplement.sh
+      # The journal wants each figure as a separate file, numbered as in the text.
+      - rm -rf ijf_figures && mkdir ijf_figures
+      - cp plot/tau_vs_price.png ijf_figures/fig1_tau_vs_price.png
+      - cp plot/model.pdf ijf_figures/fig2_model.pdf
+      - cp plot/Israel_population_density_2018.png ijf_figures/fig3_population_density.png
+      - cp plot/demand_vs_forecast_kde_histogram.png ijf_figures/fig4_operator_errors.png
+      - cp plot/error_heatmap_percent.png ijf_figures/fig5_error_heatmap.png
+
+  ijf-docx:
+    desc: "Generate ijf.docx, the anonymised manuscript in Word (needs ijf.aux: run task ijf first)"
+    cmds:
+      - task: docx
+        vars: {MASTER: ijf}
 
   docx:
     desc: "Generate main.docx from the LaTeX paper (needs main.aux: build the PDF first)"
+    vars:
+      MASTER: '{{.MASTER | default "main"}}'
     cmds:
-      - rm -rf .docx && mkdir .docx && cp main.tex ref.bib .docx/ && cp -r plot .docx/
+      - rm -rf .docx && mkdir .docx && cp ref.bib ai_declaration.tex .docx/ && cp -r plot .docx/
       - pdftoppm -png -r 200 -singlefile plot/model.pdf .docx/plot/model
-      - python3 -I docx_prep.py . .docx
-      - cd .docx && pandoc main.tex --citeproc --bibliography=ref.bib -o raw.docx
-      - python3 -I docx_post.py .docx/raw.docx main.docx
+      - python3 -I docx_prep.py . .docx {{.MASTER}}
+      - cd .docx && pandoc {{.MASTER}}.tex --citeproc --bibliography=ref.bib -o raw.docx
+      - python3 -I docx_post.py .docx/raw.docx {{.MASTER}}.docx
       - rm -rf .docx

@@ -271,7 +271,7 @@ def demand_vs_forecast_kde_histogram():
     fig.tight_layout()
     out = Path("tex/plot/demand_vs_forecast_kde_histogram.png")
     print("Saving plot to:", out)
-    plt.savefig(out, dpi=200)
+    plt.savefig(out, dpi=600)
     plt.close()
 
 
@@ -445,7 +445,7 @@ def plot_error_heatmap_percent():
 
     out = Path("tex/plot/error_heatmap_percent.png")
     print("Saving plot to:", out)
-    plt.savefig(out, dpi=150)
+    plt.savefig(out, dpi=600)
     plt.close()
 
 

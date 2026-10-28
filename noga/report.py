@@ -229,11 +229,10 @@ def _style(ax):
     ax.tick_params(colors=INK)
 
 
-def figures(preds, meta: pd.DataFrame):
+def tau_figure(meta: pd.DataFrame):
+    '''Paper figure: the cost-optimal quantile tau_t vs the day-ahead price.'''
     p_da = meta[P_DA].to_numpy()
     t = tau(p_da, meta[P_O].to_numpy(), meta[P_U].to_numpy())
-
-    # tau_t vs day-ahead price.
     fig, ax = plt.subplots(figsize=(8, 4.5))
     idx = np.random.default_rng(0).choice(len(t), 5000, replace=False)
     ax.scatter(p_da[idx], t[idx], s=8, color=BLUE, alpha=0.35,
@@ -248,8 +247,14 @@ def figures(preds, meta: pd.DataFrame):
     ax.legend(frameon=False)
     _style(ax)
     fig.tight_layout()
-    fig.savefig(PLOTS / "tau_vs_price.png", dpi=150)
+    fig.savefig(PLOTS / "tau_vs_price.png", dpi=600)  # journal minimum: 500
     plt.close(fig)
+
+
+def figures(preds, meta: pd.DataFrame):
+    tau_figure(meta)
+    p_da = meta[P_DA].to_numpy()
+    t = tau(p_da, meta[P_O].to_numpy(), meta[P_U].to_numpy())
 
     # Coverage and excess cost by price decile.
     dec = pd.qcut(p_da, 10, labels=False)
@@ -340,5 +345,7 @@ if __name__ == "__main__":
             report(seeds=[0], price_seeds=[0])
         case ["sensitivity"]:
             sensitivity()
+        case ["tau"]:
+            tau_figure(load_data(price_seed=PRICE_SEEDS[0])[1].meta)
         case _:
             report()
