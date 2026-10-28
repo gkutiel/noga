@@ -1,0 +1,7 @@
+Highlights
+
+- One model forecasts demand and prices and is trained on procurement cost
+- Its safety margin rises with the price, as the newsvendor solution requires
+- 6% cheaper than a joint load-price network trained for accuracy, then corrected
+- Saves about $27M a year in Israel; roughly $1B a year at US scale
+- New open dataset: Israeli demand, operator forecast, prices and weather

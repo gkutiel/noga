@@ -8,6 +8,12 @@ tasks:
       - evince main.pdf &
       - latexmk -pvc -pdf -interaction=nonstopmode -synctex=1 main.tex
 
+  ijf:
+    desc: "International Journal of Forecasting submission: anonymised manuscript, title page, cover letter, supplement"
+    cmds:
+      - for f in ijf ijf_title ijf_cover; do latexmk -pdf -interaction=nonstopmode -halt-on-error $f.tex; done
+      - ./ijf_supplement.sh
+
   docx:
     desc: "Generate main.docx from the LaTeX paper (needs main.aux: build the PDF first)"
     cmds:

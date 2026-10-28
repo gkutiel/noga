@@ -1,0 +1,91 @@
+% Anonymised manuscript for the International Journal of Forecasting
+% (double-anonymised review).  Author details, funding and declarations are
+% in ijf_title.tex; the sections are shared with main.tex.
+\documentclass[preprint,review,12pt,authoryear,nonatbib]{elsarticle}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[hidelinks]{hyperref}
+\usepackage[margin=1in]{geometry}
+\usepackage{placeins}
+\usepackage{float}
+\usepackage[style=authoryear,backend=biber,maxbibnames=6,uniquename=false]{biblatex}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{lineno}
+\linenumbers
+
+\emergencystretch=1em
+
+% Numbers used in the text (from the experiments).
+\newcommand{\nTrain}{184{,}268}
+\newcommand{\nTest}{104{,}854}
+\newcommand{\nParams}{1{,}805}
+% The repository would identify the authors: withheld for review.
+\newcommand{\codeurl}{Repository link withheld for anonymous review; the code
+and data are provided as supplementary material.}
+
+\addbibresource{ref.bib}
+
+\journal{International Journal of Forecasting}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{A Unified Price-and-Demand Model for Cost-Optimal Day-Ahead
+Electricity Demand Forecasting: Evidence from the Israeli Market}
+
+\begin{abstract}
+Day-ahead electricity is bought before demand is known, and a shortfall is
+settled at a price several times higher than a surplus, by a factor that rises
+with the price.  The cost-optimal forecast is therefore a quantile of demand
+that moves with the price, yet demand and prices are forecast separately and
+for accuracy.  We propose a unified model: a small neural network that
+forecasts demand and prices from a shared representation and trains the
+demand forecast on the price-weighted procurement cost.  On a new open dataset
+of the Israeli market, with real day-ahead and synthetic imbalance prices,
+the model lowers the excess cost of the test year to \$49.5 million: 6\%
+below a joint demand-and-price network trained for accuracy and corrected
+afterwards, and 19\% below the operator's corrected forecast.  Replacing the
+operator's published forecast would save about \$27 million per year in
+Israel, roughly \$1 billion at US scale.
+\end{abstract}
+
+\begin{keyword}
+Load forecasting \sep Electricity price forecasting \sep
+Decision-focused learning \sep Newsvendor problem \sep Imbalance cost \sep
+Quantile forecasting \sep Neural networks
+\end{keyword}
+
+\end{frontmatter}
+
+\section{Introduction}\label{sec:intro}
+\input{intro}
+
+\section{Related Work}\label{sec:related}
+\input{related}
+
+\section{Problem Formulation}\label{sec:modeling}
+\input{modeling}
+
+\section{The Unified Model}\label{sec:architecture}
+\input{method}
+\clearpage  % flush the full-page model figure before the next section
+
+\section{Data and Experimental Setup}\label{sec:dataset}
+\input{dataset}
+
+\section{Results}\label{sec:evaluation}
+\input{evaluation}
+
+\section{Conclusion}\label{sec:conclusion}
+\input{conclusion}
+
+\FloatBarrier
+\printbibliography
+
+\end{document}

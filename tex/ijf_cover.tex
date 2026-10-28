@@ -1,0 +1,59 @@
+% Cover letter for the International Journal of Forecasting submission.
+\documentclass[11pt,a4paper]{letter}
+\usepackage[margin=1in]{geometry}
+\usepackage[hidelinks]{hyperref}
+
+\signature{Gilad Kutiel, on behalf of the authors\\
+Technion -- Israel Institute of Technology\\
+\href{mailto:gilad.kutiel@gmail.com}{gilad.kutiel@gmail.com}}
+\address{}
+
+\begin{document}
+
+\begin{letter}{The Editor-in-Chief\\International Journal of Forecasting}
+
+\opening{Dear Editor,}
+
+We submit the manuscript ``A Unified Price-and-Demand Model for Cost-Optimal
+Day-Ahead Electricity Demand Forecasting: Evidence from the Israeli Market''
+for consideration as a research article in the \emph{International Journal of
+Forecasting}.
+
+When day-ahead forecast errors are settled at market prices, the forecast that
+minimises cost is not the expected demand but a quantile that moves with the
+price.  Demand and prices are nevertheless forecast separately and for
+accuracy, and cost-oriented load forecasting uses a fixed cost ratio.  The
+paper proposes, to our knowledge, the first model that forecasts demand and
+prices from one shared representation and trains the demand forecast on the
+price-weighted procurement cost.  The paper's main contributions are:
+
+\begin{itemize}
+    \item A unified model whose safety margin rises with the price, as
+          newsvendor theory requires.  It is significantly cheaper
+          (Diebold--Mariano tests) than demand-only models trained for
+          accuracy or with a fixed asymmetry, than a joint demand-and-price
+          network trained for accuracy and corrected afterwards, and than the
+          system operator's real forecast after the best correction.
+    \item A savings estimate in money: about \$27 million per year against the
+          Israeli operator's published forecast, roughly \$1 billion per year
+          at US scale.
+    \item A new open dataset of the Israeli market that aligns 5-minute
+          national demand, the operator's real day-ahead forecast, real
+          day-ahead prices and weather, together with the complete code.
+\end{itemize}
+
+We believe the paper suits the journal because it treats forecasting as an
+input to a decision and evaluates forecasts by the cost of that decision,
+alongside conventional accuracy measures.  In line with the journal's
+reproducibility policy, all data and code are provided as supplementary
+material and reproduce every table and figure.  The model has fewer than
+2{,}000 parameters and trains in about five minutes on a standard laptop.
+
+The manuscript is original, has not been published, and is not under
+consideration elsewhere.  All authors have approved the submission and
+declare no competing interests.
+
+\closing{Sincerely,}
+
+\end{letter}
+\end{document}
