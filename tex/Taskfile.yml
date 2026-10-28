@@ -9,6 +9,11 @@ tasks:
       - latexmk -pvc -pdf -interaction=nonstopmode -synctex=1 main.tex
 
   docx:
-    desc: "Generate main.docx from the LaTeX paper"
+    desc: "Generate main.docx from the LaTeX paper (needs main.aux: build the PDF first)"
     cmds:
-      - pandoc main.tex --citeproc --bibliography=ref.bib -o main.docx
+      - rm -rf .docx && mkdir .docx && cp main.tex ref.bib .docx/ && cp -r plot .docx/
+      - pdftoppm -png -r 200 -singlefile plot/model.pdf .docx/plot/model
+      - python3 -I docx_prep.py . .docx
+      - cd .docx && pandoc main.tex --citeproc --bibliography=ref.bib -o raw.docx
+      - python3 -I docx_post.py .docx/raw.docx main.docx
+      - rm -rf .docx
