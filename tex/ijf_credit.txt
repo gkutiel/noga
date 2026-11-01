@@ -1,0 +1,5 @@
+CRediT authorship contribution statement (for the submission form)
+
+Gilad Kutiel: Conceptualization, Methodology, Software, Data curation, Formal analysis, Investigation, Validation, Visualization, Writing - original draft, Writing - review & editing.
+Or Aleksandrowicz: Conceptualization, Funding acquisition, Project administration, Supervision, Writing - review & editing.
+Avigdor Gal: Conceptualization.
