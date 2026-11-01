@@ -9,7 +9,7 @@ on the pinball loss~\parencite{wang2019pinball}, LSTMs trained on losses
 derived from an asymmetric tariff, which cut electricity costs by
 0.9--2.4\%~\parencite{lin2020asymmetric}, an asymmetric support vector
 regression~\parencite{wu2021svr}, and a cost-oriented formulation of load
-forecasting~\parencite{zhang2022costoriented}.  In all of them the asymmetry
+forecasting~\parencite{zhang2022costoriented}.  In all of them, the asymmetry
 is \emph{fixed}---one quantile, or the slopes of one tariff---and prices play
 no role in the model.
 
@@ -27,7 +27,7 @@ literature~\parencite{weron2014electricity}, likewise accuracy-oriented.
 learning trains predictors against the cost of a downstream decision rather
 than a statistical error~\parencite{donti2017taskbased, elmachtoub2022spo};
 the feature-based newsvendor~\parencite{ban2019bignewsvendor} learns an order
-quantity directly from features under fixed costs.  In power systems the idea
+quantity directly from features under fixed costs.  In power systems, the idea
 has been applied to wind and solar forecasts traded in
 markets~\parencite{stratigakos2022prescriptive, zhang2024valueoriented} and to
 load forecasts for a downstream dispatch~\parencite{donti2017taskbased,
@@ -35,10 +35,10 @@ han2020lfednet}.  These works treat the cost parameters as given rather than
 predicting them, and none addresses national demand with real market prices
 or benchmarks against the forecast an operator actually uses.
 
-\paragraph*{The gap.}  After a search of these three literatures we found no
-model that \emph{unifies} them: one that forecasts the prices together with
-the demand and trains the demand forecast on the price-weighted cost, so that
-the decision follows the model's own price expectations.  We therefore
+\paragraph*{The gap.}  After searching these three lines of literature, we found no
+model that \emph{unifies} them: one that forecasts prices and demand together
+and trains the demand forecast on the price-weighted cost, so the
+decision follows the model's own price expectations.  We therefore
 compare against the strongest representative of each line: a joint
 load-and-price network trained for accuracy whose own price forecasts then set
 the margin, a fixed-asymmetry (pinball) model, and accuracy-trained models
